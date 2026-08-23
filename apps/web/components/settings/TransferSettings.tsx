@@ -7,7 +7,10 @@ import { Checkbox } from "@/components/ui/Checkbox";
 import { api, type TransferSettings as Settings } from "@/lib/api";
 import { cn } from "@/lib/cn";
 
+const KB = 1024;
 const MB = 1024 * 1024;
+
+type Unit = "KB" | "MB";
 
 function Row({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
 	return (
@@ -59,6 +62,57 @@ function NumberInput({
 	);
 }
 
+/**
+ * Speed limits are stored as bytes/sec but read naturally in two different
+ * ranges: upload caps on a metered box are tens to hundreds of KB/s, download
+ * caps are whole MB/s. One fixed unit makes one of those awkward, so the unit
+ * is the user's choice and only affects display.
+ */
+function SpeedInput({ bps, onChange, disabled }: { bps: number; onChange: (bps: number) => void; disabled?: boolean }) {
+	// Seeded from the incoming value, then owned by the user — re-deriving it on
+	// every render would yank the unit out from under them as they type.
+	const [unit, setUnit] = useState<Unit>(() => (bps > 0 && bps < MB ? "KB" : "MB"));
+
+	const factor = unit === "KB" ? KB : MB;
+	// KB/s is always whole; MB/s keeps one decimal so 0.5 MB/s stays expressible.
+	const shown = unit === "KB" ? Math.round(bps / KB) : Math.round((bps / MB) * 10) / 10;
+
+	return (
+		<span className="flex items-center gap-2">
+			<NumberInput
+				value={shown}
+				// Math.round matters: 0.1 * 1048576 is 104857.6, and the API takes
+				// an integer number of bytes. Without it every fractional MB/s 400s.
+				onChange={(n) => onChange(Math.max(0, Math.round(n * factor)))}
+				step={unit === "KB" ? 50 : 0.1}
+				disabled={disabled}
+				width="w-24"
+			/>
+			<span
+				className={cn(
+					"inline-flex overflow-hidden rounded-[var(--ct-radius-sm)] border border-border",
+					disabled && "pointer-events-none opacity-50",
+				)}
+			>
+				{(["KB", "MB"] as const).map((u) => (
+					<button
+						key={u}
+						type="button"
+						aria-pressed={unit === u}
+						onClick={() => setUnit(u)}
+						className={cn(
+							"h-9 cursor-pointer px-2.5 text-xs transition-colors",
+							unit === u ? "bg-accent text-accent-fg" : "bg-surface-2 text-fg-muted hover:text-fg",
+						)}
+					>
+						{u}/s
+					</button>
+				))}
+			</span>
+		</span>
+	);
+}
+
 export function TransferSettings() {
 	const qc = useQueryClient();
 	const { data } = useQuery({ queryKey: ["transfer-settings"], queryFn: api.transferSettings });
@@ -94,21 +148,11 @@ export function TransferSettings() {
 
 			<section className="rounded-[var(--ct-radius)] border border-border bg-surface px-4">
 				<Row label="Download limit" hint="0 means unlimited.">
-					<NumberInput
-						value={Math.round((draft.dlLimitBps / MB) * 10) / 10}
-						onChange={(n) => set("dlLimitBps", Math.max(0, n) * MB)}
-						suffix="MB/s"
-						step={0.5}
-					/>
+					<SpeedInput bps={draft.dlLimitBps} onChange={(n) => set("dlLimitBps", n)} />
 				</Row>
 
 				<Row label="Upload limit" hint="This is the one that spends your egress allowance.">
-					<NumberInput
-						value={Math.round((draft.upLimitBps / MB) * 10) / 10}
-						onChange={(n) => set("upLimitBps", Math.max(0, n) * MB)}
-						suffix="MB/s"
-						step={0.5}
-					/>
+					<SpeedInput bps={draft.upLimitBps} onChange={(n) => set("upLimitBps", n)} />
 				</Row>
 
 				<Row label="Stop seeding at ratio" hint="Uploaded ÷ downloaded. The strongest egress guard.">
