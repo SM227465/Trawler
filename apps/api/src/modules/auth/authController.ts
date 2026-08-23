@@ -1,6 +1,7 @@
 import type { Request, RequestHandler, Response } from "express";
 import { env } from "@/common/utils/envConfig";
 import { handleServiceResponse } from "@/common/utils/httpHandlers";
+import { audit } from "@/modules/audit/auditService";
 import { authService } from "./authService";
 import { ACCESS_COOKIE, REFRESH_COOKIE } from "./authTokens";
 
@@ -28,6 +29,18 @@ class AuthController {
 		if (refreshToken) res.cookie(REFRESH_COOKIE, refreshToken, cookieOptions);
 		const at = response.responseObject?.accessToken;
 		if (at) res.cookie(ACCESS_COOKIE, at, accessCookieOptions);
+
+		// Failures matter more than successes here: this box has exactly one
+		// account and is reachable from the whole internet, so a run of
+		// login_failed rows from one IP is the only warning you will get.
+		// The email is recorded, never the password.
+		audit.record({
+			...audit.requestContext(req),
+			action: response.success ? "auth.login" : "auth.login_failed",
+			actorId: response.responseObject?.user?.id ?? null,
+			metadata: { email: typeof email === "string" ? email.slice(0, 200) : null },
+		});
+
 		handleServiceResponse(response, res);
 	};
 

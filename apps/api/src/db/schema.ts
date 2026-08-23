@@ -263,6 +263,40 @@ export const shareAccessLog = pgTable(
 	(t) => [index("share_access_log_share_at_idx").on(t.shareId, t.at.desc()), index("share_access_log_at_idx").on(t.at)],
 );
 
+// ─────────────────────────────── audit ───────────────────────────────
+// Who changed what, and from where. Distinct from share_access_log, which
+// records anonymous READS of a share link; this records OWNER-initiated writes.
+//
+// Deliberately not a foreign key on the target: rows must survive the thing
+// they describe. "Deleted torrent X" is precisely the entry you want to still
+// be there after torrent X is gone, and ON DELETE CASCADE would erase exactly
+// the history worth keeping.
+
+export const auditLog = pgTable(
+	"audit_log",
+	{
+		id: bigserial("id", { mode: "number" }).primaryKey(),
+		// Nullable: some auditable events have no authenticated actor yet — a
+		// failed login is the obvious one, and it is the most worth recording.
+		actorId: uuid("actor_id").references(() => users.id, { onDelete: "set null" }),
+		// Dotted verb: "share.create", "torrent.remove", "file.delete".
+		action: text("action").notNull(),
+		targetType: text("target_type"),
+		targetId: text("target_id"),
+		ip: inet("ip"),
+		userAgent: text("user_agent"),
+		// Free-form context — the label of a share, whether files were deleted
+		// with a torrent. Never credentials; see the redaction note in doc 01.
+		metadata: jsonb("metadata"),
+		at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+	},
+	(t) => [
+		index("audit_log_at_idx").on(t.at.desc()),
+		index("audit_log_action_at_idx").on(t.action, t.at.desc()),
+		index("audit_log_target_idx").on(t.targetType, t.targetId),
+	],
+);
+
 // ─────────────────────────────── egress ──────────────────────────────
 // The free-tier guard rail. Oracle bills past 10 TB/month; budget ceiling is $0.
 

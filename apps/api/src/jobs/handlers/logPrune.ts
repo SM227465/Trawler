@@ -12,6 +12,7 @@ import { db } from "@/db/client";
  */
 
 const SHARE_LOG_DAYS = 30;
+const AUDIT_LOG_DAYS = 30;
 const EXPIRED_TOKEN_DAYS = 7;
 
 export async function pruneHandler() {
@@ -24,6 +25,18 @@ export async function pruneHandler() {
 		results.shareAccessLog = rowCount ?? 0;
 	} catch (err) {
 		logger.error({ err }, "pruning share_access_log failed");
+	}
+
+	try {
+		// Same 30-day window as share_access_log. This is log rotation, not the
+		// app deleting user data on its own — audit rows describe actions, and
+		// the files and torrents they refer to are untouched.
+		const { rowCount } = await db.execute(
+			sql`DELETE FROM audit_log WHERE at < now() - ${`${AUDIT_LOG_DAYS} days`}::interval`,
+		);
+		results.auditLog = rowCount ?? 0;
+	} catch (err) {
+		logger.error({ err }, "pruning audit_log failed");
 	}
 
 	try {

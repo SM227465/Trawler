@@ -225,7 +225,12 @@ path that *looks* contained and then serve something else. `resolveRealPath`
 calls `realpath()` first and re-checks containment against the real root.
 Verified live — a link to `/etc` inside downloads is refused for both listing
 and download.
-- [ ] **Audit log** — needs an `audit_log` table + migration; not yet built
+- [x] **Audit log** — `audit_log` table + migration 0003. Records owner-initiated
+      WRITES (login/login_failed, torrent.remove, file.delete, share.create,
+      share.revoke); `share_access_log` stays the record of anonymous READS.
+      Fire-and-forget so auditing can never fail the audited action, no FK on
+      the target so rows outlive what they describe, and pruned to 30 days by
+      the nightly job alongside `share_access_log`.
 
 **Transfers is list-only.** Add moved into a modal that takes many magnets
 (newline or whitespace separated, up to 50) AND many `.torrent` files (up to 20)

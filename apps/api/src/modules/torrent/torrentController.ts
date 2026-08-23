@@ -1,6 +1,7 @@
 import type { Request, RequestHandler, Response } from "express";
 import { ServiceResponse } from "@/common/models/serviceResponse";
 import { handleServiceResponse } from "@/common/utils/httpHandlers";
+import { audit } from "@/modules/audit/auditService";
 import { torrentService } from "./torrentService";
 
 class TorrentController {
@@ -75,7 +76,19 @@ class TorrentController {
 
 	public remove: RequestHandler = async (req, res) => {
 		const deleteFiles = (req.query as unknown as { deleteFiles: boolean }).deleteFiles;
-		handleServiceResponse(await torrentService.remove(req.params.id as string, deleteFiles), res);
+		const result = await torrentService.remove(req.params.id as string, deleteFiles);
+		if (result.success) {
+			// deleteFiles is the difference between "removed from the list" and
+			// "gone from disk". Without it the entry cannot answer the only
+			// question anyone asks afterwards.
+			audit.recordFromRequest(req, {
+				action: "torrent.remove",
+				targetType: "torrent",
+				targetId: req.params.id as string,
+				metadata: { deleteFiles: Boolean(deleteFiles) },
+			});
+		}
+		handleServiceResponse(result, res);
 	};
 }
 

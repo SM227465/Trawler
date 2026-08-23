@@ -1,5 +1,6 @@
 import type { Request, RequestHandler, Response } from "express";
 import { handleServiceResponse } from "@/common/utils/httpHandlers";
+import { audit } from "@/modules/audit/auditService";
 import { browseService } from "./browseService";
 import { fileService } from "./fileService";
 
@@ -21,7 +22,17 @@ class FileController {
 	};
 
 	public browseDelete: RequestHandler = async (req: Request, res: Response) => {
-		handleServiceResponse(await browseService.remove(req.query.path as string | undefined), res);
+		const target = req.query.path as string | undefined;
+		const result = await browseService.remove(target);
+		if (result.success) {
+			const deleted = result.responseObject as { type?: string } | null;
+			audit.recordFromRequest(req, {
+				action: "file.delete",
+				targetType: deleted?.type === "dir" ? "directory" : "file",
+				targetId: target ?? null,
+			});
+		}
+		handleServiceResponse(result, res);
 	};
 
 	public update: RequestHandler = async (req: Request, res: Response) => {

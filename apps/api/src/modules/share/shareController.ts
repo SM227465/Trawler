@@ -1,5 +1,6 @@
 import type { Request, RequestHandler, Response } from "express";
 import { handleServiceResponse } from "@/common/utils/httpHandlers";
+import { audit } from "@/modules/audit/auditService";
 import { shareService } from "./shareService";
 
 /** Cookie proving a password-protected share was unlocked in this browser. */
@@ -7,7 +8,24 @@ export const shareUnlockCookie = (id: string) => `ct_share_${id}`;
 
 class ShareController {
 	public create: RequestHandler = async (req: Request, res: Response) => {
-		handleServiceResponse(await shareService.create(req.body, req.user!.id), res);
+		const result = await shareService.create(req.body, req.user!.id);
+		if (result.success) {
+			const share = result.responseObject as { id?: string } | null;
+			audit.recordFromRequest(req, {
+				action: "share.create",
+				targetType: "share",
+				targetId: share?.id ?? null,
+				// A share link is a capability handed to strangers, so what it
+				// permits is exactly what you want on record when one leaks.
+				metadata: {
+					label: req.body?.label ?? null,
+					hasPassword: Boolean(req.body?.password),
+					expiryHours: req.body?.expiryHours ?? null,
+					allowDownload: req.body?.allowDownload ?? true,
+				},
+			});
+		}
+		handleServiceResponse(result, res);
 	};
 
 	public list: RequestHandler = async (req: Request, res: Response) => {
@@ -15,7 +33,11 @@ class ShareController {
 	};
 
 	public revoke: RequestHandler = async (req: Request, res: Response) => {
-		handleServiceResponse(await shareService.revoke(req.params.id, req.user!.id), res);
+		const result = await shareService.revoke(req.params.id, req.user!.id);
+		if (result.success) {
+			audit.recordFromRequest(req, { action: "share.revoke", targetType: "share", targetId: req.params.id });
+		}
+		handleServiceResponse(result, res);
 	};
 
 	// ── public, unauthenticated ──
