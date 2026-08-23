@@ -1,6 +1,6 @@
 "use client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { api, type PublicUser, refreshSession, setAccessToken } from "@/lib/api";
 
@@ -23,10 +23,20 @@ function AuthProvider({ children }: { children: ReactNode }) {
 	const [user, setUser] = useState<PublicUser | null>(null);
 	const [ready, setReady] = useState(false);
 	const router = useRouter();
+	const pathname = usePathname();
+
+	// /s/* is the public share page. Its visitor is a stranger with no session,
+	// so refreshing there just 401s in their console and advertises that there
+	// is an account system behind the link. Stay silent on public routes.
+	const isPublicRoute = pathname?.startsWith("/s/") ?? false;
 
 	// The access token is memory-only, so a reload always starts tokenless.
 	// The httpOnly refresh cookie is what restores the session.
 	useEffect(() => {
+		if (isPublicRoute) {
+			setReady(true);
+			return;
+		}
 		let cancelled = false;
 		(async () => {
 			if (await refreshSession()) {
@@ -42,7 +52,7 @@ function AuthProvider({ children }: { children: ReactNode }) {
 		return () => {
 			cancelled = true;
 		};
-	}, []);
+	}, [isPublicRoute]);
 
 	const login = useCallback(async (email: string, password: string) => {
 		const { accessToken, user: u } = await api.login(email, password);
