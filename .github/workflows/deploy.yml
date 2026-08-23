@@ -78,7 +78,8 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: ${{ secrets.DEPLOY_PORT || 22 }}
-          script_stop: true
+          # No `script_stop`: ssh-action v1 dropped it and warns on unknown
+          # inputs. The script's own `set -euo pipefail` is what aborts on error.
           script: |
             set -euo pipefail
             cd ${{ secrets.DEPLOY_PATH }}
