@@ -137,7 +137,10 @@ function Row({ entry, onOpen }: { entry: BrowseEntry; onOpen: (p: string) => voi
 					{formatSince(entry.modifiedAt)}
 				</span>
 
-				<span className="flex shrink-0 gap-0.5">
+				{/* Fixed width, right-aligned: Play is conditional, and without a
+				    reserved slot its absence dragged the size and time columns 30px
+				    left on every non-playable row. 3 x size-7 + 2 x gap-0.5 = 5.5rem. */}
+				<span className="flex w-[5.5rem] shrink-0 justify-end gap-0.5">
 					{!isDir && (media.playable || media.needsExternalPlayer) && (
 						<button
 							type="button"
