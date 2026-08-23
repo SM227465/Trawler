@@ -259,8 +259,7 @@ export const api = {
 
 	getTorrent: (id: string) => apiFetch<Torrent>(`/torrents/${id}`),
 
-	addTorrent: (magnet: string) =>
-		apiFetch<Torrent>("/torrents", { method: "POST", body: JSON.stringify({ magnet }) }),
+	addTorrent: (magnet: string) => apiFetch<Torrent>("/torrents", { method: "POST", body: JSON.stringify({ magnet }) }),
 
 	addMagnets: (magnets: string[]) =>
 		apiFetch<BatchResult>("/torrents/batch", { method: "POST", body: JSON.stringify({ magnets }) }),
@@ -286,8 +285,7 @@ export const api = {
 
 	listShares: () => apiFetch<Share[]>("/shares"),
 
-	createShare: (input: CreateShareInput) =>
-		apiFetch<Share>("/shares", { method: "POST", body: JSON.stringify(input) }),
+	createShare: (input: CreateShareInput) => apiFetch<Share>("/shares", { method: "POST", body: JSON.stringify(input) }),
 
 	revokeShare: (id: string) => apiFetch<Share>(`/shares/${id}`, { method: "DELETE" }),
 
@@ -297,8 +295,7 @@ export const api = {
 
 	webdav: () => apiFetch<WebdavAccess>("/settings/webdav"),
 
-	browse: (path: string) =>
-		apiFetch<BrowseListing>(`/files/browse?path=${encodeURIComponent(path)}`),
+	browse: (path: string) => apiFetch<BrowseListing>(`/files/browse?path=${encodeURIComponent(path)}`),
 
 	browseLink: (path: string) =>
 		apiFetch<{ path: string; url: string; filename: string; sizeBytes: number }>(

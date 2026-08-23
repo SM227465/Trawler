@@ -1,8 +1,8 @@
 import { CloudDownload, Download, FileWarning } from "lucide-react";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { fetchPublicShare, type ShareDeadReason } from "@/lib/serverApi";
 import { formatBytes } from "@/lib/format";
+import { fetchPublicShare, type ShareDeadReason } from "@/lib/serverApi";
 import { UnlockForm } from "./UnlockForm";
 
 /**

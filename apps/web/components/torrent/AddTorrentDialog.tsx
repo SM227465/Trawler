@@ -1,6 +1,6 @@
 "use client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Check, CircleAlert, FileUp, LoaderCircle, Copy as Dup } from "lucide-react";
+import { Check, CircleAlert, Copy as Dup, FileUp, LoaderCircle } from "lucide-react";
 import { type DragEvent, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
@@ -129,6 +129,12 @@ export function AddTorrentDialog({ open, onClose }: { open: boolean; onClose: ()
 			title="Add torrents"
 			description="Paste magnet links — one per line — or attach .torrent files. Both at once is fine."
 		>
+			{/* Drag-and-drop is a mouse-only ENHANCEMENT here, not the only route:
+			    the same files can be added with the keyboard-accessible "Attach
+			    .torrent files" button, and magnets via the textarea. Giving this
+			    wrapper a role and key handlers would announce an interactive
+			    element to screen readers that offers them nothing extra. */}
+			{/* biome-ignore lint/a11y/noStaticElementInteractions: drop zone supplements an accessible button */}
 			<div
 				onDragOver={(e) => {
 					e.preventDefault();

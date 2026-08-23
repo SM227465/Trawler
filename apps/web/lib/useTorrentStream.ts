@@ -128,9 +128,7 @@ export function useTorrentStream(enabled: boolean) {
 
 				for (const d of deltas) {
 					const existed = qc.getQueryData<Torrent>(torrentKey(d.id)) !== undefined;
-					qc.setQueryData<Torrent>(torrentKey(d.id), (prev) =>
-						prev ? { ...prev, ...d } : (d as Torrent),
-					);
+					qc.setQueryData<Torrent>(torrentKey(d.id), (prev) => (prev ? { ...prev, ...d } : (d as Torrent)));
 					if (!existed) fresh.push(d.id);
 					// The index backs filtering AND sorting, so it tracks every
 					// sortable field. Rows still own their full data, so a tick
@@ -163,8 +161,9 @@ export function useTorrentStream(enabled: boolean) {
 			es.addEventListener("removed", (e) => {
 				const ids = JSON.parse((e as MessageEvent).data) as string[];
 				qc.setQueryData<string[]>(TORRENT_IDS_KEY, (prev) => prev?.filter((i) => !ids.includes(i)) ?? []);
-				qc.setQueryData<TorrentIndexEntry[]>(TORRENT_INDEX_KEY, (prev) =>
-					prev?.filter((e) => !ids.includes(e.id)) ?? [],
+				qc.setQueryData<TorrentIndexEntry[]>(
+					TORRENT_INDEX_KEY,
+					(prev) => prev?.filter((e) => !ids.includes(e.id)) ?? [],
 				);
 				for (const id of ids) qc.removeQueries({ queryKey: torrentKey(id) });
 			});

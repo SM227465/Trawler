@@ -92,7 +92,9 @@ function Row({ share }: { share: Share }) {
 				<div>
 					<dt className="text-fg-subtle">Expires</dt>
 					<dd className="text-fg-muted">
-						{share.expiresAt ? new Date(share.expiresAt).toLocaleDateString(undefined, { dateStyle: "medium" }) : "never"}
+						{share.expiresAt
+							? new Date(share.expiresAt).toLocaleDateString(undefined, { dateStyle: "medium" })
+							: "never"}
 					</dd>
 				</div>
 				<div>
@@ -121,8 +123,8 @@ function Row({ share }: { share: Share }) {
 				busy={revoke.isPending}
 			>
 				<p className="text-xs text-fg-muted">
-					It stops working immediately for everyone who has it. The files stay on disk, and the record is kept
-					so you can still see what was shared.
+					It stops working immediately for everyone who has it. The files stay on disk, and the record is kept so you
+					can still see what was shared.
 				</p>
 			</ConfirmDialog>
 		</li>
@@ -152,9 +154,7 @@ export function ShareList() {
 	return (
 		<div className="flex flex-col gap-5">
 			<section>
-				<h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-fg-subtle">
-					Active ({active.length})
-				</h3>
+				<h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-fg-subtle">Active ({active.length})</h3>
 				{active.length === 0 ? (
 					<p className="rounded-[var(--ct-radius)] border border-border bg-surface p-6 text-center text-sm text-fg-muted">
 						No active links.

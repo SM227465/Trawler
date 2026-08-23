@@ -34,7 +34,7 @@
 
 	/* accent */
 	--ct-accent: oklch(0.56 0.17 250);
-	--ct-accent-hover: oklch(0.50 0.18 250);
+	--ct-accent-hover: oklch(0.5 0.18 250);
 	--ct-accent-fg: oklch(0.99 0 0);
 	--ct-accent-soft: oklch(0.945 0.03 250);
 
@@ -42,7 +42,7 @@
 	--ct-status-downloading: oklch(0.58 0.16 245);
 	--ct-status-completed: oklch(0.56 0.14 152);
 	--ct-status-paused: oklch(0.62 0.11 75);
-	--ct-status-errored: oklch(0.55 0.20 25);
+	--ct-status-errored: oklch(0.55 0.2 25);
 	--ct-status-queued: oklch(0.62 0.012 255);
 
 	--ct-status-downloading-soft: oklch(0.94 0.035 245);
@@ -52,7 +52,7 @@
 	--ct-status-queued-soft: oklch(0.955 0.004 255);
 
 	/* feedback */
-	--ct-danger: oklch(0.55 0.20 25);
+	--ct-danger: oklch(0.55 0.2 25);
 	--ct-danger-fg: oklch(0.99 0 0);
 	--ct-warning: oklch(0.62 0.13 75);
 	--ct-success: oklch(0.56 0.14 152);
@@ -72,7 +72,7 @@
 	--ct-chart-ul: oklch(0.62 0.14 300);
 	--ct-piece-have: oklch(0.56 0.14 152);
 	--ct-piece-active: oklch(0.68 0.16 75);
-	--ct-piece-missing: oklch(0.90 0.005 255);
+	--ct-piece-missing: oklch(0.9 0.005 255);
 
 	/* glass — used ONLY on the public share page, never the dashboard.
 	   See the note at the bottom of this file. */
@@ -80,7 +80,7 @@
 	--ct-glass-border: oklch(1 0 0 / 0.5);
 	--ct-glass-blur: 20px;
 
-	--ct-overlay: oklch(0.30 0.02 258 / 0.45);
+	--ct-overlay: oklch(0.3 0.02 258 / 0.45);
 
 	/* shape + elevation */
 	--ct-radius: 0.625rem;
@@ -93,7 +93,7 @@
 @media (prefers-color-scheme: dark) {
 	:root:not([data-theme="light"]) {
 		--ct-bg: oklch(0.165 0.008 258);
-		--ct-surface: oklch(0.205 0.010 258);
+		--ct-surface: oklch(0.205 0.01 258);
 		--ct-surface-2: oklch(0.248 0.012 258);
 		--ct-surface-inset: oklch(0.145 0.008 258);
 
@@ -102,9 +102,9 @@
 		--ct-fg-subtle: oklch(0.585 0.012 258);
 
 		--ct-border: oklch(0.295 0.012 258);
-		--ct-border-strong: oklch(0.40 0.015 258);
+		--ct-border-strong: oklch(0.4 0.015 258);
 
-		--ct-accent: oklch(0.70 0.15 250);
+		--ct-accent: oklch(0.7 0.15 250);
 		--ct-accent-hover: oklch(0.77 0.14 250);
 		--ct-accent-fg: oklch(0.16 0.02 258);
 		--ct-accent-soft: oklch(0.28 0.055 250);
@@ -113,13 +113,13 @@
 		--ct-status-completed: oklch(0.74 0.15 152);
 		--ct-status-paused: oklch(0.78 0.12 75);
 		--ct-status-errored: oklch(0.68 0.18 25);
-		--ct-status-queued: oklch(0.60 0.012 258);
+		--ct-status-queued: oklch(0.6 0.012 258);
 
 		--ct-status-downloading-soft: oklch(0.27 0.05 245);
 		--ct-status-completed-soft: oklch(0.26 0.05 152);
 		--ct-status-paused-soft: oklch(0.28 0.05 75);
 		--ct-status-errored-soft: oklch(0.27 0.06 25);
-		--ct-status-queued-soft: oklch(0.24 0.010 258);
+		--ct-status-queued-soft: oklch(0.24 0.01 258);
 
 		--ct-danger: oklch(0.65 0.19 25);
 		--ct-danger-fg: oklch(0.16 0.02 258);
@@ -132,20 +132,14 @@
 		--ct-viz-3: #199e70;
 		--ct-viz-4: #c98500;
 
-		/* dark steps of the same four hues — re-validated, not flipped */
-	--ct-viz-1: #3987e5;
-	--ct-viz-2: #d95926;
-	--ct-viz-3: #199e70;
-	--ct-viz-4: #c98500;
-
-	--ct-chart-dl: oklch(0.72 0.14 245);
+		--ct-chart-dl: oklch(0.72 0.14 245);
 		--ct-chart-ul: oklch(0.74 0.13 300);
-		--ct-piece-have: oklch(0.70 0.15 152);
-		--ct-piece-active: oklch(0.80 0.14 75);
-		--ct-piece-missing: oklch(0.30 0.010 258);
+		--ct-piece-have: oklch(0.7 0.15 152);
+		--ct-piece-active: oklch(0.8 0.14 75);
+		--ct-piece-missing: oklch(0.3 0.01 258);
 
 		--ct-glass-bg: oklch(0.22 0.012 258 / 0.55);
-		--ct-glass-border: oklch(1 0 0 / 0.10);
+		--ct-glass-border: oklch(1 0 0 / 0.1);
 
 		--ct-overlay: oklch(0.08 0.01 258 / 0.65);
 
@@ -157,7 +151,7 @@
 /* Explicit choice wins over the system setting, in both directions. */
 :root[data-theme="dark"] {
 	--ct-bg: oklch(0.165 0.008 258);
-	--ct-surface: oklch(0.205 0.010 258);
+	--ct-surface: oklch(0.205 0.01 258);
 	--ct-surface-2: oklch(0.248 0.012 258);
 	--ct-surface-inset: oklch(0.145 0.008 258);
 
@@ -166,9 +160,9 @@
 	--ct-fg-subtle: oklch(0.585 0.012 258);
 
 	--ct-border: oklch(0.295 0.012 258);
-	--ct-border-strong: oklch(0.40 0.015 258);
+	--ct-border-strong: oklch(0.4 0.015 258);
 
-	--ct-accent: oklch(0.70 0.15 250);
+	--ct-accent: oklch(0.7 0.15 250);
 	--ct-accent-hover: oklch(0.77 0.14 250);
 	--ct-accent-fg: oklch(0.16 0.02 258);
 	--ct-accent-soft: oklch(0.28 0.055 250);
@@ -177,13 +171,13 @@
 	--ct-status-completed: oklch(0.74 0.15 152);
 	--ct-status-paused: oklch(0.78 0.12 75);
 	--ct-status-errored: oklch(0.68 0.18 25);
-	--ct-status-queued: oklch(0.60 0.012 258);
+	--ct-status-queued: oklch(0.6 0.012 258);
 
 	--ct-status-downloading-soft: oklch(0.27 0.05 245);
 	--ct-status-completed-soft: oklch(0.26 0.05 152);
 	--ct-status-paused-soft: oklch(0.28 0.05 75);
 	--ct-status-errored-soft: oklch(0.27 0.06 25);
-	--ct-status-queued-soft: oklch(0.24 0.010 258);
+	--ct-status-queued-soft: oklch(0.24 0.01 258);
 
 	--ct-danger: oklch(0.65 0.19 25);
 	--ct-danger-fg: oklch(0.16 0.02 258);
@@ -198,12 +192,12 @@
 
 	--ct-chart-dl: oklch(0.72 0.14 245);
 	--ct-chart-ul: oklch(0.74 0.13 300);
-	--ct-piece-have: oklch(0.70 0.15 152);
-	--ct-piece-active: oklch(0.80 0.14 75);
-	--ct-piece-missing: oklch(0.30 0.010 258);
+	--ct-piece-have: oklch(0.7 0.15 152);
+	--ct-piece-active: oklch(0.8 0.14 75);
+	--ct-piece-missing: oklch(0.3 0.01 258);
 
 	--ct-glass-bg: oklch(0.22 0.012 258 / 0.55);
-	--ct-glass-border: oklch(1 0 0 / 0.10);
+	--ct-glass-border: oklch(1 0 0 / 0.1);
 
 	--ct-overlay: oklch(0.08 0.01 258 / 0.65);
 

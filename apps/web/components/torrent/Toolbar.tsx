@@ -36,7 +36,10 @@ export function Toolbar({
 	return (
 		<div className="flex flex-col gap-3 sm:flex-row sm:items-center">
 			<div className="relative sm:max-w-xs sm:flex-1">
-				<Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-fg-subtle" aria-hidden />
+				<Search
+					className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-fg-subtle"
+					aria-hidden
+				/>
 				<input
 					value={query}
 					onChange={(e) => onQuery(e.target.value)}
@@ -108,9 +111,7 @@ export function Toolbar({
 							)}
 						>
 							{f.label}
-							<span className={cn("tabular text-[0.6875rem]", active ? "text-fg-subtle" : "text-fg-subtle")}>
-								{n}
-							</span>
+							<span className={cn("tabular text-[0.6875rem]", active ? "text-fg-subtle" : "text-fg-subtle")}>{n}</span>
 						</button>
 					);
 				})}

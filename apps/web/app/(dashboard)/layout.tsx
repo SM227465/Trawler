@@ -3,8 +3,8 @@ import { CloudDownload, LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useAuth } from "@/app/providers";
-import { Button } from "@/components/ui/Button";
 import { Sidebar } from "@/components/nav/Sidebar";
+import { Button } from "@/components/ui/Button";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {

@@ -5,7 +5,6 @@ import { memo, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { FilesDialog } from "./FilesDialog";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { api, type Torrent } from "@/lib/api";
@@ -13,6 +12,7 @@ import { cn } from "@/lib/cn";
 import { formatBytes, formatEta, formatPercent, formatSince, formatSpeed, formatSwarm } from "@/lib/format";
 import { buildMagnet, useCopy } from "@/lib/useCopy";
 import { TORRENT_IDS_KEY, torrentKey } from "@/lib/useTorrentStream";
+import { FilesDialog } from "./FilesDialog";
 import { ROW_GRID } from "./grid";
 
 /** On mobile the label is shown above the value; on lg the column header carries it. */
@@ -178,12 +178,7 @@ export const TorrentRow = memo(function TorrentRow({ id }: { id: string }) {
 			{/* Full-width progress, spanning the whole row beneath every column. */}
 			<ProgressBar value={t.progress} status={t.status} className="mt-3 lg:col-span-8" />
 
-			<FilesDialog
-				torrentId={id}
-				torrentName={t.name}
-				open={filesOpen}
-				onClose={() => setFilesOpen(false)}
-			/>
+			<FilesDialog torrentId={id} torrentName={t.name} open={filesOpen} onClose={() => setFilesOpen(false)} />
 
 			<ConfirmDialog
 				open={confirmOpen}

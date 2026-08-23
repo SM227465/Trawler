@@ -31,6 +31,12 @@ export function ThemeToggle() {
 			aria-label="Colour theme"
 		>
 			{OPTIONS.map(({ value, icon: Icon, label }) => (
+				// The parent carries role="radiogroup"; this is the standard ARIA
+				// segmented-control pattern. `useSemanticElements` wants
+				// <input type="radio">, which cannot be styled as a segmented
+				// control and would need a visually-hidden input plus a label per
+				// option to look identical.
+				// biome-ignore lint/a11y/useSemanticElements: deliberate radiogroup/radio pattern
 				<button
 					key={value}
 					type="button"

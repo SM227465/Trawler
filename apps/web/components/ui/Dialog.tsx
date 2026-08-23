@@ -33,12 +33,15 @@ export function Dialog({
 	}, [open]);
 
 	return (
+		// biome-ignore lint/a11y/useKeyWithClickEvents: backdrop click; native <dialog> already closes on Escape
 		<dialog
 			ref={ref}
 			aria-labelledby={labelledBy}
 			onClose={onClose}
 			// Clicking the backdrop closes. The dialog element itself fills the
 			// viewport, so we compare the target to distinguish backdrop from panel.
+			// The keyboard equivalent is not missing — the native <dialog> closes on
+			// Escape by itself, which is exactly what a key handler here would add.
 			onClick={(e) => {
 				if (e.target === ref.current) onClose();
 			}}

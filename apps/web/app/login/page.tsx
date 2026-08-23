@@ -50,9 +50,14 @@ export default function LoginPage() {
 				</div>
 
 				<form onSubmit={onSubmit} className="flex flex-col gap-3">
-					<label className="flex flex-col gap-1.5">
+					{/* Explicit htmlFor/id rather than wrapping. `Input` is a component,
+					    so nothing guarantees it renders a real <input> for an implicit
+					    label to bind to — and if it ever stops doing so, the association
+					    breaks silently. */}
+					<label htmlFor="login-email" className="flex flex-col gap-1.5">
 						<span className="text-xs font-medium text-fg-muted">Email</span>
 						<Input
+							id="login-email"
 							type="email"
 							autoComplete="username"
 							required
@@ -61,9 +66,10 @@ export default function LoginPage() {
 						/>
 					</label>
 
-					<label className="flex flex-col gap-1.5">
+					<label htmlFor="login-password" className="flex flex-col gap-1.5">
 						<span className="text-xs font-medium text-fg-muted">Password</span>
 						<Input
+							id="login-password"
 							type="password"
 							autoComplete="current-password"
 							required

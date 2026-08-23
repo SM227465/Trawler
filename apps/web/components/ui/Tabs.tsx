@@ -75,6 +75,10 @@ export function Tabs({
 export function TabPanel({ id, active, children }: { id: string; active: string; children: React.ReactNode }) {
 	if (id !== active) return null;
 	return (
+		// tabIndex={0} is REQUIRED here, not accidental: the WAI-ARIA authoring
+		// practices make a tabpanel focusable so keyboard users can reach panel
+		// content that contains no focusable elements of its own.
+		// biome-ignore lint/a11y/noNoninteractiveTabindex: WAI-ARIA requires a focusable tabpanel
 		<div role="tabpanel" id={`panel-${id}`} aria-labelledby={`tab-${id}`} tabIndex={0} className="outline-none">
 			{children}
 		</div>

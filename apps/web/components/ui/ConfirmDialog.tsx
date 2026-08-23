@@ -41,12 +41,7 @@ export function ConfirmDialog({
 				<Button ref={cancelRef} variant="subtle" onClick={onClose} disabled={busy} className="justify-center">
 					Cancel
 				</Button>
-				<Button
-					variant={danger ? "danger" : "primary"}
-					onClick={onConfirm}
-					disabled={busy}
-					className="justify-center"
-				>
+				<Button variant={danger ? "danger" : "primary"} onClick={onConfirm} disabled={busy} className="justify-center">
 					{busy && <LoaderCircle className="size-4 animate-spin" aria-hidden />}
 					{confirmLabel}
 				</Button>

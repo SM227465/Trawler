@@ -4,10 +4,10 @@ import { HardDrive, LoaderCircle, Settings2, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { SettingsDialog } from "./SettingsDialog";
 import { api, type StorageStatus } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { formatBytes } from "@/lib/format";
+import { SettingsDialog } from "./SettingsDialog";
 
 /**
  * Nothing here deletes on its own. Automatic eviction is off by default, so this
@@ -47,10 +47,7 @@ export function StoragePanel() {
 	const pct = limit > 0 ? Math.min(100, (used / limit) * 100) : 0;
 
 	return (
-		<section
-			className="rounded-[var(--ct-radius)] border border-border bg-surface p-4"
-			aria-label="Storage"
-		>
+		<section className="rounded-[var(--ct-radius)] border border-border bg-surface p-4" aria-label="Storage">
 			<div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
 				<span className="inline-flex items-center gap-2 text-sm font-medium text-fg">
 					<HardDrive className="size-4 text-fg-subtle" aria-hidden />
@@ -59,9 +56,7 @@ export function StoragePanel() {
 				<span className="tabular text-sm text-fg-muted">
 					{formatBytes(used)} of {formatBytes(limit)}
 				</span>
-				<span className="text-xs text-fg-subtle">
-					{settings.enabled ? "auto-cleanup on" : "manual cleanup only"}
-				</span>
+				<span className="text-xs text-fg-subtle">{settings.enabled ? "auto-cleanup on" : "manual cleanup only"}</span>
 				<span className="ml-auto flex items-center gap-3">
 					{disk && budgeted && (
 						<span className="tabular text-xs text-fg-subtle">{formatBytes(disk.freeBytes)} free on disk</span>

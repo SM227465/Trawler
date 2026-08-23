@@ -72,9 +72,9 @@ export function WebdavAccess() {
 			<div className="flex items-start gap-2.5 rounded-[var(--ct-radius)] border border-border bg-surface-inset p-3">
 				<Lock className="mt-px size-4 shrink-0 text-fg-subtle" aria-hidden />
 				<p className="text-xs text-fg-muted">
-					<strong className="text-fg">Read-only.</strong> qBittorrent owns these files — a writable mount
-					would let a client delete them behind its back, and qBittorrent would re-check or re-download
-					everything. Delete torrents from the Transfers page instead.
+					<strong className="text-fg">Read-only.</strong> qBittorrent owns these files — a writable mount would let a
+					client delete them behind its back, and qBittorrent would re-check or re-download everything. Delete torrents
+					from the Transfers page instead.
 				</p>
 			</div>
 

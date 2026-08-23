@@ -27,7 +27,11 @@ export function CoreGrid({ cores }: { cores: number[] }) {
 				)}
 			>
 				{shown.map((c, i) => (
+					// The index IS the identity here: these are CPU cores, addressed by
+					// position, in a fixed-length array for a given host. There is no
+					// other stable id, and reordering is not a thing cores do.
 					<li
+						// biome-ignore lint/suspicious/noArrayIndexKey: core position is the identity
 						key={`core-${i}`}
 						className={cn("rounded-[var(--ct-radius-sm)] bg-surface-inset", dense ? "p-1.5" : "p-2")}
 						title={`CPU ${i + 1} — ${c.toFixed(0)}%`}

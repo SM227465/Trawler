@@ -133,9 +133,7 @@ export function CreateShareDialog({
 								onClick={() => setExpiryHours(e.hours)}
 								className={cn(
 									"cursor-pointer rounded-full px-3 py-1 text-xs transition-colors",
-									expiryHours === e.hours
-										? "bg-accent text-accent-fg"
-										: "bg-surface-inset text-fg-muted hover:text-fg",
+									expiryHours === e.hours ? "bg-accent text-accent-fg" : "bg-surface-inset text-fg-muted hover:text-fg",
 								)}
 							>
 								{e.label}

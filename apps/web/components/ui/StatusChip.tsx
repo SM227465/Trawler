@@ -1,5 +1,5 @@
-import { cn } from "@/lib/cn";
 import type { TorrentStatus } from "@/lib/api";
+import { cn } from "@/lib/cn";
 
 /**
  * Colour comes from the semantic status tokens, so a status is the same colour

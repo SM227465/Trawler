@@ -1,6 +1,5 @@
 "use client";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useState } from "react";
 import {
 	Check,
 	ChevronRight,
@@ -16,6 +15,7 @@ import {
 	Play,
 	Subtitles,
 } from "lucide-react";
+import { useState } from "react";
 import { api, type BrowseEntry } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { formatBytes, formatSince } from "@/lib/format";

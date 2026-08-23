@@ -43,13 +43,17 @@ export function MediaPlayerDialog({
 		onSuccess: setLink,
 	});
 
+	// This effect must fire on OPEN/CLOSE only. `load` is a TanStack mutation
+	// whose identity changes on every state transition it makes, so including it
+	// would re-enter the effect mid-request and refetch in a loop; `link` is the
+	// thing the effect sets.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: intentionally keyed on `open`
 	useEffect(() => {
 		if (open && !link && !load.isPending) load.mutate();
 		if (!open) {
 			setLink(null);
 			setFailed(false);
 		}
-		// biome-ignore lint/correctness/useExhaustiveDependencies: mutate identity churns
 	}, [open]);
 
 	const fallback = (
@@ -107,6 +111,16 @@ export function MediaPlayerDialog({
 						)}
 
 						{media.kind === "image" && (
+							// Plain <img>, not next/image. Next's own docs (Image ->
+							// `src`): the Image Optimization API "will not forward headers
+							// when fetching the src image... if the src image requires
+							// authentication, consider using unoptimized". These are
+							// token-authenticated /dl/ URLs for the user's OWN private
+							// files, so optimisation is both impossible and undesirable —
+							// it would route private bytes through the optimiser. With
+							// `unoptimized` set, next/image adds only a width/height
+							// requirement we cannot satisfy for arbitrary user files.
+							// biome-ignore lint/performance/noImgElement: auth'd private media, optimisation disabled anyway
 							<img
 								src={link.path}
 								alt={name}

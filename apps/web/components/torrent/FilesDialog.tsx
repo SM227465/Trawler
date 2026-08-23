@@ -2,15 +2,15 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Check, Copy, Download, LoaderCircle, Play, Share2, Terminal } from "lucide-react";
 import { useState } from "react";
+import { MediaPlayerDialog } from "@/components/files/MediaPlayerDialog";
+import { CreateShareDialog } from "@/components/share/CreateShareDialog";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
-import { CreateShareDialog } from "@/components/share/CreateShareDialog";
-import { MediaPlayerDialog } from "@/components/files/MediaPlayerDialog";
-import { classify } from "@/lib/media";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { api, type DownloadLink, type TorrentFile } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { formatBytes, formatPercent } from "@/lib/format";
+import { classify } from "@/lib/media";
 import { useCopy } from "@/lib/useCopy";
 
 const basename = (p: string) => p.split("/").pop() ?? p;
@@ -164,9 +164,7 @@ export function FilesDialog({
 					</div>
 				)}
 				{files && files.length === 0 && (
-					<p className="py-6 text-center text-sm text-fg-muted">
-						No files yet — metadata is still being fetched.
-					</p>
+					<p className="py-6 text-center text-sm text-fg-muted">No files yet — metadata is still being fetched.</p>
 				)}
 				{files && files.length > 0 && (
 					<ul>

@@ -1,18 +1,16 @@
 "use client";
-import { useVirtualizer } from "@tanstack/react-virtual";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { ArrowDown, ArrowUp, Inbox } from "lucide-react";
+import { useEffect, useMemo, useRef } from "react";
 import { api } from "@/lib/api";
-import { TORRENT_IDS_KEY, useTorrentIndex } from "@/lib/useTorrentStream";
 import { cn } from "@/lib/cn";
+import { TORRENT_IDS_KEY, useTorrentIndex } from "@/lib/useTorrentStream";
 import { COLUMNS, ROW_GRID } from "./grid";
 import { Pagination } from "./Pagination";
 import { COLUMN_SORT, compareEntries, type SortState } from "./sort";
 import type { FilterValue } from "./Toolbar";
 import { TorrentRow } from "./TorrentRow";
-
-
 
 export function TorrentList({
 	query,
@@ -125,75 +123,73 @@ export function TorrentList({
 
 	return (
 		<div className="flex flex-col gap-3">
-		<div className="overflow-hidden rounded-[var(--ct-radius)] border border-border bg-surface">
-			{/* Same ROW_GRID as the rows — that is what keeps them aligned. */}
-			<div className={cn("hidden border-b border-border bg-surface-inset px-4 py-2 lg:block", ROW_GRID)}>
-				{COLUMNS.map((h, i) => {
-					const key = COLUMN_SORT[i];
-					const active = key !== null && sort.key === key;
-					const base = "text-[0.625rem] font-medium uppercase tracking-wide";
+			<div className="overflow-hidden rounded-[var(--ct-radius)] border border-border bg-surface">
+				{/* Same ROW_GRID as the rows — that is what keeps them aligned. */}
+				<div className={cn("hidden border-b border-border bg-surface-inset px-4 py-2 lg:block", ROW_GRID)}>
+					{COLUMNS.map((h, i) => {
+						const key = COLUMN_SORT[i];
+						const active = key !== null && sort.key === key;
+						const base = "text-[0.625rem] font-medium uppercase tracking-wide";
 
-					if (!key) return <span key="actions" className={cn(base, "text-fg-subtle")} />;
+						if (!key) return <span key="actions" className={cn(base, "text-fg-subtle")} />;
 
-					return (
-						<button
-							key={h}
-							type="button"
-							onClick={() => toggleSort(key)}
-							aria-sort={active ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}
-							className={cn(
-								base,
-								"inline-flex items-center gap-1 text-left transition-colors cursor-pointer",
-								active ? "text-fg" : "text-fg-subtle hover:text-fg-muted",
-							)}
-						>
-							{h}
-							{active &&
-								(sort.dir === "asc" ? (
-									<ArrowUp className="size-3" aria-hidden />
-								) : (
-									<ArrowDown className="size-3" aria-hidden />
-								))}
-						</button>
-					);
-				})}
-			</div>
+						return (
+							<button
+								key={h}
+								type="button"
+								onClick={() => toggleSort(key)}
+								// NOT aria-sort: that attribute is only valid on a columnheader,
+								// and this header row is a CSS grid of buttons, not a real table.
+								// Claiming it here is an invalid ARIA state; the label carries the
+								// same information honestly.
+								aria-label={active ? `${h}, sorted ${sort.dir}ending. Click to reverse.` : `Sort by ${h}`}
+								className={cn(
+									base,
+									"inline-flex items-center gap-1 text-left transition-colors cursor-pointer",
+									active ? "text-fg" : "text-fg-subtle hover:text-fg-muted",
+								)}
+							>
+								{h}
+								{active &&
+									(sort.dir === "asc" ? (
+										<ArrowUp className="size-3" aria-hidden />
+									) : (
+										<ArrowDown className="size-3" aria-hidden />
+									))}
+							</button>
+						);
+					})}
+				</div>
 
-			<div
-				ref={(el) => {
-					parentRef.current = el;
-					scrollToTop.current = el;
-				}}
-				className="max-h-[calc(100dvh-26rem)] overflow-auto"
-			>
-				<div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
-					{virtualizer.getVirtualItems().map((item) => (
-						<div
-							key={ids[item.index]}
-							data-index={item.index}
-							ref={virtualizer.measureElement}
-							style={{
-								position: "absolute",
-								top: 0,
-								left: 0,
-								width: "100%",
-								transform: `translateY(${item.start}px)`,
-							}}
-						>
-							<TorrentRow id={ids[item.index]} />
-						</div>
-					))}
+				<div
+					ref={(el) => {
+						parentRef.current = el;
+						scrollToTop.current = el;
+					}}
+					className="max-h-[calc(100dvh-26rem)] overflow-auto"
+				>
+					<div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
+						{virtualizer.getVirtualItems().map((item) => (
+							<div
+								key={ids[item.index]}
+								data-index={item.index}
+								ref={virtualizer.measureElement}
+								style={{
+									position: "absolute",
+									top: 0,
+									left: 0,
+									width: "100%",
+									transform: `translateY(${item.start}px)`,
+								}}
+							>
+								<TorrentRow id={ids[item.index]} />
+							</div>
+						))}
+					</div>
 				</div>
 			</div>
-		</div>
 
-		<Pagination
-			total={total}
-			page={pageIndex}
-			pageSize={pageSize}
-			onPage={changePage}
-			onPageSize={onPageSize}
-		/>
+			<Pagination total={total} page={pageIndex} pageSize={pageSize} onPage={changePage} onPageSize={onPageSize} />
 		</div>
 	);
 }

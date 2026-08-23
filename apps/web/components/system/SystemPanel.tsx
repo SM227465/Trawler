@@ -77,15 +77,7 @@ function Legend({ items }: { items: Array<{ label: string; tone: "viz-1" | "viz-
 	);
 }
 
-export function SystemPanel({
-	data,
-	tab,
-	onTab,
-}: {
-	data: SystemStatus;
-	tab: string;
-	onTab: (id: string) => void;
-}) {
+export function SystemPanel({ data, tab, onTab }: { data: SystemStatus; tab: string; onTab: (id: string) => void }) {
 	const { host, memory, disk, process: proc, services, history, latest } = data;
 
 	const cpuSeries = history.map((s) => s.cpuPct);
@@ -149,7 +141,12 @@ export function SystemPanel({
 						]}
 						format={rate}
 					/>
-					<Legend items={[{ label: "Receiving", tone: "viz-3" }, { label: "Sending", tone: "viz-4" }]} />
+					<Legend
+						items={[
+							{ label: "Receiving", tone: "viz-3" },
+							{ label: "Sending", tone: "viz-4" },
+						]}
+					/>
 				</Panel>
 			</TabPanel>
 
@@ -170,7 +167,12 @@ export function SystemPanel({
 						]}
 						format={rate}
 					/>
-					<Legend items={[{ label: "Download", tone: "viz-1" }, { label: "Upload", tone: "viz-2" }]} />
+					<Legend
+						items={[
+							{ label: "Download", tone: "viz-1" },
+							{ label: "Upload", tone: "viz-2" },
+						]}
+					/>
 				</Panel>
 			</TabPanel>
 

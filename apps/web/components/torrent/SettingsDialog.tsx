@@ -101,8 +101,8 @@ export function SettingsDialog({
 						<p className="mt-2 flex items-start gap-2 rounded-[var(--ct-radius-sm)] border border-status-paused/40 bg-status-paused-soft p-2.5 text-xs text-fg">
 							<TriangleAlert className="mt-px size-3.5 shrink-0 text-status-paused" aria-hidden />
 							<span>
-								Torrents will be deleted without asking, every 5 minutes, once they go idle past the TTL below.
-								Pinned and shared torrents are still never touched.
+								Torrents will be deleted without asking, every 5 minutes, once they go idle past the TTL below. Pinned
+								and shared torrents are still never touched.
 							</span>
 						</p>
 					)}

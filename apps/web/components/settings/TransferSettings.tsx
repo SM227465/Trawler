@@ -9,15 +9,7 @@ import { cn } from "@/lib/cn";
 
 const MB = 1024 * 1024;
 
-function Row({
-	label,
-	hint,
-	children,
-}: {
-	label: string;
-	hint?: string;
-	children: React.ReactNode;
-}) {
+function Row({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
 	return (
 		<div className="flex flex-col gap-2 border-b border-border py-4 last:border-b-0 sm:flex-row sm:items-start sm:gap-6">
 			<div className="sm:w-64 sm:shrink-0">
@@ -94,9 +86,9 @@ export function TransferSettings() {
 			<div className="flex items-start gap-2.5 rounded-[var(--ct-radius)] border border-status-paused/40 bg-status-paused-soft p-3">
 				<ShieldAlert className="mt-px size-4 shrink-0 text-status-paused" aria-hidden />
 				<p className="text-xs text-fg">
-					Oracle&apos;s free tier allows <strong>10 TB of outbound traffic a month</strong>, and seeding counts
-					toward it. An uncapped box can exhaust that in days. A share-ratio limit is the effective control —
-					a speed cap only slows how fast you get there.
+					Oracle&apos;s free tier allows <strong>10 TB of outbound traffic a month</strong>, and seeding counts toward
+					it. An uncapped box can exhaust that in days. A share-ratio limit is the effective control — a speed cap only
+					slows how fast you get there.
 				</p>
 			</div>
 

@@ -1,10 +1,9 @@
 "use client";
-import { useQuery } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, HardDrive, ShieldAlert, Wifi, WifiOff } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { formatBytes, formatSpeed } from "@/lib/format";
-import { type QbtStats, STATS_KEY } from "@/lib/useTorrentStream";
 import { useCacheOnly } from "@/lib/useCacheOnly";
+import { type QbtStats, STATS_KEY } from "@/lib/useTorrentStream";
 
 function Stat({
 	icon: Icon,
@@ -24,9 +23,7 @@ function Stat({
 			<Icon className={cn("size-4 shrink-0", tone ?? "text-fg-subtle")} aria-hidden />
 			<div className="min-w-0">
 				<div className="text-[0.6875rem] leading-none text-fg-subtle">{label}</div>
-				<div className={cn("tabular mt-1 text-sm leading-none font-medium truncate", tone ?? "text-fg")}>
-					{value}
-				</div>
+				<div className={cn("tabular mt-1 text-sm leading-none font-medium truncate", tone ?? "text-fg")}>{value}</div>
 			</div>
 		</div>
 	);
