@@ -10,5 +10,5 @@
  * Deliberately NOT applied to stream/aria2c links — those want inline bytes.
  */
 export function asAttachment(url: string): string {
-	return url + (url.includes("?") ? "&" : "?") + "dl=1";
+	return `${url}${url.includes("?") ? "&" : "?"}dl=1`;
 }

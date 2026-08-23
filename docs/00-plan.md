@@ -333,7 +333,22 @@ chat, and downloads. Revoking kills it immediately.
 
 ---
 
-## Phase 9 — Full telemetry UI ← **CURRENT** (9.1, 9.2 done)
+## Phase 9 — Full telemetry UI ← **CURRENT** (9.1–9.3 done)
+
+> **9.3** One canvas, downsampled to the element's pixel width, WORST-WINS per
+> column. Verified: a single missing piece in 10,000 still shows after
+> downsampling to 1200px.
+>
+> Writing the check found a real bug. The column span used
+> `floor(((piece + count - 1) / total) * columns)`, which leaves trailing
+> columns unpainted whenever there are more columns than pieces — a 2-piece
+> torrent with everything missing rendered two-thirds red and one-third GREEN,
+> because those columns kept the default fill. The span is a half-open interval
+> and needs `ceil(end) - 1`.
+>
+> The canvas paints resolved colour values, not tokens, so it is the one place
+> in the app that must be TOLD the theme changed: a MutationObserver on
+> `data-theme` plus a `prefers-color-scheme` listener force the repaint.
 
 > **9.1** The subscription is the URL: opening the stream starts the pollers for
 > that torrent, the last disconnect stops them. Verified with two overlapping
@@ -357,7 +372,7 @@ chat, and downloads. Revoking kills it immediately.
 
 - [x] 9.1 `GET /torrents/:id/events` — properties, peers, trackers, pieces ✅
 - [x] 9.2 Detail tabs: General, Trackers, Peers, Content ✅
-- [ ] 9.3 Piece map — RLE wire format + downsampled canvas
+- [x] 9.3 Piece map — RLE wire format + downsampled canvas ✅
 - [ ] 9.4 Speed graph — **load the `dataviz` skill first**
 - [ ] 9.5 Column toggles persisted to `localStorage`
 - [ ] 9.6 Edge cases: `metaDL`, `eta=8640000`, `availability<1`, `firewalled`

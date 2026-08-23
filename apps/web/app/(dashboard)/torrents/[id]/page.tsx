@@ -1,6 +1,6 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, FileText, Info, Radio, Users } from "lucide-react";
+import { ArrowLeft, FileText, Grid3x3, Info, Radio, Users } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Suspense } from "react";
@@ -8,6 +8,7 @@ import { DetailContent } from "@/components/detail/DetailContent";
 import { DetailGeneral } from "@/components/detail/DetailGeneral";
 import { DetailPeers } from "@/components/detail/DetailPeers";
 import { DetailTrackers } from "@/components/detail/DetailTrackers";
+import { PieceMap } from "@/components/detail/PieceMap";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { type TabItem, TabPanel, Tabs } from "@/components/ui/Tabs";
 import { api, type Torrent } from "@/lib/api";
@@ -21,6 +22,7 @@ const TABS: readonly TabItem[] = [
 	{ id: "trackers", label: "Trackers", icon: Radio },
 	{ id: "peers", label: "Peers", icon: Users },
 	{ id: "content", label: "Content", icon: FileText },
+	{ id: "pieces", label: "Pieces", icon: Grid3x3 },
 ] as const;
 
 function DetailView() {
@@ -111,6 +113,17 @@ function DetailView() {
 			<TabPanel id="content" active={active}>
 				<div className="pt-4">
 					<DetailContent torrentId={id} />
+				</div>
+			</TabPanel>
+			<TabPanel id="pieces" active={active}>
+				<div className="pt-4">
+					{detail.pieces ? (
+						<PieceMap data={detail.pieces} />
+					) : (
+						<p className="rounded-[var(--ct-radius)] border border-border bg-surface p-8 text-center text-sm text-fg-muted">
+							Waiting for piece data…
+						</p>
+					)}
 				</div>
 			</TabPanel>
 		</div>
