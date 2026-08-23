@@ -67,6 +67,14 @@
 		reverse_proxy webdav:8080
 	}
 
+	# ── api docs ─────────────────────────────────────────────────────────────
+	# LOCAL DEV ONLY. Deliberately absent from Caddyfile.prod: the API mounts
+	# /docs only when NODE_ENV != production, and publishing a live map of the
+	# API surface to the internet buys nothing on a single-user box.
+	handle /docs* {
+		reverse_proxy api:3000
+	}
+
 	# ── api ──────────────────────────────────────────────────────────────────
 	handle /api/* {
 		reverse_proxy api:3000

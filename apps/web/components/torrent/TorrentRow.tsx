@@ -5,7 +5,6 @@ import { memo, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { ProgressBar } from "@/components/ui/ProgressBar";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { api, type Torrent } from "@/lib/api";
 import { cn } from "@/lib/cn";
@@ -14,6 +13,19 @@ import { buildMagnet, useCopy } from "@/lib/useCopy";
 import { TORRENT_IDS_KEY, torrentKey } from "@/lib/useTorrentStream";
 import { FilesDialog } from "./FilesDialog";
 import { ROW_GRID } from "./grid";
+
+/**
+ * Which tint the row fills with. Token utilities only — the `-soft` steps are
+ * already validated against both themes, and they are pale enough that the row
+ * text keeps its contrast on top of them.
+ */
+const FILL: Record<string, string> = {
+	downloading: "bg-status-downloading-soft",
+	completed: "bg-status-completed-soft",
+	paused: "bg-status-paused-soft",
+	errored: "bg-status-errored-soft",
+	queued: "bg-status-queued-soft",
+};
 
 /** On mobile the label is shown above the value; on lg the column header carries it. */
 function Cell({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
@@ -64,7 +76,9 @@ export const TorrentRow = memo(function TorrentRow({ id }: { id: string }) {
 	return (
 		<div
 			className={cn(
-				"border-b border-border py-3 pr-3 last:border-b-0 hover:bg-surface-2 sm:pr-4",
+				// `relative` + `isolate` so the progress fill below can sit behind the
+				// content without escaping the row or catching pointer events.
+				"relative isolate border-b border-border py-3 pr-3 last:border-b-0 hover:bg-surface-2 sm:pr-4",
 				"flex flex-col gap-3 lg:gap-0",
 				// A pinned torrent is protected from cleanup — worth seeing at a
 				// glance, not only by hunting for the icon.
@@ -72,6 +86,21 @@ export const TorrentRow = memo(function TorrentRow({ id }: { id: string }) {
 				ROW_GRID,
 			)}
 		>
+			{/* The row IS the progress bar (put.io style): a tinted fill grows from
+			    the left across the whole row rather than a separate hairline. It is
+			    `aria-hidden` because the real value is announced by the percentage
+			    text and the status chip — a decorative div should not be read out.
+			    -z-10 keeps it behind the content; pointer-events-none keeps the
+			    buttons clickable. */}
+			<div
+				aria-hidden
+				className={cn(
+					"pointer-events-none absolute inset-y-0 left-0 -z-10 transition-[width] duration-500",
+					FILL[t.status] ?? "bg-status-queued-soft",
+				)}
+				style={{ width: `${Math.min(100, Math.max(0, t.progress * 100))}%` }}
+			/>
+
 			{/* name */}
 			<div className="flex min-w-0 items-center gap-2">
 				{t.pinned && <Pin className="size-3 shrink-0 text-accent" aria-label="Pinned" />}
@@ -174,9 +203,6 @@ export const TorrentRow = memo(function TorrentRow({ id }: { id: string }) {
 					<Trash2 className="size-3.5" />
 				</Button>
 			</div>
-
-			{/* Full-width progress, spanning the whole row beneath every column. */}
-			<ProgressBar value={t.progress} status={t.status} className="mt-3 lg:col-span-8" />
 
 			<FilesDialog torrentId={id} torrentName={t.name} open={filesOpen} onClose={() => setFilesOpen(false)} />
 
