@@ -1,6 +1,7 @@
 import { CloudDownload, Download, FileWarning } from "lucide-react";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
+import { asAttachment } from "@/lib/attachment";
 import { formatBytes } from "@/lib/format";
 import { fetchPublicShare, type ShareDeadReason } from "@/lib/serverApi";
 import { UnlockForm } from "./UnlockForm";
@@ -119,7 +120,7 @@ export default async function SharePage({ params }: Params) {
 
 			{share.allowDownload ? (
 				<a
-					href={`/dl/${share.id}/${encodeURIComponent(share.name ?? "download")}`}
+					href={asAttachment(`/dl/${share.id}/${encodeURIComponent(share.name ?? "download")}`)}
 					className="mt-6 inline-flex h-11 w-full items-center justify-center gap-2 rounded-[var(--ct-radius-sm)] bg-accent px-4 text-sm font-medium text-accent-fg transition-colors hover:bg-accent-hover"
 				>
 					<Download className="size-4" aria-hidden />
