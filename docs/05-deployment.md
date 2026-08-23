@@ -55,8 +55,15 @@ Then:
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-docker compose exec api pnpm db:seed     # creates the owner account
+
+# Creates the owner account. Use the compiled entry, NOT `pnpm db:seed` --
+# the production image ships only dist/ and has no src/, tsx, or pnpm scripts.
+docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+  exec api node dist/db/seed.js
 ```
+
+The seed is idempotent: it skips if a user already exists, so re-running it after
+an upgrade is safe.
 
 Migrations apply themselves. A one-shot `migrate` service runs before anything
 else, and `api` and `worker` wait on it *completing successfully* — so a failed
@@ -116,10 +123,23 @@ accounts. This is the single most common way people lose their box.
 # 1. The VCN Security List / Network Security Group, in the web console
 #    Ingress: 0.0.0.0/0 → TCP+UDP on your TORRENTING_PORT
 
-# 2. The instance's own firewall, which Oracle images ship with enabled
-sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 51413 -j ACCEPT
-sudo iptables -I INPUT 6 -m state --state NEW -p udp --dport 51413 -j ACCEPT
-sudo netfilter-persistent save
+# 2. The instance's own firewall, which Oracle images ship with enabled.
+#    FIND THE REJECT RULE FIRST -- its line number differs per image, and a rule
+#    inserted below it does nothing at all:
+sudo iptables -L INPUT --line-numbers -n
+
+#    Insert AT the REJECT's line number, so each new rule pushes it down.
+#    Ubuntu 24.04 on OCI puts REJECT at 5; Oracle Linux is usually 6.
+N=5
+sudo iptables -I INPUT $N -m state --state NEW -p tcp --dport 80 -j ACCEPT
+sudo iptables -I INPUT $N -m state --state NEW -p tcp --dport 443 -j ACCEPT
+sudo iptables -I INPUT $N -m state --state NEW -p udp --dport 443 -j ACCEPT
+sudo iptables -I INPUT $N -m state --state NEW -p tcp --dport 6881 -j ACCEPT
+sudo iptables -I INPUT $N -m state --state NEW -p udp --dport 6881 -j ACCEPT
+
+#    Confirm REJECT is now BELOW all five, then persist.
+sudo iptables -L INPUT --line-numbers -n
+sudo netfilter-persistent save    # apt-get install iptables-persistent if missing
 ```
 
 Miss the second and every torrent reports "firewalled": you get outbound-only
@@ -129,8 +149,21 @@ a Trawler bug. It is not.
 Same applies to 80 and 443.
 
 **Mount the block volume at `/data`** rather than using the boot volume. Attach
-it in the console, then follow Oracle's iSCSI attach commands, format, and add
-it to `/etc/fstab`.
+it in the console as **paravirtualized**, not iSCSI -- iSCSI makes you copy three
+`iscsiadm` commands onto the box and re-run them if the attachment ever drops,
+and the peak IOPS difference does not matter for stored downloads.
+
+```bash
+sudo mkfs.ext4 -m 0 -L trawler-data /dev/sdb   # -m 0: skip ext4's 5% root reserve
+sudo mkdir -p /data
+UUID=$(sudo blkid -s UUID -o value /dev/sdb)
+echo "UUID=$UUID /data ext4 defaults,_netdev,nofail 0 2" | sudo tee -a /etc/fstab
+sudo systemctl daemon-reload && sudo mount /data
+```
+
+Mount by **UUID** (device order can change across reboots) and keep **`nofail`**:
+without it, a detached volume drops the box into emergency mode with no SSH,
+which is not recoverable remotely.
 
 **Egress is capped at 10 TB/month.** Trawler counts it and hard-stops share
 traffic before you exceed it, but set the speed and seeding limits in

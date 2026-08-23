@@ -21,7 +21,8 @@
     "start:worker": "tsx watch --clear-screen=false src/worker.ts",
     "start:worker:prod": "node dist/worker.js",
     "job:send": "tsx src/jobs/send.ts",
-    "db:migrate:prod": "node dist/db/migrate.js"
+    "db:migrate:prod": "node dist/db/migrate.js",
+    "db:seed:prod": "node dist/db/seed.js"
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "7.3.4",
@@ -70,7 +71,8 @@
     "entry": [
       "src/index.ts",
       "src/worker.ts",
-      "src/db/migrate.ts"
+      "src/db/migrate.ts",
+      "src/db/seed.ts"
     ],
     "outDir": "dist",
     "format": [
