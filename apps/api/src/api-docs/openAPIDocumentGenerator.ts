@@ -1,5 +1,5 @@
 import { OpenAPIRegistry, OpenApiGeneratorV3 } from "@asteasolutions/zod-to-openapi";
-
+import { auditRegistry } from "@/modules/audit/auditRouter";
 import { authRegistry } from "@/modules/auth/authRouter";
 import { eventRegistry } from "@/modules/event/eventRouter";
 import { fileRegistry } from "@/modules/file/fileRouter";
@@ -15,6 +15,7 @@ export type OpenAPIDocument = ReturnType<OpenApiGeneratorV3["generateDocument"]>
 export function generateOpenAPIDocument(): OpenAPIDocument {
 	const registry = new OpenAPIRegistry([
 		healthCheckRegistry,
+		auditRegistry,
 		fileRegistry,
 		authRegistry,
 		torrentRegistry,

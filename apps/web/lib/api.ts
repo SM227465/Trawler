@@ -99,6 +99,21 @@ export interface BrowseListing {
 	entries: BrowseEntry[];
 }
 
+export interface AuditEntry {
+	id: number;
+	action: string;
+	targetType: string | null;
+	targetId: string | null;
+	ip: string | null;
+	metadata: Record<string, unknown> | null;
+	at: string;
+}
+
+export interface AuditPage {
+	entries: AuditEntry[];
+	nextCursor: number | null;
+}
+
 export interface WebdavAccess {
 	enabled: boolean;
 	url: string;
@@ -318,6 +333,13 @@ export const api = {
 		apiFetch<TransferSettings>("/settings/transfer", { method: "PATCH", body: JSON.stringify(patch) }),
 
 	runEviction: () => apiFetch<unknown>("/storage/evict", { method: "POST" }),
+
+	audit: (opts: { limit?: number; before?: number; action?: string } = {}) => {
+		const q = new URLSearchParams({ limit: String(opts.limit ?? 50) });
+		if (opts.before !== undefined) q.set("before", String(opts.before));
+		if (opts.action) q.set("action", opts.action);
+		return apiFetch<AuditPage>(`/audit?${q}`);
+	},
 
 	updateStorageSettings: (patch: Partial<StorageStatus["settings"]>) =>
 		apiFetch<StorageStatus["settings"]>("/storage/settings", {

@@ -10,6 +10,7 @@ import { ServiceResponse } from "@/common/models/serviceResponse";
 import { env } from "@/common/utils/envConfig";
 import { handleServiceResponse } from "@/common/utils/httpHandlers";
 import { logger } from "@/common/utils/logger";
+import { auditRouter } from "@/modules/audit/auditRouter";
 import { authRouter } from "@/modules/auth/authRouter";
 import { eventRouter, torrentEventRouter } from "@/modules/event/eventRouter";
 import { fileRouter } from "@/modules/file/fileRouter";
@@ -40,6 +41,7 @@ app.use("/health-check", healthCheckRouter);
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/torrents", torrentRouter);
 app.use("/api/v1/files", fileRouter);
+app.use("/api/v1/audit", auditRouter);
 app.use("/api/v1/storage", storageRouter);
 app.use("/api/v1/shares", shareRouter);
 // Public share endpoints — deliberately NOT under the authenticated router.

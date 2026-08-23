@@ -1,3 +1,4 @@
+import { and, desc, eq, lt } from "drizzle-orm";
 import type { Request } from "express";
 import { logger } from "@/common/utils/logger";
 import { db } from "@/db/client";
@@ -75,4 +76,53 @@ export function recordFromRequest(req: Request, entry: Omit<AuditEntry, "ip" | "
 	record({ ...entry, ...requestContext(req), actorId: entry.actorId ?? req.user?.id ?? null });
 }
 
-export const audit = { record, recordFromRequest, requestContext };
+/**
+ * Recent entries, newest first, with keyset pagination.
+ *
+ * Cursors on `id`, not `at`: id is a bigserial so it is strictly monotonic and
+ * unique, while several rows can share a timestamp — an OFFSET or an `at`
+ * cursor would skip or repeat entries as new ones arrive mid-scroll, which is
+ * exactly wrong for a log you are reading to work out what happened.
+ */
+export async function list(opts: { limit?: number; before?: number; action?: string } = {}) {
+	const capped = Math.min(Math.max(opts.limit ?? 50, 1), 200);
+
+	const filters = [
+		opts.before !== undefined ? lt(auditLog.id, opts.before) : undefined,
+		opts.action ? eq(auditLog.action, opts.action) : undefined,
+	].filter((f) => f !== undefined);
+
+	// One extra row tells us whether another page exists without a COUNT.
+	const rows = await db
+		.select({
+			id: auditLog.id,
+			action: auditLog.action,
+			targetType: auditLog.targetType,
+			targetId: auditLog.targetId,
+			ip: auditLog.ip,
+			metadata: auditLog.metadata,
+			at: auditLog.at,
+		})
+		.from(auditLog)
+		.where(filters.length ? and(...filters) : undefined)
+		.orderBy(desc(auditLog.id))
+		.limit(capped + 1);
+
+	const entries = rows.slice(0, capped);
+	return {
+		entries,
+		nextCursor: rows.length > capped ? (entries.at(-1)?.id ?? null) : null,
+	};
+}
+
+export interface AuditRow {
+	id: number;
+	action: string;
+	targetType: string | null;
+	targetId: string | null;
+	ip: string | null;
+	metadata: unknown;
+	at: Date;
+}
+
+export const audit = { record, recordFromRequest, requestContext, list };
