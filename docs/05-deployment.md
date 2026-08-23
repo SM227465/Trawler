@@ -26,7 +26,7 @@ files.
 sudo mkdir -p /data/{downloads,postgres,qbittorrent,backups,caddy-logs,caddy}
 sudo chown -R "$USER":"$USER" /data
 
-git clone https://github.com/YOUR_USERNAME/trawler.git /opt/trawler
+git clone https://github.com/SM227465/Trawler.git /opt/trawler
 cd /opt/trawler
 
 cp .env.example .env
@@ -48,7 +48,7 @@ WEBDAV_PASSWORD=$(openssl rand -base64 18)
 OWNER_EMAIL=you@example.com
 OWNER_PASSWORD=<something long>
 
-IMAGE_BASE=ghcr.io/YOUR_USERNAME/trawler
+IMAGE_BASE=ghcr.io/sm227465/trawler
 ```
 
 Then:

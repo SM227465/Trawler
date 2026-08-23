@@ -43,8 +43,8 @@ see is a share link you deliberately created.
 You need Docker with the Compose plugin, and about 2 GB of free disk to begin.
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/trawler.git
-cd trawler
+git clone https://github.com/SM227465/Trawler.git
+cd Trawler
 
 cp .env.example .env
 # Generate the secrets it asks for:
