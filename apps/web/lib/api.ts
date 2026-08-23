@@ -88,6 +88,8 @@ export interface BrowseEntry {
 	type: "dir" | "file";
 	sizeBytes: number;
 	modifiedAt: string;
+	/** Present only when the path is a completed file of a tracked torrent. */
+	fileId?: string;
 }
 
 export interface BrowseListing {

@@ -5,6 +5,7 @@ import { ServiceResponse } from "@/common/models/serviceResponse";
 import { env } from "@/common/utils/envConfig";
 import { logger } from "@/common/utils/logger";
 import { signDownloadToken } from "./downloadToken";
+import { fileRepository } from "./fileRepository";
 import { downloadsRoot, resolveRealPath } from "./filePath";
 import { collectEntries } from "./zipService";
 
@@ -14,6 +15,12 @@ export interface BrowseEntry {
 	type: "dir" | "file";
 	sizeBytes: number;
 	modifiedAt: string;
+	/**
+	 * Set when this path is a completed file of a tracked torrent. Shares are
+	 * foreign-keyed to torrent_files, so a path with no row behind it cannot be
+	 * shared and the UI hides the action rather than offering a dead button.
+	 */
+	fileId?: string;
 }
 
 /** Normalises the caller's path into a clean root-relative form ("" = root). */
@@ -63,6 +70,14 @@ export class BrowseService {
 			} catch {
 				// A file deleted between readdir and stat is normal here.
 			}
+		}
+
+		// Shares target torrent_files rows, not paths, so resolve which of these
+		// entries are actually shareable. One query for the page.
+		const fileIds = await fileRepository.idsByPaths(entries.filter((e) => e.type === "file").map((e) => e.path));
+		for (const e of entries) {
+			const id = fileIds.get(e.path);
+			if (id) e.fileId = id;
 		}
 
 		// Folders first, then names naturally ordered so ep2 precedes ep10.

@@ -13,10 +13,12 @@ import {
 	HardDrive,
 	LoaderCircle,
 	Play,
+	Share2,
 	Subtitles,
 	Trash2,
 } from "lucide-react";
 import { useState } from "react";
+import { CreateShareDialog } from "@/components/share/CreateShareDialog";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { api, type BrowseEntry } from "@/lib/api";
 import { asAttachment } from "@/lib/attachment";
@@ -90,6 +92,7 @@ function Row({ entry, onOpen, onDeleted }: { entry: BrowseEntry; onOpen: (p: str
 	const [hint, setHint] = useState<string | null>(null);
 	const [playing, setPlaying] = useState(false);
 	const [confirming, setConfirming] = useState(false);
+	const [sharing, setSharing] = useState(false);
 	const media = classify(entry.name);
 
 	// One request serves both actions. Folders mint a zip link and files a direct
@@ -150,8 +153,8 @@ function Row({ entry, onOpen, onDeleted }: { entry: BrowseEntry; onOpen: (p: str
 
 				{/* Fixed width, right-aligned: Play is conditional, and without a
 				    reserved slot its absence dragged the size and time columns 30px
-				    left on every non-playable row. 4 x size-7 + 3 x gap-0.5 = 7.375rem. */}
-				<span className="flex w-[7.375rem] shrink-0 justify-end gap-0.5">
+				    left on every non-playable row. 5 x size-7 + 4 x gap-0.5 = 9.25rem. */}
+				<span className="flex w-[9.25rem] shrink-0 justify-end gap-0.5">
 					{!isDir && (media.playable || media.needsExternalPlayer) && (
 						<button
 							type="button"
@@ -205,6 +208,21 @@ function Row({ entry, onOpen, onDeleted }: { entry: BrowseEntry; onOpen: (p: str
 						)}
 					</button>
 
+					{entry.fileId && (
+						<button
+							type="button"
+							onClick={() => setSharing(true)}
+							aria-label={`Share ${entry.name}`}
+							title="Create a share link"
+							className={cn(
+								"grid size-7 cursor-pointer place-items-center rounded-[var(--ct-radius-sm)]",
+								"text-fg-subtle transition-colors hover:bg-surface-inset hover:text-accent",
+							)}
+						>
+							<Share2 className="size-3.5" aria-hidden />
+						</button>
+					)}
+
 					<button
 						type="button"
 						onClick={() => setConfirming(true)}
@@ -225,6 +243,16 @@ function Row({ entry, onOpen, onDeleted }: { entry: BrowseEntry; onOpen: (p: str
 					</button>
 				</span>
 			</div>
+
+			{entry.fileId && (
+				<CreateShareDialog
+					open={sharing}
+					onClose={() => setSharing(false)}
+					fileId={entry.fileId}
+					defaultLabel={entry.name}
+					sizeBytes={entry.sizeBytes}
+				/>
+			)}
 
 			<ConfirmDialog
 				open={confirming}
