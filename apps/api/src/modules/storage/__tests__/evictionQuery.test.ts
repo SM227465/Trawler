@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { afterAll, describe, expect, it } from "vitest";
 import { db, pool } from "@/db/client";
+import { describeWithDb } from "@/test/dbAvailable";
 import { storageRepository } from "../storageRepository";
 
 /**
@@ -117,7 +118,7 @@ afterAll(async () => {
 	await pool.end();
 });
 
-describe("eviction candidates — what must NEVER be returned", () => {
+describeWithDb("eviction candidates — what must NEVER be returned", () => {
 	it("never returns a pinned torrent, even long past its TTL", async () => {
 		const names = await withFixtures(async (t) => {
 			await t.torrent({ name: "pinned", pinned: true });
@@ -167,7 +168,7 @@ describe("eviction candidates — what must NEVER be returned", () => {
 	});
 });
 
-describe("eviction candidates — what SHOULD be returned", () => {
+describeWithDb("eviction candidates — what SHOULD be returned", () => {
 	it("returns a torrent whose share was revoked", async () => {
 		const names = await withFixtures(async (t) => {
 			const s = await t.torrent({ name: "revoked-share" });
@@ -193,7 +194,7 @@ describe("eviction candidates — what SHOULD be returned", () => {
 	});
 });
 
-describe("eviction triggers", () => {
+describeWithDb("eviction triggers", () => {
 	it("leaves a recently completed torrent alone when under the watermark", async () => {
 		const names = await withFixtures(
 			async (t) => {
@@ -239,7 +240,7 @@ describe("eviction triggers", () => {
 	});
 });
 
-describe("result typing", () => {
+describeWithDb("result typing", () => {
 	it("returns sizeBytes as a NUMBER, not a bigint string", async () => {
 		// Regression: db.execute() bypasses Drizzle's mode:"number" mapping, so
 		// bigint arrives as a string and `freed += sizeBytes` concatenates.

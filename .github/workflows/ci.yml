@@ -62,6 +62,13 @@ jobs:
         working-directory: apps/api
         run: pnpm db:migrate
 
+      # The auth suite seeds its own owner if absent, but seeding here also
+      # exercises the seed script itself — which is otherwise only ever run by
+      # hand on a fresh install.
+      - name: Seed
+        working-directory: apps/api
+        run: pnpm db:seed
+
       - name: Typecheck
         working-directory: apps/api
         run: pnpm exec tsc --noEmit

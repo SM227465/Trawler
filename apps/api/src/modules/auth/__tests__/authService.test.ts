@@ -1,10 +1,13 @@
 import { eq } from "drizzle-orm";
 import request from "supertest";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { v7 as uuidv7 } from "uuid";
+import { afterAll, beforeAll, expect, it } from "vitest";
 import { env } from "@/common/utils/envConfig";
 import { db, pool } from "@/db/client";
 import { refreshTokens, users } from "@/db/schema";
+import { hashPassword } from "@/modules/auth/authService";
 import { app } from "@/server";
+import { describeWithDb } from "@/test/dbAvailable";
 
 // Integration test against the dev Postgres. Doc 03 §A10 lists refresh-token
 // rotation as non-negotiable regardless of coverage target.
@@ -13,12 +16,26 @@ const creds = { email: env.OWNER_EMAIL, password: env.OWNER_PASSWORD };
 const cookieOf = (res: request.Response) =>
 	(res.headers["set-cookie"] as unknown as string[])?.find((c) => c.startsWith("ct_refresh="))?.split(";")[0] ?? "";
 
-describe("auth", () => {
+describeWithDb("auth", () => {
 	let ownerId: string;
 
 	beforeAll(async () => {
-		const owner = await db.query.users.findFirst({ where: eq(users.email, creds.email.toLowerCase()) });
-		if (!owner) throw new Error("owner not seeded — run `pnpm db:seed`");
+		// Seed the owner if absent rather than demanding `pnpm db:seed` first.
+		// Requiring a manual step made this suite fail on a fresh clone with an
+		// error about the fixture instead of anything to do with auth.
+		let owner = await db.query.users.findFirst({ where: eq(users.email, creds.email.toLowerCase()) });
+
+		if (!owner) {
+			[owner] = await db
+				.insert(users)
+				.values({
+					id: uuidv7(),
+					email: creds.email.toLowerCase(),
+					passwordHash: await hashPassword(creds.password),
+				})
+				.returning();
+		}
+
 		ownerId = owner.id;
 		await db.delete(refreshTokens).where(eq(refreshTokens.userId, ownerId));
 	});
