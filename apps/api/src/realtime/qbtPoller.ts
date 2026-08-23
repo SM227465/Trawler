@@ -36,6 +36,11 @@ type TorrentDto = {
 	timeActiveSeconds: number;
 	category: string;
 	trackerHost: string;
+	seedingTimeSeconds: number;
+	savePath: string | null;
+	contentPath: string | null;
+	trackersCount: number;
+	lastActivityAtMs: number | null;
 };
 
 type WriteMark = { at: number; progressPct: number; status: string };
@@ -64,6 +69,23 @@ const toDto = (id: string, hash: string, t: QbtTorrent): TorrentDto => ({
 	timeActiveSeconds: t.time_active ?? 0,
 	category: t.category ?? "",
 	trackerHost: t.tracker ? safeHost(t.tracker) : "",
+
+	// These arrive in maindata and were simply never mapped, so the columns
+	// doc 02 defines for them sat at their defaults forever. The detail view is
+	// the first thing that reads them.
+	//
+	// NOT here on purpose: piecesHave/piecesNum/pieceSizeBytes/isPrivate/comment
+	// come from /torrents/properties, which is polled only while a detail view
+	// is open — the detail stream supplies them directly rather than round-
+	// tripping through a column that would be stale the rest of the time.
+	seedingTimeSeconds: t.seeding_time ?? 0,
+	savePath: t.save_path ?? null,
+	contentPath: t.content_path ?? null,
+	trackersCount: t.trackers_count ?? 0,
+	// EPOCH MILLIS, not a Date. `diff()` compares with !==, so a fresh Date
+	// object would never equal the previous one and this field would ride along
+	// in every single 1 Hz delta frame — silently undoing the delta compression.
+	lastActivityAtMs: t.last_activity && t.last_activity > 0 ? t.last_activity * 1000 : null,
 });
 
 const safeHost = (url: string) => {
@@ -296,6 +318,13 @@ class QbtPoller {
 					timeActiveSeconds: dto.timeActiveSeconds,
 					category: dto.category,
 					trackerHost: dto.trackerHost,
+					seedingTimeSeconds: dto.seedingTimeSeconds,
+					savePath: dto.savePath,
+					contentPath: dto.contentPath,
+					trackersCount: dto.trackersCount,
+					// Back to a Date only at the boundary; the DTO keeps millis so
+					// diff() can compare it.
+					lastActivityAt: dto.lastActivityAtMs ? new Date(dto.lastActivityAtMs) : null,
 					...(completed ? { completedAt: now } : {}),
 				})
 				.where(eq(torrents.id, id))

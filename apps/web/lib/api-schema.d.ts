@@ -46,6 +46,258 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/files/browse": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description List a directory under the downloads root. Path is containment- and symlink-checked. */
+        get: {
+            parameters: {
+                query?: {
+                    path?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Directory listing */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            success: boolean;
+                            message: string;
+                            responseObject?: Record<string, never>;
+                            statusCode: number;
+                            code?: string;
+                            requestId?: string;
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/files/browse/link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Mint a download link for a browsed file. */
+        get: {
+            parameters: {
+                query: {
+                    path: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Link created */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            success: boolean;
+                            message: string;
+                            responseObject?: Record<string, never>;
+                            statusCode: number;
+                            code?: string;
+                            requestId?: string;
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/files/browse/zip-link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Mint a streamed-zip link for a folder. */
+        get: {
+            parameters: {
+                query: {
+                    path: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Link created */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            success: boolean;
+                            message: string;
+                            responseObject?: Record<string, never>;
+                            statusCode: number;
+                            code?: string;
+                            requestId?: string;
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/files/{id}/link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Mint a short-lived download URL served directly by Caddy. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Link created */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            success: boolean;
+                            message: string;
+                            responseObject?: {
+                                /** @example /dl/eyJhbGci…/Big%20Buck%20Bunny.mp4 */
+                                url: string;
+                                /** @description Fully qualified — what the copy buttons hand out. */
+                                absoluteUrl: string;
+                                filename: string;
+                                sizeBytes: number;
+                                expiresAt: string;
+                                /** @description Ready-to-paste 16-connection download command. */
+                                aria2c: string;
+                            };
+                            statusCode: number;
+                            code?: string;
+                            requestId?: string;
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/files/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        priority: number;
+                    };
+                };
+            };
+            responses: {
+                /** @description Updated */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            success: boolean;
+                            message: string;
+                            responseObject?: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                torrentId: string;
+                                qbtIndex: number;
+                                path: string;
+                                sizeBytes: number;
+                                progress: number;
+                                priority: number;
+                                isComplete: boolean;
+                                contentType: string | null;
+                            };
+                            statusCode: number;
+                            code?: string;
+                            requestId?: string;
+                        };
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
     "/api/v1/auth/login": {
         parameters: {
             query?: never;
@@ -306,6 +558,22 @@ export interface paths {
                                 pinned: boolean;
                                 addedAt: string;
                                 completedAt: string | null;
+                                lastAccessedAt: string | null;
+                                wastedBytes: number;
+                                timeActiveSeconds: number;
+                                seedingTimeSeconds: number;
+                                lastActivityAt: string | null;
+                                savePath: string | null;
+                                contentPath: string | null;
+                                category: string | null;
+                                isPrivate: boolean;
+                                piecesHave: number;
+                                piecesNum: number;
+                                pieceSizeBytes: number | null;
+                                comment: string | null;
+                                createdByClient: string | null;
+                                trackerHost: string | null;
+                                trackersCount: number;
                             }[];
                             statusCode: number;
                             code?: string;
@@ -366,6 +634,230 @@ export interface paths {
                                 pinned: boolean;
                                 addedAt: string;
                                 completedAt: string | null;
+                                lastAccessedAt: string | null;
+                                wastedBytes: number;
+                                timeActiveSeconds: number;
+                                seedingTimeSeconds: number;
+                                lastActivityAt: string | null;
+                                savePath: string | null;
+                                contentPath: string | null;
+                                category: string | null;
+                                isPrivate: boolean;
+                                piecesHave: number;
+                                piecesNum: number;
+                                pieceSizeBytes: number | null;
+                                comment: string | null;
+                                createdByClient: string | null;
+                                trackerHost: string | null;
+                                trackersCount: number;
+                            };
+                            statusCode: number;
+                            code?: string;
+                            requestId?: string;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/torrents/file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Upload a .torrent file (multipart/form-data, field `torrent`). */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "multipart/form-data": {
+                        /** Format: binary */
+                        torrent: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Created */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            success: boolean;
+                            message: string;
+                            responseObject?: {
+                                /** Format: uuid */
+                                id: string;
+                                infoHash: string;
+                                name: string;
+                                sizeBytes: number;
+                                /** @enum {string} */
+                                status: "queued" | "downloading" | "paused" | "completed" | "errored" | "evicted";
+                                qbtState: string | null;
+                                progress: number;
+                                dlSpeedBps: number;
+                                upSpeedBps: number;
+                                etaSeconds: number | null;
+                                seedsConnected: number;
+                                seedsTotal: number;
+                                peersConnected: number;
+                                peersTotal: number;
+                                ratio: number;
+                                availability: number;
+                                downloadedBytes: number;
+                                uploadedBytes: number;
+                                pinned: boolean;
+                                addedAt: string;
+                                completedAt: string | null;
+                                lastAccessedAt: string | null;
+                                wastedBytes: number;
+                                timeActiveSeconds: number;
+                                seedingTimeSeconds: number;
+                                lastActivityAt: string | null;
+                                savePath: string | null;
+                                contentPath: string | null;
+                                category: string | null;
+                                isPrivate: boolean;
+                                piecesHave: number;
+                                piecesNum: number;
+                                pieceSizeBytes: number | null;
+                                comment: string | null;
+                                createdByClient: string | null;
+                                trackerHost: string | null;
+                                trackersCount: number;
+                            };
+                            statusCode: number;
+                            code?: string;
+                            requestId?: string;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/torrents/batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Add up to 50 magnets at once. Each item reports its own outcome. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        magnets: string[];
+                    };
+                };
+            };
+            responses: {
+                /** @description Batch complete */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            success: boolean;
+                            message: string;
+                            responseObject?: {
+                                results: {
+                                    /** @description Truncated for display; never the full magnet. */
+                                    input: string;
+                                    /** @enum {string} */
+                                    status: "added" | "duplicate" | "failed";
+                                    id: string | null;
+                                    name: string | null;
+                                    error: string | null;
+                                }[];
+                                added: number;
+                                duplicates: number;
+                                failed: number;
+                            };
+                            statusCode: number;
+                            code?: string;
+                            requestId?: string;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/torrents/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Upload several .torrent files at once (field `torrents`). */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Batch complete */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            success: boolean;
+                            message: string;
+                            responseObject?: {
+                                results: {
+                                    /** @description Truncated for display; never the full magnet. */
+                                    input: string;
+                                    /** @enum {string} */
+                                    status: "added" | "duplicate" | "failed";
+                                    id: string | null;
+                                    name: string | null;
+                                    error: string | null;
+                                }[];
+                                added: number;
+                                duplicates: number;
+                                failed: number;
                             };
                             statusCode: number;
                             code?: string;
@@ -432,6 +924,22 @@ export interface paths {
                                 pinned: boolean;
                                 addedAt: string;
                                 completedAt: string | null;
+                                lastAccessedAt: string | null;
+                                wastedBytes: number;
+                                timeActiveSeconds: number;
+                                seedingTimeSeconds: number;
+                                lastActivityAt: string | null;
+                                savePath: string | null;
+                                contentPath: string | null;
+                                category: string | null;
+                                isPrivate: boolean;
+                                piecesHave: number;
+                                piecesNum: number;
+                                pieceSizeBytes: number | null;
+                                comment: string | null;
+                                createdByClient: string | null;
+                                trackerHost: string | null;
+                                trackersCount: number;
                             };
                             statusCode: number;
                             code?: string;
@@ -786,10 +1294,77 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/torrents/{id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Per-torrent SSE: `properties`, `peers`, `trackers`, `pieces`. Polling for this torrent starts when the first client connects and stops when the last disconnects. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description text/event-stream */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            success: boolean;
+                            message: string;
+                            responseObject?: unknown;
+                            statusCode: number;
+                            code?: string;
+                            requestId?: string;
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        File: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            torrentId: string;
+            qbtIndex: number;
+            path: string;
+            sizeBytes: number;
+            progress: number;
+            priority: number;
+            isComplete: boolean;
+            contentType: string | null;
+        };
+        DownloadLink: {
+            /** @example /dl/eyJhbGci…/Big%20Buck%20Bunny.mp4 */
+            url: string;
+            /** @description Fully qualified — what the copy buttons hand out. */
+            absoluteUrl: string;
+            filename: string;
+            sizeBytes: number;
+            expiresAt: string;
+            /** @description Ready-to-paste 16-connection download command. */
+            aria2c: string;
+        };
         PublicUser: {
             /** Format: uuid */
             id: string;
@@ -821,6 +1396,22 @@ export interface components {
             pinned: boolean;
             addedAt: string;
             completedAt: string | null;
+            lastAccessedAt: string | null;
+            wastedBytes: number;
+            timeActiveSeconds: number;
+            seedingTimeSeconds: number;
+            lastActivityAt: string | null;
+            savePath: string | null;
+            contentPath: string | null;
+            category: string | null;
+            isPrivate: boolean;
+            piecesHave: number;
+            piecesNum: number;
+            pieceSizeBytes: number | null;
+            comment: string | null;
+            createdByClient: string | null;
+            trackerHost: string | null;
+            trackersCount: number;
         };
     };
     responses: never;

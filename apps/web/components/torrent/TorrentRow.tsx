@@ -1,6 +1,7 @@
 "use client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, Check, FolderOpen, Link2, Pause, Pin, PinOff, Play, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { memo, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/Checkbox";
@@ -110,9 +111,9 @@ export const TorrentRow = memo(function TorrentRow({ id }: { id: string }) {
 			{/* name */}
 			<div className="flex min-w-0 items-center gap-2">
 				{t.pinned && <Pin className="size-3 shrink-0 text-accent" aria-label="Pinned" />}
-				<span className="truncate text-sm font-medium text-fg" title={t.name}>
+				<Link href={`/torrents/${id}`} className="truncate text-sm font-medium text-fg hover:underline" title={t.name}>
 					{t.name}
-				</span>
+				</Link>
 				<StatusChip status={t.status} detail={t.qbtState} />
 				{done ? (
 					// ETA is meaningless once complete; how long it has sat idle is

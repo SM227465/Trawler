@@ -333,10 +333,30 @@ chat, and downloads. Revoking kills it immediately.
 
 ---
 
-## Phase 9 — Full telemetry UI
+## Phase 9 — Full telemetry UI ← **CURRENT** (9.1, 9.2 done)
 
-- [ ] 9.1 `GET /torrents/:id/events` — properties, peers, trackers, pieces
-- [ ] 9.2 Detail tabs: General, Trackers, Peers, Content
+> **9.1** The subscription is the URL: opening the stream starts the pollers for
+> that torrent, the last disconnect stops them. Verified with two overlapping
+> viewers — B leaving did not stop the poller while A was still watching.
+> Pieces are RLE'd before they leave the server: 987 pieces go out as
+> `[[2,987]]`.
+>
+> **9.2** Detail at `/torrents/:id`, tab in the URL. Building it found two
+> things that were quietly broken:
+>
+> - The poller never mapped `save_path`, `content_path`, `seeding_time`,
+>   `last_activity` or `trackers_count`. The columns doc 02 defines for them had
+>   sat at their defaults since Phase 3 — the detail view is simply the first
+>   thing that read them.
+> - Adding `lastActivityAt` to the DTO as a **Date** would have silently undone
+>   the delta compression: `diff()` compares with `!==`, and a fresh Date object
+>   never equals the previous one, so the field would have ridden along in every
+>   1 Hz frame for every torrent. The DTO carries epoch millis and converts to a
+>   Date only at the database boundary. Verified after the fix: the field appears
+>   in 1 of 7 frames, not 7 of 7.
+
+- [x] 9.1 `GET /torrents/:id/events` — properties, peers, trackers, pieces ✅
+- [x] 9.2 Detail tabs: General, Trackers, Peers, Content ✅
 - [ ] 9.3 Piece map — RLE wire format + downsampled canvas
 - [ ] 9.4 Speed graph — **load the `dataviz` skill first**
 - [ ] 9.5 Column toggles persisted to `localStorage`

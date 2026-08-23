@@ -30,6 +30,26 @@ export const TorrentSchema = z.object({
 	// Eviction ranks by least-recently-used, so this is what the UI must show to
 	// make cleanup order legible rather than mysterious.
 	lastAccessedAt: z.date().nullable(),
+
+	// ── detail view (doc 04 §5.3) ──
+	// Already polled into the row by the 1 Hz poller; they were simply never
+	// exposed. Adding them costs nothing at the wire and saves the detail view
+	// a second round trip for facts we already hold.
+	wastedBytes: z.number(),
+	timeActiveSeconds: z.number(),
+	seedingTimeSeconds: z.number(),
+	lastActivityAt: z.date().nullable(),
+	savePath: z.string().nullable(),
+	contentPath: z.string().nullable(),
+	category: z.string().nullable(),
+	isPrivate: z.boolean(),
+	piecesHave: z.number(),
+	piecesNum: z.number(),
+	pieceSizeBytes: z.number().nullable(),
+	comment: z.string().nullable(),
+	createdByClient: z.string().nullable(),
+	trackerHost: z.string().nullable(),
+	trackersCount: z.number(),
 });
 export type Torrent = z.infer<typeof TorrentSchema>;
 
