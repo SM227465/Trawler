@@ -212,7 +212,15 @@ export class QbittorrentClient {
 		return this.getJson<number[]>(`/torrents/pieceStates?hash=${hash}`);
 	}
 
-	/** Ensures our category exists so torrents land under a known save path. */
+	/**
+	 * Peer list as a DELTA. Pass the previous rid and qBittorrent returns only
+	 * what changed — the same mechanism `sync/maindata` uses, and the reason the
+	 * detail view is cheap enough to poll at 1 Hz.
+	 */
+	peersSync(hash: string, rid: number): Promise<QbtPeersSync> {
+		return this.getJson<QbtPeersSync>(`/sync/torrentPeers?hash=${hash}&rid=${rid}`);
+	}
+
 	// ── transfer limits ──────────────────────────────────────────────────────
 	// These matter more than they look: Oracle's free tier caps egress at 10 TB
 	// a month, and SEEDING counts. An unthrottled box will exhaust it.
@@ -249,6 +257,7 @@ export class QbittorrentClient {
 		await this.post("/app/setPreferences", { json: JSON.stringify(prefs) });
 	}
 
+	/** Ensures our category exists so torrents land under a known save path. */
 	async ensureCategory(): Promise<void> {
 		try {
 			await this.post("/torrents/createCategory", {

@@ -11,7 +11,7 @@ import { env } from "@/common/utils/envConfig";
 import { handleServiceResponse } from "@/common/utils/httpHandlers";
 import { logger } from "@/common/utils/logger";
 import { authRouter } from "@/modules/auth/authRouter";
-import { eventRouter } from "@/modules/event/eventRouter";
+import { eventRouter, torrentEventRouter } from "@/modules/event/eventRouter";
 import { fileRouter } from "@/modules/file/fileRouter";
 import { zipRouter } from "@/modules/file/zipRouter";
 import { healthCheckRouter } from "@/modules/healthCheck/healthCheckRouter";
@@ -54,6 +54,8 @@ app.use("/internal", internalRouter);
 // a zip cannot be served from disk by Caddy.
 app.use("/zip", zipRouter);
 app.use("/api/v1/events", eventRouter);
+// Detail telemetry. Mounted under /torrents so the URL reads /torrents/:id/events.
+app.use("/api/v1/torrents", torrentEventRouter);
 
 // API docs.
 //

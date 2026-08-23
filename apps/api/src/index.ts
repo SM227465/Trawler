@@ -1,5 +1,6 @@
 import { env } from "@/common/utils/envConfig";
 import { systemSampler } from "@/modules/system/systemSampler";
+import { detailPoller } from "@/realtime/detailPoller";
 import { qbtPoller } from "@/realtime/qbtPoller";
 import { sseHub } from "@/realtime/sseHub";
 import { app, logger } from "@/server";
@@ -15,6 +16,7 @@ const server = app.listen(env.PORT, () => {
 const onCloseSignal = () => {
 	logger.info("sigint received, shutting down");
 	qbtPoller.stop();
+	detailPoller.stopAll();
 	systemSampler.stop();
 	sseHub.closeAll();
 	server.close(() => {
