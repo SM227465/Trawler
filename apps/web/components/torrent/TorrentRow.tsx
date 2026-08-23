@@ -78,7 +78,11 @@ export const TorrentRow = memo(function TorrentRow({ id }: { id: string }) {
 			className={cn(
 				// `relative` + `isolate` so the progress fill below can sit behind the
 				// content without escaping the row or catching pointer events.
-				"relative isolate border-b border-border py-3 pr-3 last:border-b-0 hover:bg-surface-2 sm:pr-4",
+				// border-STRONG, not border: the row fill now runs edge to edge, and the
+				// subtle divider was tuned to sit against bg-surface — between two
+				// filled rows it disappeared entirely and adjacent completed torrents
+				// merged into one block.
+				"relative isolate border-b border-border-strong py-3 pr-3 last:border-b-0 hover:bg-surface-2 sm:pr-4",
 				"flex flex-col gap-3 lg:gap-0",
 				// A pinned torrent is protected from cleanup — worth seeing at a
 				// glance, not only by hunting for the icon.
@@ -95,7 +99,9 @@ export const TorrentRow = memo(function TorrentRow({ id }: { id: string }) {
 			<div
 				aria-hidden
 				className={cn(
-					"pointer-events-none absolute inset-y-0 left-0 -z-10 transition-[width] duration-500",
+					// bottom-px, not inset-y-0: leaves the divider row uncovered so the
+					// separator survives even where two fills meet.
+					"pointer-events-none absolute top-0 bottom-px left-0 -z-10 transition-[width] duration-500",
 					FILL[t.status] ?? "bg-status-queued-soft",
 				)}
 				style={{ width: `${Math.min(100, Math.max(0, t.progress * 100))}%` }}
