@@ -36,6 +36,17 @@ fileRegistry.registerPath({
 fileRouter.get("/browse/link", fileController.browseLink);
 
 fileRegistry.registerPath({
+	method: "delete",
+	path: "/api/v1/files/browse",
+	tags: ["File"],
+	description:
+		"Delete one file or directory under the downloads root. Manual only — nothing in this app deletes on its own. Refuses the root itself.",
+	request: { query: z.object({ path: z.string() }) },
+	responses: createApiResponse(z.object({}).passthrough(), "Deleted"),
+});
+fileRouter.delete("/browse", fileController.browseDelete);
+
+fileRegistry.registerPath({
 	method: "get",
 	path: "/api/v1/files/browse/zip-link",
 	tags: ["File"],

@@ -14,8 +14,10 @@ import {
 	LoaderCircle,
 	Play,
 	Subtitles,
+	Trash2,
 } from "lucide-react";
 import { useState } from "react";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { api, type BrowseEntry } from "@/lib/api";
 import { asAttachment } from "@/lib/attachment";
 import { cn } from "@/lib/cn";
@@ -81,12 +83,13 @@ function Breadcrumbs({ path, onNavigate, root }: { path: string; onNavigate: (p:
 	);
 }
 
-function Row({ entry, onOpen }: { entry: BrowseEntry; onOpen: (p: string) => void }) {
+function Row({ entry, onOpen, onDeleted }: { entry: BrowseEntry; onOpen: (p: string) => void; onDeleted: () => void }) {
 	const Icon = iconFor(entry);
 	const isDir = entry.type === "dir";
 	const { copied, copy } = useCopy();
 	const [hint, setHint] = useState<string | null>(null);
 	const [playing, setPlaying] = useState(false);
+	const [confirming, setConfirming] = useState(false);
 	const media = classify(entry.name);
 
 	// One request serves both actions. Folders mint a zip link and files a direct
@@ -100,6 +103,14 @@ function Row({ entry, onOpen }: { entry: BrowseEntry; onOpen: (p: string) => voi
 		onSuccess: (link) => {
 			window.open(asAttachment(link.path), "_blank", "noopener");
 			if (isDir) setHint("Zipping — the download starts as soon as the first bytes are ready.");
+		},
+	});
+
+	const remove = useMutation({
+		mutationFn: () => api.deleteBrowsePath(entry.path),
+		onSuccess: () => {
+			setConfirming(false);
+			onDeleted();
 		},
 	});
 
@@ -139,8 +150,8 @@ function Row({ entry, onOpen }: { entry: BrowseEntry; onOpen: (p: string) => voi
 
 				{/* Fixed width, right-aligned: Play is conditional, and without a
 				    reserved slot its absence dragged the size and time columns 30px
-				    left on every non-playable row. 3 x size-7 + 2 x gap-0.5 = 5.5rem. */}
-				<span className="flex w-[5.5rem] shrink-0 justify-end gap-0.5">
+				    left on every non-playable row. 4 x size-7 + 3 x gap-0.5 = 7.375rem. */}
+				<span className="flex w-[7.375rem] shrink-0 justify-end gap-0.5">
 					{!isDir && (media.playable || media.needsExternalPlayer) && (
 						<button
 							type="button"
@@ -193,8 +204,47 @@ function Row({ entry, onOpen }: { entry: BrowseEntry; onOpen: (p: string) => voi
 							<Download className="size-3.5" aria-hidden />
 						)}
 					</button>
+
+					<button
+						type="button"
+						onClick={() => setConfirming(true)}
+						disabled={busy || remove.isPending}
+						aria-label={`Delete ${entry.name}`}
+						title="Delete"
+						className={cn(
+							"grid size-7 cursor-pointer place-items-center rounded-[var(--ct-radius-sm)]",
+							"text-fg-subtle transition-colors hover:bg-surface-inset hover:text-danger",
+							"disabled:pointer-events-none disabled:opacity-50",
+						)}
+					>
+						{remove.isPending ? (
+							<LoaderCircle className="size-3.5 animate-spin" aria-hidden />
+						) : (
+							<Trash2 className="size-3.5" aria-hidden />
+						)}
+					</button>
 				</span>
 			</div>
+
+			<ConfirmDialog
+				open={confirming}
+				onClose={() => setConfirming(false)}
+				onConfirm={() => remove.mutate()}
+				busy={remove.isPending}
+				danger
+				confirmLabel="Delete"
+				title={isDir ? "Delete this folder?" : "Delete this file?"}
+				description={entry.name}
+			>
+				<p className="text-sm text-fg-muted">
+					{isDir
+						? "The folder and everything inside it is removed from disk. This cannot be undone."
+						: "The file is removed from disk. This cannot be undone."}{" "}
+					If a torrent is still seeding these files it will error or start fetching them again — remove the torrent
+					first if you want it gone for good.
+				</p>
+				{remove.isError && <p className="mt-2 text-sm text-status-errored">Could not delete that.</p>}
+			</ConfirmDialog>
 
 			{!isDir && (
 				<MediaPlayerDialog
@@ -215,7 +265,7 @@ function Row({ entry, onOpen }: { entry: BrowseEntry; onOpen: (p: string) => voi
 }
 
 export function FileBrowser({ path, onNavigate }: { path: string; onNavigate: (p: string) => void }) {
-	const { data, isLoading, isError } = useQuery({
+	const { data, isLoading, isError, refetch } = useQuery({
 		queryKey: ["browse", path],
 		queryFn: () => api.browse(path),
 		// Folders change as torrents finish — fresh, but not chatty.
@@ -257,7 +307,7 @@ export function FileBrowser({ path, onNavigate }: { path: string; onNavigate: (p
 						</li>
 					)}
 					{data.entries.map((e) => (
-						<Row key={e.path} entry={e} onOpen={onNavigate} />
+						<Row key={e.path} entry={e} onOpen={onNavigate} onDeleted={() => refetch()} />
 					))}
 				</ul>
 			)}

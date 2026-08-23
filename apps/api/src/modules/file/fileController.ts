@@ -20,6 +20,10 @@ class FileController {
 		handleServiceResponse(await browseService.zipLink(req.query.path as string | undefined, req.user!.id), res);
 	};
 
+	public browseDelete: RequestHandler = async (req: Request, res: Response) => {
+		handleServiceResponse(await browseService.remove(req.query.path as string | undefined), res);
+	};
+
 	public update: RequestHandler = async (req: Request, res: Response) => {
 		handleServiceResponse(await fileService.setPriority(req.params.id, req.body.priority), res);
 	};

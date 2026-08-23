@@ -1,4 +1,4 @@
-import { readdir, stat } from "node:fs/promises";
+import { readdir, rm, stat } from "node:fs/promises";
 import path from "node:path";
 import { ErrorCode } from "@/common/models/errorCodes";
 import { ServiceResponse } from "@/common/models/serviceResponse";
@@ -160,6 +160,62 @@ export class BrowseService {
 			filename,
 			sizeBytes: size,
 		});
+	}
+
+	/**
+	 * Deletes one file or directory under the downloads root.
+	 *
+	 * Deliberately manual-only: nothing in this app removes user data on its own,
+	 * so this is reached exclusively from an explicit button behind a confirm.
+	 *
+	 * Refuses to delete the root itself — an empty path used to mean "the whole
+	 * library", which is one mistyped request away from wiping every download.
+	 */
+	async remove(rawPath: string | undefined) {
+		const rel = normalise(rawPath);
+		if (!rel) {
+			return ServiceResponse.failure(
+				"Refusing to delete the downloads root",
+				null,
+				ErrorCode.VALIDATION_ERROR,
+				"VALIDATION_ERROR",
+			);
+		}
+
+		const resolved = await resolveRealPath(rel);
+		if (!resolved.ok) {
+			logger.warn({ rawPath, reason: resolved.reason }, "delete refused");
+			return ServiceResponse.failure("Path not found", null, ErrorCode.RESOURCE_NOT_FOUND, "RESOURCE_NOT_FOUND");
+		}
+		if (resolved.absPath === downloadsRoot) {
+			return ServiceResponse.failure(
+				"Refusing to delete the downloads root",
+				null,
+				ErrorCode.VALIDATION_ERROR,
+				"VALIDATION_ERROR",
+			);
+		}
+
+		let isDir = false;
+		try {
+			isDir = (await stat(resolved.absPath)).isDirectory();
+		} catch (err) {
+			if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+				return ServiceResponse.failure("Path not found", null, ErrorCode.RESOURCE_NOT_FOUND, "RESOURCE_NOT_FOUND");
+			}
+			logger.error({ err, rel }, "delete stat failed");
+			return ServiceResponse.failure("Could not delete", null, ErrorCode.INTERNAL_ERROR, "INTERNAL_ERROR");
+		}
+
+		try {
+			await rm(resolved.absPath, { recursive: isDir, force: false });
+		} catch (err) {
+			logger.error({ err, rel }, "delete failed");
+			return ServiceResponse.failure("Could not delete", null, ErrorCode.INTERNAL_ERROR, "INTERNAL_ERROR");
+		}
+
+		logger.info({ path: rel, isDir }, "path deleted by user");
+		return ServiceResponse.success("Deleted", { path: rel, type: isDir ? "dir" : "file" });
 	}
 }
 

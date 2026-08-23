@@ -297,6 +297,11 @@ export const api = {
 
 	browse: (path: string) => apiFetch<BrowseListing>(`/files/browse?path=${encodeURIComponent(path)}`),
 
+	deleteBrowsePath: (path: string) =>
+		apiFetch<{ path: string; type: "dir" | "file" }>(`/files/browse?path=${encodeURIComponent(path)}`, {
+			method: "DELETE",
+		}),
+
 	browseLink: (path: string) =>
 		apiFetch<{ path: string; url: string; filename: string; sizeBytes: number }>(
 			`/files/browse/link?path=${encodeURIComponent(path)}`,
