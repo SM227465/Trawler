@@ -50,7 +50,11 @@ services:
       NODE_ENV: development
     volumes:
       - ./apps/api/src:/app/src
-      - ./data/downloads:/downloads:ro
+      # RW, unlike every other mount of this volume: the Files page can delete a
+      # file or folder, and that is the only write the api makes here. Bytes are
+      # still served by Caddy, never by Node. Guarded by resolveRealPath, which
+      # refuses traversal, symlink escapes and the downloads root itself.
+      - ./data/downloads:/downloads
       # NO anonymous /app/node_modules volume: only /app/src is bind-mounted, so
       # nothing shadows node_modules — and an anonymous volume would SURVIVE
       # image rebuilds, silently pinning the old dependency set.

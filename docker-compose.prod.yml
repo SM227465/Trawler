@@ -60,7 +60,11 @@ services:
     image: ${IMAGE_BASE:-ghcr.io/OWNER/trawler}-api:${IMAGE_TAG:-latest}
     command: !reset null          # use the image's own CMD
     volumes: !override
-      - /data/downloads:/downloads:ro
+      # RW, unlike every other mount of this volume: the Files page can delete a
+      # file or folder, and that is the only write the api makes here. Bytes are
+      # still served by Caddy, never by Node. Guarded by resolveRealPath, which
+      # refuses traversal, symlink escapes and the downloads root itself.
+      - /data/downloads:/downloads
 
   worker:
     build: !reset null

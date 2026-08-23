@@ -271,7 +271,11 @@ function Row({ entry, onOpen, onDeleted }: { entry: BrowseEntry; onOpen: (p: str
 					If a torrent is still seeding these files it will error or start fetching them again — remove the torrent
 					first if you want it gone for good.
 				</p>
-				{remove.isError && <p className="mt-2 text-sm text-status-errored">Could not delete that.</p>}
+				{remove.isError && (
+					<p className="mt-2 text-sm text-status-errored">
+						{remove.error instanceof Error && remove.error.message ? remove.error.message : "Could not delete that."}
+					</p>
+				)}
 			</ConfirmDialog>
 
 			{!isDir && (

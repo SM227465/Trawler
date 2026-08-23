@@ -225,7 +225,20 @@ export class BrowseService {
 		try {
 			await rm(resolved.absPath, { recursive: isDir, force: false });
 		} catch (err) {
-			logger.error({ err, rel }, "delete failed");
+			const code = (err as NodeJS.ErrnoException).code;
+			// EROFS means the downloads volume is mounted read-only into this
+			// container — a deployment problem, not a bad request. It surfaced as
+			// a bare 500 the first time and was invisible from the UI, so name it.
+			if (code === "EROFS" || code === "EACCES" || code === "EPERM") {
+				logger.error({ err, rel, code }, "delete refused by the filesystem — is /downloads mounted read-write?");
+				return ServiceResponse.failure(
+					"The downloads volume is not writable by the server",
+					null,
+					ErrorCode.INTERNAL_ERROR,
+					"DOWNLOADS_NOT_WRITABLE",
+				);
+			}
+			logger.error({ err, rel, code }, "delete failed");
 			return ServiceResponse.failure("Could not delete", null, ErrorCode.INTERNAL_ERROR, "INTERNAL_ERROR");
 		}
 
