@@ -26,7 +26,7 @@ export async function backupHandler() {
 	await mkdir(dir, { recursive: true });
 
 	const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-	const target = path.join(dir, `cloudtorrent-${stamp}.sql.gz`);
+	const target = path.join(dir, `trawler-${stamp}.sql.gz`);
 
 	const child = spawn("pg_dump", ["--no-owner", "--no-privileges", "--clean", "--if-exists", env.DATABASE_URL], {
 		stdio: ["ignore", "pipe", "pipe"],
@@ -65,7 +65,10 @@ export async function backupHandler() {
 async function pruneOldBackups(dir: string) {
 	try {
 		const files = (await readdir(dir))
-			.filter((f) => f.startsWith("cloudtorrent-") && f.endsWith(".sql.gz"))
+			// Matches the pre-rename prefix too: dumps written as cloudtorrent-*
+			// still need pruning, and a filter that ignored them would leave them
+			// on disk forever.
+			.filter((f) => /^(trawler|cloudtorrent)-/.test(f) && f.endsWith(".sql.gz"))
 			.sort()
 			.reverse();
 

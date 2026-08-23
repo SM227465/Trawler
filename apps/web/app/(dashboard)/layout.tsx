@@ -27,7 +27,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 					<span className="grid size-8 shrink-0 place-items-center rounded-[var(--ct-radius-sm)] bg-accent-soft text-accent">
 						<CloudDownload className="size-4" aria-hidden />
 					</span>
-					<h1 className="mr-auto truncate text-sm font-semibold">Cloud Torrent</h1>
+					<h1 className="mr-auto truncate text-sm font-semibold">Trawler</h1>
 
 					<span className="hidden truncate text-xs text-fg-subtle sm:block">{user.email}</span>
 					<ThemeToggle />

@@ -8,7 +8,7 @@ const sans = Geist({ variable: "--font-geist-sans", subsets: ["latin"], display:
 const mono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"], display: "swap" });
 
 export const metadata: Metadata = {
-	title: "Cloud Torrent",
+	title: "Trawler",
 	description: "Personal cloud torrent — add a magnet, download it anywhere.",
 	robots: { index: false, follow: false },
 };

@@ -25,7 +25,7 @@ const envSchema = z.object({
 
 	// ── qBittorrent ──
 	QBT_URL: z.string().url().default("http://qbittorrent:8080"),
-	QBT_CATEGORY: z.string().default("cloudtorrent"),
+	QBT_CATEGORY: z.string().default("trawler"),
 	// Optional: the WebUI port is never published and AuthSubnetWhitelist lets
 	// the api through without credentials. Set these only if that changes.
 	QBT_USERNAME: z.string().optional(),
@@ -41,7 +41,7 @@ const envSchema = z.object({
 	DOWNLOAD_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(14400),
 
 	// ── webdav ──
-	WEBDAV_USER: z.string().default("cloudtorrent"),
+	WEBDAV_USER: z.string().default("trawler"),
 	WEBDAV_PASSWORD: z.string().default(""),
 
 	// ── storage policy (defaults; app_settings overrides at runtime) ──

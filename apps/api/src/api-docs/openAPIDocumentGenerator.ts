@@ -26,7 +26,7 @@ export function generateOpenAPIDocument(): OpenAPIDocument {
 		openapi: "3.0.0",
 		info: {
 			version: "1.0.0",
-			title: "Cloud Torrent API",
+			title: "Trawler API",
 		},
 		externalDocs: {
 			description: "View the raw OpenAPI Specification in JSON format",

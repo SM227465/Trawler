@@ -45,7 +45,7 @@ export default function LoginPage() {
 					<span className="mb-3 grid size-11 place-items-center rounded-[var(--ct-radius)] bg-accent-soft text-accent">
 						<CloudDownload className="size-5" aria-hidden />
 					</span>
-					<h1 className="text-lg font-semibold">Cloud Torrent</h1>
+					<h1 className="text-lg font-semibold">Trawler</h1>
 					<p className="mt-1 text-sm text-fg-muted">Sign in to your instance</p>
 				</div>
 

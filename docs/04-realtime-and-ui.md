@@ -1,4 +1,4 @@
-# Cloud Torrent — Realtime Telemetry & UI Spec
+# Trawler — Realtime Telemetry & UI Spec
 
 Goal: **parity with qBittorrent's own web UI**, plus what put.io / TorBox add on
 top (clean file browser, share links, streaming). Everything qBittorrent knows,

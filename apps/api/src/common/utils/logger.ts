@@ -8,7 +8,7 @@ import { env } from "@/common/utils/envConfig";
  * For readable local logs: `pnpm start:dev | pnpm exec pino-pretty`.
  */
 export const logger = pino({
-	name: "cloud-torrent-api",
+	name: "trawler-api",
 	level: env.isProduction ? "info" : "debug",
 	// A magnet link reveals exactly what is being downloaded — it does not
 	// belong in log storage. Doc 03 §A8.

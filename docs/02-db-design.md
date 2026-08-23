@@ -1,4 +1,4 @@
-# Cloud Torrent — Database Design
+# Trawler — Database Design
 
 PostgreSQL 18 · Drizzle ORM · migrations via drizzle-kit, committed to git.
 

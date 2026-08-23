@@ -1,4 +1,4 @@
-# Cloud Torrent — System Design
+# Trawler — System Design
 
 Status: draft v1 · Owner: single operator · Last updated: 2026-08-22
 

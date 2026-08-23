@@ -53,7 +53,7 @@ function Shell({ children }: { children: React.ReactNode }) {
 					<span className="grid size-7 place-items-center rounded-[var(--ct-radius-sm)] bg-accent-soft text-accent">
 						<CloudDownload className="size-4" aria-hidden />
 					</span>
-					<span className="text-sm font-medium">Cloud Torrent</span>
+					<span className="text-sm font-medium">Trawler</span>
 				</div>
 
 				{/* Glass is used HERE and only here: one static card, no live data.

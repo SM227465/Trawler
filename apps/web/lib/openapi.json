@@ -1,9 +1,46 @@
 {
 	"openapi": "3.0.0",
-	"info": { "version": "1.0.0", "title": "Cloud Torrent API" },
+	"info": { "version": "1.0.0", "title": "Trawler API" },
 	"externalDocs": { "description": "View the raw OpenAPI Specification in JSON format", "url": "/swagger.json" },
 	"components": {
 		"schemas": {
+			"File": {
+				"type": "object",
+				"properties": {
+					"id": { "type": "string", "format": "uuid" },
+					"torrentId": { "type": "string", "format": "uuid" },
+					"qbtIndex": { "type": "integer" },
+					"path": { "type": "string" },
+					"sizeBytes": { "type": "number" },
+					"progress": { "type": "number" },
+					"priority": { "type": "integer" },
+					"isComplete": { "type": "boolean" },
+					"contentType": { "type": "string", "nullable": true }
+				},
+				"required": [
+					"id",
+					"torrentId",
+					"qbtIndex",
+					"path",
+					"sizeBytes",
+					"progress",
+					"priority",
+					"isComplete",
+					"contentType"
+				]
+			},
+			"DownloadLink": {
+				"type": "object",
+				"properties": {
+					"url": { "type": "string", "example": "/dl/eyJhbGci…/Big%20Buck%20Bunny.mp4" },
+					"absoluteUrl": { "type": "string", "description": "Fully qualified — what the copy buttons hand out." },
+					"filename": { "type": "string" },
+					"sizeBytes": { "type": "number" },
+					"expiresAt": { "type": "string" },
+					"aria2c": { "type": "string", "description": "Ready-to-paste 16-connection download command." }
+				},
+				"required": ["url", "absoluteUrl", "filename", "sizeBytes", "expiresAt", "aria2c"]
+			},
 			"PublicUser": {
 				"type": "object",
 				"properties": {
@@ -39,7 +76,8 @@
 					"uploadedBytes": { "type": "number" },
 					"pinned": { "type": "boolean" },
 					"addedAt": { "type": "string" },
-					"completedAt": { "type": "string", "nullable": true }
+					"completedAt": { "type": "string", "nullable": true },
+					"lastAccessedAt": { "type": "string", "nullable": true }
 				},
 				"required": [
 					"id",
@@ -62,7 +100,8 @@
 					"uploadedBytes",
 					"pinned",
 					"addedAt",
-					"completedAt"
+					"completedAt",
+					"lastAccessedAt"
 				]
 			}
 		},
@@ -83,6 +122,198 @@
 										"success": { "type": "boolean" },
 										"message": { "type": "string" },
 										"responseObject": { "nullable": true },
+										"statusCode": { "type": "number" },
+										"code": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["success", "message", "statusCode"]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/v1/files/browse": {
+			"get": {
+				"tags": ["File"],
+				"description": "List a directory under the downloads root. Path is containment- and symlink-checked.",
+				"parameters": [{ "schema": { "type": "string" }, "required": false, "name": "path", "in": "query" }],
+				"responses": {
+					"200": {
+						"description": "Directory listing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"success": { "type": "boolean" },
+										"message": { "type": "string" },
+										"responseObject": { "type": "object", "properties": {} },
+										"statusCode": { "type": "number" },
+										"code": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["success", "message", "statusCode"]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/v1/files/browse/link": {
+			"get": {
+				"tags": ["File"],
+				"description": "Mint a download link for a browsed file.",
+				"parameters": [{ "schema": { "type": "string" }, "required": true, "name": "path", "in": "query" }],
+				"responses": {
+					"200": {
+						"description": "Link created",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"success": { "type": "boolean" },
+										"message": { "type": "string" },
+										"responseObject": { "type": "object", "properties": {} },
+										"statusCode": { "type": "number" },
+										"code": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["success", "message", "statusCode"]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/v1/files/browse/zip-link": {
+			"get": {
+				"tags": ["File"],
+				"description": "Mint a streamed-zip link for a folder.",
+				"parameters": [{ "schema": { "type": "string" }, "required": true, "name": "path", "in": "query" }],
+				"responses": {
+					"200": {
+						"description": "Link created",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"success": { "type": "boolean" },
+										"message": { "type": "string" },
+										"responseObject": { "type": "object", "properties": {} },
+										"statusCode": { "type": "number" },
+										"code": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["success", "message", "statusCode"]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/v1/files/{id}/link": {
+			"get": {
+				"tags": ["File"],
+				"description": "Mint a short-lived download URL served directly by Caddy.",
+				"parameters": [
+					{ "schema": { "type": "string", "format": "uuid" }, "required": true, "name": "id", "in": "path" }
+				],
+				"responses": {
+					"200": {
+						"description": "Link created",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"success": { "type": "boolean" },
+										"message": { "type": "string" },
+										"responseObject": {
+											"type": "object",
+											"properties": {
+												"url": { "type": "string", "example": "/dl/eyJhbGci…/Big%20Buck%20Bunny.mp4" },
+												"absoluteUrl": {
+													"type": "string",
+													"description": "Fully qualified — what the copy buttons hand out."
+												},
+												"filename": { "type": "string" },
+												"sizeBytes": { "type": "number" },
+												"expiresAt": { "type": "string" },
+												"aria2c": { "type": "string", "description": "Ready-to-paste 16-connection download command." }
+											},
+											"required": ["url", "absoluteUrl", "filename", "sizeBytes", "expiresAt", "aria2c"]
+										},
+										"statusCode": { "type": "number" },
+										"code": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["success", "message", "statusCode"]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/v1/files/{id}": {
+			"patch": {
+				"tags": ["File"],
+				"parameters": [
+					{ "schema": { "type": "string", "format": "uuid" }, "required": true, "name": "id", "in": "path" }
+				],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": { "priority": { "type": "integer" } },
+								"required": ["priority"]
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Updated",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"success": { "type": "boolean" },
+										"message": { "type": "string" },
+										"responseObject": {
+											"type": "object",
+											"properties": {
+												"id": { "type": "string", "format": "uuid" },
+												"torrentId": { "type": "string", "format": "uuid" },
+												"qbtIndex": { "type": "integer" },
+												"path": { "type": "string" },
+												"sizeBytes": { "type": "number" },
+												"progress": { "type": "number" },
+												"priority": { "type": "integer" },
+												"isComplete": { "type": "boolean" },
+												"contentType": { "type": "string", "nullable": true }
+											},
+											"required": [
+												"id",
+												"torrentId",
+												"qbtIndex",
+												"path",
+												"sizeBytes",
+												"progress",
+												"priority",
+												"isComplete",
+												"contentType"
+											]
+										},
 										"statusCode": { "type": "number" },
 										"code": { "type": "string" },
 										"requestId": { "type": "string" }
@@ -325,7 +556,8 @@
 													"uploadedBytes": { "type": "number" },
 													"pinned": { "type": "boolean" },
 													"addedAt": { "type": "string" },
-													"completedAt": { "type": "string", "nullable": true }
+													"completedAt": { "type": "string", "nullable": true },
+													"lastAccessedAt": { "type": "string", "nullable": true }
 												},
 												"required": [
 													"id",
@@ -348,7 +580,8 @@
 													"uploadedBytes",
 													"pinned",
 													"addedAt",
-													"completedAt"
+													"completedAt",
+													"lastAccessedAt"
 												]
 											}
 										},
@@ -415,7 +648,8 @@
 												"uploadedBytes": { "type": "number" },
 												"pinned": { "type": "boolean" },
 												"addedAt": { "type": "string" },
-												"completedAt": { "type": "string", "nullable": true }
+												"completedAt": { "type": "string", "nullable": true },
+												"lastAccessedAt": { "type": "string", "nullable": true }
 											},
 											"required": [
 												"id",
@@ -438,8 +672,215 @@
 												"uploadedBytes",
 												"pinned",
 												"addedAt",
-												"completedAt"
+												"completedAt",
+												"lastAccessedAt"
 											]
+										},
+										"statusCode": { "type": "number" },
+										"code": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["success", "message", "statusCode"]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/v1/torrents/file": {
+			"post": {
+				"tags": ["Torrent"],
+				"description": "Upload a .torrent file (multipart/form-data, field `torrent`).",
+				"requestBody": {
+					"content": {
+						"multipart/form-data": {
+							"schema": {
+								"type": "object",
+								"properties": { "torrent": { "type": "string", "format": "binary" } },
+								"required": ["torrent"]
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Created",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"success": { "type": "boolean" },
+										"message": { "type": "string" },
+										"responseObject": {
+											"type": "object",
+											"properties": {
+												"id": { "type": "string", "format": "uuid" },
+												"infoHash": { "type": "string" },
+												"name": { "type": "string" },
+												"sizeBytes": { "type": "number" },
+												"status": {
+													"type": "string",
+													"enum": ["queued", "downloading", "paused", "completed", "errored", "evicted"]
+												},
+												"qbtState": { "type": "string", "nullable": true },
+												"progress": { "type": "number" },
+												"dlSpeedBps": { "type": "number" },
+												"upSpeedBps": { "type": "number" },
+												"etaSeconds": { "type": "number", "nullable": true },
+												"seedsConnected": { "type": "number" },
+												"seedsTotal": { "type": "number" },
+												"peersConnected": { "type": "number" },
+												"peersTotal": { "type": "number" },
+												"ratio": { "type": "number" },
+												"availability": { "type": "number" },
+												"downloadedBytes": { "type": "number" },
+												"uploadedBytes": { "type": "number" },
+												"pinned": { "type": "boolean" },
+												"addedAt": { "type": "string" },
+												"completedAt": { "type": "string", "nullable": true },
+												"lastAccessedAt": { "type": "string", "nullable": true }
+											},
+											"required": [
+												"id",
+												"infoHash",
+												"name",
+												"sizeBytes",
+												"status",
+												"qbtState",
+												"progress",
+												"dlSpeedBps",
+												"upSpeedBps",
+												"etaSeconds",
+												"seedsConnected",
+												"seedsTotal",
+												"peersConnected",
+												"peersTotal",
+												"ratio",
+												"availability",
+												"downloadedBytes",
+												"uploadedBytes",
+												"pinned",
+												"addedAt",
+												"completedAt",
+												"lastAccessedAt"
+											]
+										},
+										"statusCode": { "type": "number" },
+										"code": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["success", "message", "statusCode"]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/v1/torrents/batch": {
+			"post": {
+				"tags": ["Torrent"],
+				"description": "Add up to 50 magnets at once. Each item reports its own outcome.",
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": { "magnets": { "type": "array", "items": { "type": "string" } } },
+								"required": ["magnets"]
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Batch complete",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"success": { "type": "boolean" },
+										"message": { "type": "string" },
+										"responseObject": {
+											"type": "object",
+											"properties": {
+												"results": {
+													"type": "array",
+													"items": {
+														"type": "object",
+														"properties": {
+															"input": {
+																"type": "string",
+																"description": "Truncated for display; never the full magnet."
+															},
+															"status": { "type": "string", "enum": ["added", "duplicate", "failed"] },
+															"id": { "type": "string", "nullable": true },
+															"name": { "type": "string", "nullable": true },
+															"error": { "type": "string", "nullable": true }
+														},
+														"required": ["input", "status", "id", "name", "error"]
+													}
+												},
+												"added": { "type": "number" },
+												"duplicates": { "type": "number" },
+												"failed": { "type": "number" }
+											},
+											"required": ["results", "added", "duplicates", "failed"]
+										},
+										"statusCode": { "type": "number" },
+										"code": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["success", "message", "statusCode"]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/v1/torrents/files": {
+			"post": {
+				"tags": ["Torrent"],
+				"description": "Upload several .torrent files at once (field `torrents`).",
+				"responses": {
+					"200": {
+						"description": "Batch complete",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"success": { "type": "boolean" },
+										"message": { "type": "string" },
+										"responseObject": {
+											"type": "object",
+											"properties": {
+												"results": {
+													"type": "array",
+													"items": {
+														"type": "object",
+														"properties": {
+															"input": {
+																"type": "string",
+																"description": "Truncated for display; never the full magnet."
+															},
+															"status": { "type": "string", "enum": ["added", "duplicate", "failed"] },
+															"id": { "type": "string", "nullable": true },
+															"name": { "type": "string", "nullable": true },
+															"error": { "type": "string", "nullable": true }
+														},
+														"required": ["input", "status", "id", "name", "error"]
+													}
+												},
+												"added": { "type": "number" },
+												"duplicates": { "type": "number" },
+												"failed": { "type": "number" }
+											},
+											"required": ["results", "added", "duplicates", "failed"]
 										},
 										"statusCode": { "type": "number" },
 										"code": { "type": "string" },
@@ -495,7 +936,8 @@
 												"uploadedBytes": { "type": "number" },
 												"pinned": { "type": "boolean" },
 												"addedAt": { "type": "string" },
-												"completedAt": { "type": "string", "nullable": true }
+												"completedAt": { "type": "string", "nullable": true },
+												"lastAccessedAt": { "type": "string", "nullable": true }
 											},
 											"required": [
 												"id",
@@ -518,7 +960,8 @@
 												"uploadedBytes",
 												"pinned",
 												"addedAt",
-												"completedAt"
+												"completedAt",
+												"lastAccessedAt"
 											]
 										},
 										"statusCode": { "type": "number" },
@@ -744,6 +1187,33 @@
 			"get": {
 				"tags": ["Events"],
 				"description": "SSE stream: `stats` (global), `torrents` (list deltas), `removed`.",
+				"responses": {
+					"200": {
+						"description": "text/event-stream",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"success": { "type": "boolean" },
+										"message": { "type": "string" },
+										"responseObject": { "nullable": true },
+										"statusCode": { "type": "number" },
+										"code": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["success", "message", "statusCode"]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/v1/torrents/{id}/events": {
+			"get": {
+				"tags": ["Events"],
+				"description": "Per-torrent SSE: `properties`, `peers`, `trackers`, `pieces`. Polling for this torrent starts when the first client connects and stops when the last disconnects.",
 				"responses": {
 					"200": {
 						"description": "text/event-stream",
