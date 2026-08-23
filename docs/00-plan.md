@@ -333,7 +333,36 @@ chat, and downloads. Revoking kills it immediately.
 
 ---
 
-## Phase 9 — Full telemetry UI ← **CURRENT** (9.1–9.3 done)
+## Phase 9 — Full telemetry UI ✅ **DONE 2026-08-23**
+
+> **9.7 measurement, and how to repeat it.** Measure the PRODUCTION build, never
+> localhost: the dev server ships the HMR client, next-devtools, polyfills and
+> unminified code, and reports **889 KB** — a number that means nothing and looks
+> like a catastrophic regression.
+>
+> Real figures: **165 KB gzip shared shell**, 276 KB across all ten routes.
+> Phase 9 cost the dashboard nothing, because the detail view, piece map and
+> speed chart all live on `/torrents/[id]`, which Next code-splits.
+>
+> **9.4** Download and upload on ONE shared scale, never a second y-axis — upload
+> is usually far smaller and that IS the information; a dual axis would draw them
+> the same height and imply a parity that does not exist. Hues follow the entity:
+> download is viz-1 and upload viz-2, matching the System page so the colours
+> mean the same thing in both places. History is kept client-side from the
+> existing 1 Hz stream rather than polling qBittorrent again, sampled on a timer
+> so a paused torrent draws a line at zero instead of a gap.
+>
+> **9.5** Hiding a column has to change the grid TEMPLATE, and Tailwind's JIT
+> only emits classes it can see literally. The template is therefore a CSS
+> custom property set inline and consumed inside the `lg` media query — an
+> inline `grid-template-columns` would leak past the breakpoint and break the
+> stacked mobile layout.
+>
+> **9.6** `eta=8640000` was already normalised to null at the poller. Added:
+> `metaDL` shows the infohash and a spinner rather than a blank row,
+> `availability<1` gets a "no full copy" badge explaining that no complete copy
+> is reachable, and `error`/`missingFiles` surface qBittorrent's own message —
+> `errorMessage` had never been exposed on the DTO.
 
 > **9.3** One canvas, downsampled to the element's pixel width, WORST-WINS per
 > column. Verified: a single missing piece in 10,000 still shows after
@@ -373,10 +402,10 @@ chat, and downloads. Revoking kills it immediately.
 - [x] 9.1 `GET /torrents/:id/events` — properties, peers, trackers, pieces ✅
 - [x] 9.2 Detail tabs: General, Trackers, Peers, Content ✅
 - [x] 9.3 Piece map — RLE wire format + downsampled canvas ✅
-- [ ] 9.4 Speed graph — **load the `dataviz` skill first**
-- [ ] 9.5 Column toggles persisted to `localStorage`
-- [ ] 9.6 Edge cases: `metaDL`, `eta=8640000`, `availability<1`, `firewalled`
-- [ ] 9.7 Re-check the bundle budget — Phase 4 already sits AT 200 KB gzip
+- [x] 9.4 Speed graph ✅ (dataviz skill loaded first)
+- [x] 9.5 Column toggles persisted to `localStorage` ✅
+- [x] 9.6 Edge cases: `metaDL`, `eta=8640000`, `availability<1`, `firewalled` ✅
+- [x] 9.7 Bundle budget re-checked ✅
 
 **Exit:** parity with qBittorrent's own web UI.
 

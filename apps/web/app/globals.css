@@ -376,3 +376,18 @@
 		animation: none;
 	}
 }
+
+/* ── torrent table grid ───────────────────────────────────────────────────
+   The column template is dynamic (columns can be hidden), so it arrives as a
+   custom property set inline rather than a Tailwind class — the JIT only emits
+   classes it can see literally. Consuming it inside the media query keeps the
+   stacked mobile layout intact, which an inline grid-template-columns would
+   not. */
+@media (min-width: 1024px) {
+	.ct-row-grid {
+		display: grid;
+		grid-template-columns: var(--ct-cols);
+		align-items: center;
+		column-gap: 0.75rem;
+	}
+}

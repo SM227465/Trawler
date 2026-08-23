@@ -1,6 +1,18 @@
 "use client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, Check, FolderOpen, Link2, Pause, Pin, PinOff, Play, Trash2 } from "lucide-react";
+import {
+	ArrowDown,
+	ArrowUp,
+	Check,
+	FolderOpen,
+	Link2,
+	LoaderCircle,
+	Pause,
+	Pin,
+	PinOff,
+	Play,
+	Trash2,
+} from "lucide-react";
 import Link from "next/link";
 import { memo, useState } from "react";
 import { Button } from "@/components/ui/Button";
@@ -13,7 +25,7 @@ import { formatBytes, formatEta, formatPercent, formatSince, formatSpeed, format
 import { buildMagnet, useCopy } from "@/lib/useCopy";
 import { TORRENT_IDS_KEY, torrentKey } from "@/lib/useTorrentStream";
 import { FilesDialog } from "./FilesDialog";
-import { ROW_GRID } from "./grid";
+import { gridTemplate, ROW_GRID } from "./grid";
 
 /**
  * Which tint the row fills with. Token utilities only — the `-soft` steps are
@@ -42,7 +54,7 @@ function Cell({ label, children, className }: { label: string; children: React.R
  * Subscribes to its OWN cache entry. A 1 Hz update to one torrent re-renders
  * this row and nothing else — the table never reconciles as a whole.
  */
-export const TorrentRow = memo(function TorrentRow({ id }: { id: string }) {
+export const TorrentRow = memo(function TorrentRow({ id, hidden }: { id: string; hidden: Set<string> }) {
 	const qc = useQueryClient();
 	const { data: t } = useQuery<Torrent>({ queryKey: torrentKey(id), queryFn: () => api.getTorrent(id) });
 
@@ -71,6 +83,14 @@ export const TorrentRow = memo(function TorrentRow({ id }: { id: string }) {
 
 	if (!t) return null;
 
+	// Magnet metadata not resolved yet: no name, no size, no files.
+	const metaPending = t.qbtState === "metaDL" || (!t.name && t.sizeBytes === 0);
+	// No complete copy in the swarm. THE reason a torrent sticks at 97%, and the
+	// thing everyone assumes is a client bug.
+	const incompleteSwarm = t.status === "downloading" && t.availability > 0 && t.availability < 1;
+
+	const show = (col: string) => !hidden.has(col);
+
 	const paused = t.status === "paused";
 	const done = t.status === "completed";
 
@@ -90,6 +110,7 @@ export const TorrentRow = memo(function TorrentRow({ id }: { id: string }) {
 				t.pinned ? "border-l-2 border-l-accent pl-[calc(0.75rem-2px)] sm:pl-[calc(1rem-2px)]" : "pl-3 sm:pl-4",
 				ROW_GRID,
 			)}
+			style={{ "--ct-cols": gridTemplate(hidden) } as React.CSSProperties}
 		>
 			{/* The row IS the progress bar (put.io style): a tinted fill grows from
 			    the left across the whole row rather than a separate hairline. It is
@@ -112,9 +133,33 @@ export const TorrentRow = memo(function TorrentRow({ id }: { id: string }) {
 			<div className="flex min-w-0 items-center gap-2">
 				{t.pinned && <Pin className="size-3 shrink-0 text-accent" aria-label="Pinned" />}
 				<Link href={`/torrents/${id}`} className="truncate text-sm font-medium text-fg hover:underline" title={t.name}>
-					{t.name}
+					{/* doc 04 §5.4: while a magnet resolves, qBittorrent has no name
+					    yet. The infohash beats an empty row that reads as a bug. */}
+					{metaPending ? <span className="font-mono text-xs">{t.infoHash.slice(0, 16)}…</span> : t.name}
 				</Link>
 				<StatusChip status={t.status} detail={t.qbtState} />
+
+				{metaPending && (
+					<span className="inline-flex shrink-0 items-center gap-1 text-[0.6875rem] text-fg-subtle">
+						<LoaderCircle className="size-3 animate-spin" aria-hidden />
+						fetching metadata
+					</span>
+				)}
+
+				{incompleteSwarm && (
+					<span
+						className="shrink-0 rounded-full bg-status-paused-soft px-1.5 py-0.5 text-[0.6875rem] text-status-paused"
+						title={`Availability ${t.availability.toFixed(2)} — no complete copy is reachable, so this cannot finish until a seed appears. Not a fault in Trawler.`}
+					>
+						no full copy
+					</span>
+				)}
+
+				{t.status === "errored" && t.errorMessage && (
+					<span className="min-w-0 shrink truncate text-[0.6875rem] text-status-errored" title={t.errorMessage}>
+						{t.errorMessage}
+					</span>
+				)}
 				{done ? (
 					// ETA is meaningless once complete; how long it has sat idle is
 					// what decides cleanup order, so show that instead.
@@ -131,25 +176,29 @@ export const TorrentRow = memo(function TorrentRow({ id }: { id: string }) {
 
 			{/* metrics — 3-up grid on mobile, aligned columns on lg */}
 			<div className="grid grid-cols-3 gap-x-4 gap-y-2 sm:grid-cols-6 lg:contents">
-				<Cell label="Size">{t.sizeBytes > 0 ? formatBytes(t.sizeBytes) : "—"}</Cell>
-				<Cell label="Seeds">{formatSwarm(t.seedsConnected, t.seedsTotal)}</Cell>
-				<Cell label="Peers">{formatSwarm(t.peersConnected, t.peersTotal)}</Cell>
+				{show("Size") && <Cell label="Size">{t.sizeBytes > 0 ? formatBytes(t.sizeBytes) : "—"}</Cell>}
+				{show("Seeds") && <Cell label="Seeds">{formatSwarm(t.seedsConnected, t.seedsTotal)}</Cell>}
+				{show("Peers") && <Cell label="Peers">{formatSwarm(t.peersConnected, t.peersTotal)}</Cell>}
 
-				<Cell label="Down">
-					<span className="inline-flex items-center gap-1 text-chart-dl">
-						<ArrowDown className="size-3 shrink-0" aria-hidden />
-						{formatSpeed(t.dlSpeedBps)}
-					</span>
-				</Cell>
+				{show("Down") && (
+					<Cell label="Down">
+						<span className="inline-flex items-center gap-1 text-chart-dl">
+							<ArrowDown className="size-3 shrink-0" aria-hidden />
+							{formatSpeed(t.dlSpeedBps)}
+						</span>
+					</Cell>
+				)}
 
-				<Cell label="Up">
-					<span className="inline-flex items-center gap-1 text-chart-ul">
-						<ArrowUp className="size-3 shrink-0" aria-hidden />
-						{formatSpeed(t.upSpeedBps)}
-					</span>
-				</Cell>
+				{show("Up") && (
+					<Cell label="Up">
+						<span className="inline-flex items-center gap-1 text-chart-ul">
+							<ArrowUp className="size-3 shrink-0" aria-hidden />
+							{formatSpeed(t.upSpeedBps)}
+						</span>
+					</Cell>
+				)}
 
-				<Cell label="ETA">{done ? "—" : formatEta(t.etaSeconds)}</Cell>
+				{show("ETA") && <Cell label="ETA">{done ? "—" : formatEta(t.etaSeconds)}</Cell>}
 			</div>
 
 			{/* actions */}

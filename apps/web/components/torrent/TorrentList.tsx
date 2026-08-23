@@ -6,11 +6,13 @@ import { useEffect, useMemo, useRef } from "react";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { TORRENT_IDS_KEY, useTorrentIndex } from "@/lib/useTorrentStream";
-import { COLUMNS, ROW_GRID } from "./grid";
+import { ColumnMenu } from "./ColumnMenu";
+import { COLUMNS, gridTemplate, ROW_GRID } from "./grid";
 import { Pagination } from "./Pagination";
 import { COLUMN_SORT, compareEntries, type SortState } from "./sort";
 import type { FilterValue } from "./Toolbar";
 import { TorrentRow } from "./TorrentRow";
+import { useColumns } from "./useColumns";
 
 export function TorrentList({
 	query,
@@ -33,6 +35,7 @@ export function TorrentList({
 	onPageSize: (n: number) => void;
 }) {
 	// The URL is the source of truth; convert to the 0-based index used below.
+	const { hidden, toggle, reset } = useColumns();
 	const pageIndex = Math.max(0, page - 1);
 	const parentRef = useRef<HTMLDivElement>(null);
 
@@ -123,9 +126,15 @@ export function TorrentList({
 
 	return (
 		<div className="flex flex-col gap-3">
+			<div className="flex justify-end">
+				<ColumnMenu hidden={hidden} onToggle={toggle} onReset={reset} />
+			</div>
 			<div className="overflow-hidden rounded-[var(--ct-radius)] border border-border bg-surface">
 				{/* Same ROW_GRID as the rows — that is what keeps them aligned. */}
-				<div className={cn("hidden border-b border-border bg-surface-inset px-4 py-2 lg:block", ROW_GRID)}>
+				<div
+					className={cn("hidden border-b border-border bg-surface-inset px-4 py-2 lg:block", ROW_GRID)}
+					style={{ "--ct-cols": gridTemplate(hidden) } as React.CSSProperties}
+				>
 					{COLUMNS.map((h, i) => {
 						const key = COLUMN_SORT[i];
 						const active = key !== null && sort.key === key;
@@ -182,7 +191,7 @@ export function TorrentList({
 									transform: `translateY(${item.start}px)`,
 								}}
 							>
-								<TorrentRow id={ids[item.index]} />
+								<TorrentRow id={ids[item.index]} hidden={hidden} />
 							</div>
 						))}
 					</div>

@@ -1,12 +1,13 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, FileText, Grid3x3, Info, Radio, Users } from "lucide-react";
+import { ActivityIcon, ArrowLeft, FileText, Grid3x3, Info, Radio, Users } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Suspense } from "react";
 import { DetailContent } from "@/components/detail/DetailContent";
 import { DetailGeneral } from "@/components/detail/DetailGeneral";
 import { DetailPeers } from "@/components/detail/DetailPeers";
+import { DetailSpeed } from "@/components/detail/DetailSpeed";
 import { DetailTrackers } from "@/components/detail/DetailTrackers";
 import { PieceMap } from "@/components/detail/PieceMap";
 import { StatusChip } from "@/components/ui/StatusChip";
@@ -14,6 +15,7 @@ import { type TabItem, TabPanel, Tabs } from "@/components/ui/Tabs";
 import { api, type Torrent } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { formatBytes, formatPercent } from "@/lib/format";
+import { useSpeedHistory } from "@/lib/useSpeedHistory";
 import { useTorrentDetail } from "@/lib/useTorrentDetail";
 import { useUrlState } from "@/lib/useUrlState";
 
@@ -23,6 +25,7 @@ const TABS: readonly TabItem[] = [
 	{ id: "peers", label: "Peers", icon: Users },
 	{ id: "content", label: "Content", icon: FileText },
 	{ id: "pieces", label: "Pieces", icon: Grid3x3 },
+	{ id: "speed", label: "Speed", icon: ActivityIcon },
 ] as const;
 
 function DetailView() {
@@ -45,6 +48,7 @@ function DetailView() {
 	// Opening this hook starts the server-side pollers for this torrent;
 	// navigating away closes the stream and stops them.
 	const detail = useTorrentDetail(id);
+	const speedHistory = useSpeedHistory(id);
 
 	if (isLoading) return <p className="text-sm text-fg-muted">Loading…</p>;
 
@@ -113,6 +117,11 @@ function DetailView() {
 			<TabPanel id="content" active={active}>
 				<div className="pt-4">
 					<DetailContent torrentId={id} />
+				</div>
+			</TabPanel>
+			<TabPanel id="speed" active={active}>
+				<div className="pt-4">
+					<DetailSpeed torrent={torrent} props={detail.properties} history={speedHistory} />
 				</div>
 			</TabPanel>
 			<TabPanel id="pieces" active={active}>

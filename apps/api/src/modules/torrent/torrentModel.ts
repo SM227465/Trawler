@@ -50,6 +50,10 @@ export const TorrentSchema = z.object({
 	createdByClient: z.string().nullable(),
 	trackerHost: z.string().nullable(),
 	trackersCount: z.number(),
+	// doc 04 §5.4: for `error` and `missingFiles`, qBittorrent's own message is
+	// the only thing that says WHY. Surfacing "errored" without it just tells
+	// the user something they can already see.
+	errorMessage: z.string().nullable(),
 });
 export type Torrent = z.infer<typeof TorrentSchema>;
 

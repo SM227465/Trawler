@@ -574,6 +574,7 @@ export interface paths {
                                 createdByClient: string | null;
                                 trackerHost: string | null;
                                 trackersCount: number;
+                                errorMessage: string | null;
                             }[];
                             statusCode: number;
                             code?: string;
@@ -650,6 +651,7 @@ export interface paths {
                                 createdByClient: string | null;
                                 trackerHost: string | null;
                                 trackersCount: number;
+                                errorMessage: string | null;
                             };
                             statusCode: number;
                             code?: string;
@@ -740,6 +742,7 @@ export interface paths {
                                 createdByClient: string | null;
                                 trackerHost: string | null;
                                 trackersCount: number;
+                                errorMessage: string | null;
                             };
                             statusCode: number;
                             code?: string;
@@ -940,6 +943,7 @@ export interface paths {
                                 createdByClient: string | null;
                                 trackerHost: string | null;
                                 trackersCount: number;
+                                errorMessage: string | null;
                             };
                             statusCode: number;
                             code?: string;
@@ -1412,6 +1416,7 @@ export interface components {
             createdByClient: string | null;
             trackerHost: string | null;
             trackersCount: number;
+            errorMessage: string | null;
         };
     };
     responses: never;
