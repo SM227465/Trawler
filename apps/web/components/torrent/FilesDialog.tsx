@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { api, type DownloadLink, type TorrentFile } from "@/lib/api";
+import { asAttachment } from "@/lib/attachment";
 import { cn } from "@/lib/cn";
 import { formatBytes, formatPercent } from "@/lib/format";
 import { classify } from "@/lib/media";
@@ -71,7 +72,7 @@ function FileRow({ file }: { file: TorrentFile }) {
 					size="sm"
 					variant="primary"
 					disabled={link.isPending}
-					onClick={() => withLink((l) => window.open(l.url, "_blank", "noopener"))}
+					onClick={() => withLink((l) => window.open(asAttachment(l.url), "_blank", "noopener"))}
 				>
 					{link.isPending ? (
 						<LoaderCircle className="size-3.5 animate-spin" aria-hidden />
@@ -81,7 +82,7 @@ function FileRow({ file }: { file: TorrentFile }) {
 					Download
 				</Button>
 
-				<Button size="sm" variant="subtle" onClick={() => withLink((l) => url.copy(l.absoluteUrl))}>
+				<Button size="sm" variant="subtle" onClick={() => withLink((l) => url.copy(asAttachment(l.absoluteUrl)))}>
 					{url.copied ? (
 						<Check className="size-3.5 text-status-completed" aria-hidden />
 					) : (

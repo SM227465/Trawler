@@ -4,6 +4,7 @@ import { Check, Copy, Download, LoaderCircle, MonitorPlay } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
+import { asAttachment } from "@/lib/attachment";
 import { cn } from "@/lib/cn";
 import { classify } from "@/lib/media";
 import { useCopy } from "@/lib/useCopy";
@@ -69,7 +70,7 @@ export function MediaPlayerDialog({
 						{copied ? <Check className="size-3.5 text-status-completed" /> : <Copy className="size-3.5" />}
 						{copied ? "Copied" : "Copy stream URL"}
 					</Button>
-					<Button size="sm" variant="subtle" onClick={() => window.open(link.path, "_blank", "noopener")}>
+					<Button size="sm" variant="subtle" onClick={() => window.open(asAttachment(link.path), "_blank", "noopener")}>
 						<Download className="size-3.5" aria-hidden />
 						Download
 					</Button>

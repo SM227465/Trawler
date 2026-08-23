@@ -50,6 +50,13 @@
 
 	handle /dl/* {
 		route {
+			# `?dl=1` means "save this", anything else means "play this". Without
+			# it a browser opening a /dl/ link for an mp4 just plays it inline,
+			# so the Download button behaved identically to Play. Matched before
+			# the rewrite, which replaces the URI wholesale.
+			@attachment query dl=1
+			header @attachment Content-Disposition attachment
+
 			forward_auth api:3000 {
 				uri /internal/authz
 				copy_headers X-Accel-Path

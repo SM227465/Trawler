@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { api, type BrowseEntry } from "@/lib/api";
+import { asAttachment } from "@/lib/attachment";
 import { cn } from "@/lib/cn";
 import { formatBytes, formatSince } from "@/lib/format";
 import { classify } from "@/lib/media";
@@ -97,14 +98,14 @@ function Row({ entry, onOpen }: { entry: BrowseEntry; onOpen: (p: string) => voi
 	const download = useMutation({
 		mutationFn: mintLink,
 		onSuccess: (link) => {
-			window.open(link.path, "_blank", "noopener");
+			window.open(asAttachment(link.path), "_blank", "noopener");
 			if (isDir) setHint("Zipping — the download starts as soon as the first bytes are ready.");
 		},
 	});
 
 	const copyLink = useMutation({
 		mutationFn: mintLink,
-		onSuccess: (link) => copy(link.url),
+		onSuccess: (link) => copy(asAttachment(link.url)),
 	});
 
 	const busy = download.isPending || copyLink.isPending;
