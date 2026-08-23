@@ -1,0 +1,17 @@
+services:
+  authz:
+    image: node:24-alpine
+    working_dir: /app
+    volumes:
+      - ./authz:/app:ro
+    command: node server.js
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "8099:8099"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./data:/data:ro
+    depends_on:
+      - authz

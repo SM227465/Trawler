@@ -1,0 +1,32 @@
+{
+	auto_https off
+	admin off
+	log {
+		output stdout
+		format json
+	}
+}
+
+:8099 {
+	handle /dl/* {
+		# `route` preserves the literal order of these directives.
+		# Without it Caddy sorts by its own priority table and `rewrite`
+		# runs BEFORE `forward_auth`, blanking the URI before auth sees it.
+		route {
+			forward_auth authz:3000 {
+				uri /internal/authz
+				copy_headers X-Accel-Path
+			}
+
+			rewrite * {http.request.header.X-Accel-Path}
+
+			file_server {
+				root /data
+			}
+		}
+	}
+
+	handle {
+		respond "spike ok" 200
+	}
+}

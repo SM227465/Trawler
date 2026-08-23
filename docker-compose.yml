@@ -1,0 +1,180 @@
+name: trawler
+
+# LOCAL DEV stack. Plain HTTP on :80, no certs.
+# Production: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./data/downloads:/downloads:ro          # read-only: Caddy serves, never writes
+      - ./data/caddy-logs:/var/log/caddy         # access log, tailed by the worker
+      - ./data/caddy/data:/data
+      - ./data/caddy/config:/config
+    depends_on:
+      - api
+      - web
+      - qbittorrent
+
+  # One-shot: applies pending migrations, then exits.
+  #
+  # A dedicated service rather than an api entrypoint step, so that:
+  #   - it runs exactly ONCE per deploy, not once per api replica;
+  #   - a failed migration stops the deploy (api waits on completed_successfully)
+  #     instead of starting against a schema it does not match;
+  #   - the logs for "what changed in the database" are their own stream.
+  migrate:
+    build:
+      context: ./apps/api
+      target: dev
+    command: ["pnpm", "db:migrate"]
+    restart: "no"
+    env_file: .env
+    volumes:
+      - ./apps/api/src:/app/src
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    build:
+      context: ./apps/api
+      target: dev
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: development
+    volumes:
+      - ./apps/api/src:/app/src
+      - ./data/downloads:/downloads:ro
+      # NO anonymous /app/node_modules volume: only /app/src is bind-mounted, so
+      # nothing shadows node_modules — and an anonymous volume would SURVIVE
+      # image rebuilds, silently pinning the old dependency set.
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      qbittorrent:
+        condition: service_started
+
+  # Background jobs only — no HTTP, no SSE, no qBittorrent poller.
+  # Split from `api` so a long eviction never competes with request handling
+  # or the 1 Hz poller for the event loop (doc 03 §A9).
+  worker:
+    build:
+      context: ./apps/api
+      target: dev
+    # MUST be explicit. Without it the container inherits the Dockerfile's
+    # CMD (pnpm start:dev) and silently runs a SECOND api — including a second
+    # qBittorrent poller double-polling at 1 Hz.
+    command: ["pnpm", "start:worker"]
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: development
+    volumes:
+      - ./apps/api/src:/app/src
+      - ./data/downloads:/downloads:ro
+      - ./data/caddy-logs:/var/log/caddy:ro   # egress accounting tails this
+      - ./data/backups:/backups                # nightly pg_dump lands here
+      # NO anonymous /app/node_modules volume: only /app/src is bind-mounted, so
+      # nothing shadows node_modules — and an anonymous volume would SURVIVE
+      # image rebuilds, silently pinning the old dependency set.
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      qbittorrent:
+        condition: service_started
+
+  web:
+    build:
+      context: ./apps/web
+      target: dev
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      NEXT_TELEMETRY_DISABLED: "1"
+    volumes:
+      - ./apps/web/app:/app/app
+      - ./apps/web/components:/app/components
+      - ./apps/web/lib:/app/lib
+      - ./apps/web/public:/app/public
+      # Config is NOT part of app/ — without this mount, editing next.config.ts
+      # silently has no effect in dev and only lands on an image rebuild.
+      - ./apps/web/next.config.ts:/app/next.config.ts:ro
+      # Same reasoning as api: no anonymous node_modules volume.
+      # .next stays a volume so build output never lands on the host.
+      - /app/.next
+    depends_on:
+      - api
+
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      # Local dev convenience only (GUI clients). Removed in the prod override.
+      - "127.0.0.1:5432:5432"
+    volumes:
+      # Postgres 18+ wants /var/lib/postgresql (NOT .../data) so it can put
+      # data in a major-version subdir and allow `pg_upgrade --link`.
+      - ./data/postgres:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    restart: unless-stopped
+    environment:
+      PUID: ${PUID}
+      PGID: ${PGID}
+      TZ: ${TZ}
+      WEBUI_PORT: 8080
+      TORRENTING_PORT: ${TORRENTING_PORT}
+    ports:
+      # Torrenting port MUST be published and reachable, or every torrent
+      # reports "firewalled" and only gets outbound peers. On Oracle this also
+      # needs opening in the Security List AND the instance's iptables.
+      - "${TORRENTING_PORT}:${TORRENTING_PORT}/tcp"
+      - "${TORRENTING_PORT}:${TORRENTING_PORT}/udp"
+      # WebUI 8080 is deliberately NOT published — reachable only on the
+      # compose network, by the api service.
+    volumes:
+      - ./data/qbittorrent:/config
+      - ./data/downloads:/downloads
+
+  # Read-only WebDAV over the finished downloads. rclone rather than a full
+  # SFTP/Samba stack: one small static binary, no host users to manage, and it
+  # speaks a protocol Windows, macOS and Linux all mount natively.
+  #
+  # READ-ONLY on purpose — qBittorrent owns this directory. A writable mount
+  # would let a client delete files behind its back, and qBittorrent would then
+  # re-check or re-download them.
+  webdav:
+    image: rclone/rclone:latest
+    restart: unless-stopped
+    command:
+      - serve
+      - webdav
+      - /data
+      - --addr=:8080
+      - --read-only
+      - --user=${WEBDAV_USER}
+      - --pass=${WEBDAV_PASSWORD}
+      - --dir-cache-time=10s
+    env_file: .env
+    volumes:
+      - ./data/downloads:/data:ro

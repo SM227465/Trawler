@@ -1,0 +1,71 @@
+# PRODUCTION — automatic TLS from Let's Encrypt.
+#
+# Uses the HTTP-01 challenge, which needs nothing but port 80 reachable and
+# {$DOMAIN} pointing at this box. That works on every provider — Oracle, EC2,
+# DigitalOcean, Azure, GCP, Hetzner — and with the stock caddy image, so no
+# custom build is required.
+#
+# Switch to DNS-01 ONLY if you cannot open port 80, or you want a wildcard
+# certificate. That needs a Caddy build with the right DNS plugin
+# (infra/caddy/Dockerfile has a DuckDNS example) and a `tls` block like:
+#
+#     tls {
+#         dns duckdns {$DUCKDNS_TOKEN}
+#     }
+#
+# A DuckDNS subdomain is a normal domain, so HTTP-01 works with it too. DNS-01
+# is not required just because you are using DuckDNS.
+{
+	email {$ACME_EMAIL}
+	admin off
+	log {
+		output stdout
+		format json
+	}
+}
+
+{$DOMAIN} {
+	encode zstd gzip
+
+	# Egress accounting tails this. A per-site directive is required: the global
+	# `log` block above configures the ERROR logger only and emits no access
+	# lines at all.
+	log {
+		output file /var/log/caddy/access.log {
+			roll_size 16MiB
+			roll_keep 3
+			roll_keep_for 168h
+		}
+		format json
+	}
+
+	handle /healthz {
+		header Content-Type application/json
+		respond `{"status":"ok","service":"caddy"}` 200
+	}
+
+	# Share pages and raw downloads must never be indexed.
+	@public path /s/* /dl/*
+	header @public X-Robots-Tag "noindex, nofollow"
+
+	handle /dl/* {
+		route {
+			forward_auth api:3000 {
+				uri /internal/authz
+				copy_headers X-Accel-Path
+			}
+			rewrite * {http.request.header.X-Accel-Path}
+			file_server {
+				root /downloads
+			}
+		}
+	}
+
+	handle /api/* {
+		reverse_proxy api:3000
+	}
+
+	handle {
+		reverse_proxy web:3000
+	}
+}

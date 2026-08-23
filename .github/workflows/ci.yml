@@ -1,0 +1,124 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# A newer push to the same branch makes the older run irrelevant.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api:
+    name: API
+    runs-on: ubuntu-latest
+
+    # The suite talks to a real Postgres on purpose: the eviction query and the
+    # egress upsert both depend on behaviour a mock cannot reproduce — interval
+    # arithmetic, NULLS FIRST ordering, and ON CONFLICT against an expression
+    # index. Mocking those would test nothing that matters.
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: trawler
+          POSTGRES_PASSWORD: trawler
+          POSTGRES_DB: trawler_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U trawler"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgres://trawler:trawler@localhost:5432/trawler_test
+      JWT_SECRET: ci-only-secret-not-used-anywhere-real-32chars
+      REFRESH_SECRET: ci-only-refresh-secret-not-real-either-32chars
+      OWNER_EMAIL: ci@example.com
+      OWNER_PASSWORD: ci-password
+      NODE_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: apps/api/pnpm-lock.yaml
+
+      - name: Install
+        working-directory: apps/api
+        run: pnpm install --frozen-lockfile
+
+      - name: Apply migrations
+        working-directory: apps/api
+        run: pnpm db:migrate
+
+      - name: Typecheck
+        working-directory: apps/api
+        run: pnpm exec tsc --noEmit
+
+      - name: Lint
+        working-directory: apps/api
+        run: pnpm exec biome ci src
+
+      - name: Test
+        working-directory: apps/api
+        run: pnpm test
+
+  web:
+    name: Web
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: apps/web/pnpm-lock.yaml
+
+      - name: Install
+        working-directory: apps/web
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        working-directory: apps/web
+        run: pnpm exec tsc --noEmit
+
+      - name: Lint
+        working-directory: apps/web
+        run: pnpm exec biome ci app components lib
+
+      # `next build` catches things tsc does not: bad Server/Client boundaries,
+      # a missing Suspense above useSearchParams, and route-level type errors.
+      - name: Build
+        working-directory: apps/web
+        run: pnpm build
+
+  compose:
+    name: Compose config
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # A duplicate mapping key is a hard YAML parse error that leaves every
+      # compose command failing while the old containers keep running — it looks
+      # exactly like an edit that had no effect. Cheap to catch here.
+      - name: Validate compose files
+        run: |
+          cp .env.example .env
+          docker compose config -q
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml config -q

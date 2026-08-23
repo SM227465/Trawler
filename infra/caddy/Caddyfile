@@ -1,0 +1,79 @@
+# LOCAL DEV — plain HTTP, no certs, no cert warnings.
+# Production TLS lives in infra/caddy/Caddyfile.prod (DuckDNS DNS-01).
+{
+	auto_https off
+	admin off
+	log {
+		output stdout
+		format json
+	}
+}
+
+:80 {
+	# ── access log ───────────────────────────────────────────────────────────
+	# A per-site `log` directive. The global one in the options block above
+	# configures the ERROR logger only — it produces no access lines at all,
+	# which is why egress accounting had nothing to read.
+	#
+	# Written to a file rather than stdout so the worker can tail it with an
+	# offset and survive its own restarts; `docker logs` has no seekable position.
+	log {
+		output file /var/log/caddy/access.log {
+			roll_size 16MiB
+			roll_keep 3
+			roll_keep_for 168h
+		}
+		format json
+	}
+
+	# ── health ───────────────────────────────────────────────────────────────
+	handle /healthz {
+		header Content-Type application/json
+		respond `{"status":"ok","service":"caddy"}` 200
+	}
+
+	# ── file downloads ───────────────────────────────────────────────────────
+	# VERIFIED in spike/ — see spike/README.md.
+	# `route` is MANDATORY: inside a bare `handle`, Caddy sorts directives by
+	# its own priority table and `rewrite` runs BEFORE `forward_auth`, blanking
+	# the URI and 403-ing every request.
+	handle /dl/* {
+		route {
+			forward_auth api:3000 {
+				uri /internal/authz
+				copy_headers X-Accel-Path
+			}
+			rewrite * {http.request.header.X-Accel-Path}
+			file_server {
+				root /downloads
+			}
+		}
+	}
+
+	# ── folder downloads (streamed zip) ──────────────────────────────────────
+	# NOT file_server: the archive does not exist on disk. Node generates it, so
+	# this is a plain proxy with buffering disabled and no read timeout — a large
+	# folder can take minutes and Caddy must not cut it off.
+	handle /zip/* {
+		reverse_proxy api:3000 {
+			flush_interval -1
+		}
+	}
+
+	# ── webdav ───────────────────────────────────────────────────────────────
+	# rclone handles its own Basic auth; Caddy only routes. `handle_path` strips
+	# the /webdav prefix so rclone sees paths rooted at /.
+	handle_path /webdav* {
+		reverse_proxy webdav:8080
+	}
+
+	# ── api ──────────────────────────────────────────────────────────────────
+	handle /api/* {
+		reverse_proxy api:3000
+	}
+
+	# ── web ──────────────────────────────────────────────────────────────────
+	handle {
+		reverse_proxy web:3000
+	}
+}

@@ -1,0 +1,81 @@
+# Production overlay.
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Works on any Docker host — Oracle, EC2, DigitalOcean, Azure, GCP, Hetzner.
+#
+# Assumes /data is a SEPARATE volume, not the boot disk. A full boot disk is what
+# wedges a small VPS, and it is the failure hardest to recover from remotely.
+#
+# api, web, worker and migrate PULL prebuilt multi-arch images rather than
+# building. A 1 GB box cannot reliably build a Next.js bundle, and CI has already
+# built and tested exactly these bytes. IMAGE_TAG is pinned to a commit by the
+# deploy workflow and falls back to `latest` for a manual deploy.
+
+services:
+  caddy:
+    # Stock image: HTTP-01 needs no plugins. Only switch to the custom build in
+    # infra/caddy/ if you need DNS-01 (port 80 blocked, or a wildcard cert).
+    #   build:
+    #     context: ./infra/caddy
+    #   image: trawler/caddy:duckdns
+    image: caddy:2-alpine
+    environment:
+      DOMAIN: ${DOMAIN}
+      DUCKDNS_TOKEN: ${DUCKDNS_TOKEN:-}
+      ACME_EMAIL: ${ACME_EMAIL}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"             # HTTP/3
+    volumes:
+      - ./infra/caddy/Caddyfile.prod:/etc/caddy/Caddyfile:ro
+      - /data/downloads:/downloads:ro
+      - /data/caddy-logs:/var/log/caddy
+      - /data/caddy/data:/data
+      - /data/caddy/config:/config
+
+  postgres:
+    ports: !override []           # never expose Postgres in production
+    volumes:
+      - /data/postgres:/var/lib/postgresql
+
+  qbittorrent:
+    volumes:
+      - /data/qbittorrent:/config
+      - /data/downloads:/downloads
+
+  # Applies pending migrations, then exits. api and worker gate on it completing
+  # successfully (see docker-compose.yml), so a failed migration ABORTS the
+  # deploy rather than starting code against a schema it does not match.
+  migrate:
+    build: !reset null
+    image: ${IMAGE_BASE:-ghcr.io/OWNER/trawler}-api:${IMAGE_TAG:-latest}
+    # The dev image runs the .ts through tsx; the production image has a real
+    # compiled entry, built as its own tsup entry point.
+    command: ["node", "dist/db/migrate.js"]
+    volumes: !override []
+
+  api:
+    build: !reset null
+    image: ${IMAGE_BASE:-ghcr.io/OWNER/trawler}-api:${IMAGE_TAG:-latest}
+    command: !reset null          # use the image's own CMD
+    volumes: !override
+      - /data/downloads:/downloads:ro
+
+  worker:
+    build: !reset null
+    image: ${IMAGE_BASE:-ghcr.io/OWNER/trawler}-api:${IMAGE_TAG:-latest}
+    command: ["node", "dist/worker.js"]
+    volumes: !override
+      - /data/downloads:/downloads:ro
+      - /data/caddy-logs:/var/log/caddy:ro
+      - /data/backups:/backups
+
+  web:
+    build: !reset null
+    image: ${IMAGE_BASE:-ghcr.io/OWNER/trawler}-web:${IMAGE_TAG:-latest}
+    volumes: !override []
+
+  webdav:
+    volumes: !override
+      - /data/downloads:/data:ro
