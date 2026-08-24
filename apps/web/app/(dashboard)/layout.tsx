@@ -3,6 +3,7 @@ import { CloudDownload, LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useAuth } from "@/app/providers";
+import { MobileNav } from "@/components/nav/MobileNav";
 import { Sidebar } from "@/components/nav/Sidebar";
 import { Button } from "@/components/ui/Button";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
@@ -24,10 +25,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 		<div className="min-h-dvh">
 			<header className="sticky top-0 z-10 border-b border-border bg-surface/90 backdrop-blur-sm">
 				<div className="mx-auto flex max-w-[1600px] items-center gap-3 px-3 py-3 sm:px-6">
-					<span className="grid size-8 shrink-0 place-items-center rounded-[var(--ct-radius-sm)] bg-accent-soft text-accent">
+					<MobileNav />
+
+					<span className="hidden size-8 shrink-0 place-items-center rounded-[var(--ct-radius-sm)] bg-accent-soft text-accent lg:grid">
 						<CloudDownload className="size-4" aria-hidden />
 					</span>
-					<h1 className="mr-auto truncate text-sm font-semibold">Trawler</h1>
+					<h1 className="mr-auto hidden truncate text-sm font-semibold lg:block">Trawler</h1>
 
 					<span className="hidden truncate text-xs text-fg-subtle sm:block">{user.email}</span>
 					<ThemeToggle />

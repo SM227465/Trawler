@@ -9,7 +9,9 @@ import { SECTIONS } from "./sections";
 const STORAGE_KEY = "ct-sidebar-collapsed";
 
 /**
- * Sidebar on desktop, horizontal scroller on mobile.
+ * Desktop rail. Mobile navigation is MobileNav's drawer — this is hidden below
+ * `lg` rather than degrading into a horizontal scroller, which hid both the
+ * active item and the fact that more sections existed.
  *
  * The collapse control sits at the TOP of the rail as an icon button — the
  * ChatGPT/Gemini placement — rather than occupying a nav row of its own. It
@@ -49,7 +51,7 @@ export function Sidebar() {
 		<nav
 			aria-label="Sections"
 			className={cn(
-				"lg:shrink-0 lg:transition-[width] lg:duration-200",
+				"hidden lg:block lg:shrink-0 lg:transition-[width] lg:duration-200",
 				collapsed ? "lg:w-14" : "lg:w-52",
 				!ready && "lg:transition-none",
 			)}
@@ -72,17 +74,12 @@ export function Sidebar() {
 					</button>
 				</div>
 
-				<ul
-					className={cn(
-						"flex gap-1 overflow-x-auto border-b border-border pb-2",
-						"lg:flex-col lg:overflow-visible lg:border-b-0 lg:pb-0",
-					)}
-				>
+				<ul className="flex flex-col gap-1">
 					{SECTIONS.map((s) => {
 						const active = isActive(s.href);
 						const Icon = s.icon;
 						return (
-							<li key={s.href} className="shrink-0 lg:shrink">
+							<li key={s.href}>
 								<Link
 									href={s.href}
 									aria-current={active ? "page" : undefined}

@@ -391,3 +391,28 @@
 		column-gap: 0.75rem;
 	}
 }
+
+/* Left drawer variant of the dialog: same native <dialog> (focus trap, Esc,
+   top-layer) but slid in from the edge instead of scaled in the centre. */
+.ct-sheet::backdrop {
+	background-color: var(--ct-overlay);
+}
+.ct-sheet[open] {
+	animation: ct-sheet-in 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.ct-sheet[open]::backdrop {
+	animation: ct-fade-in 180ms ease-out;
+}
+@keyframes ct-sheet-in {
+	from {
+		transform: translateX(-100%);
+	}
+	to {
+		transform: none;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.ct-sheet[open] {
+		animation: none;
+	}
+}
