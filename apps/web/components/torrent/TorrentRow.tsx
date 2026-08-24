@@ -123,7 +123,12 @@ export const TorrentRow = memo(function TorrentRow({ id, hidden }: { id: string;
 				className={cn(
 					// bottom-px, not inset-y-0: leaves the divider row uncovered so the
 					// separator survives even where two fills meet.
-					"pointer-events-none absolute top-0 bottom-px left-0 -z-10 transition-[width] duration-500",
+					"pointer-events-none absolute bottom-px left-0 -z-10 transition-[width] duration-500",
+					// A row-height fill reads as a tint across a 40px desktop row, but
+					// the same rule on a ~350px mobile card floods it — a finished
+					// paused torrent came out a solid amber block that looked like an
+					// error state. Thin bar on mobile, full-height fill from lg.
+					"h-1 lg:top-0 lg:h-auto",
 					FILL[t.status] ?? "bg-status-queued-soft",
 				)}
 				style={{ width: `${Math.min(100, Math.max(0, t.progress * 100))}%` }}
