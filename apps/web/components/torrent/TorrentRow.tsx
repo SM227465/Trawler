@@ -135,13 +135,26 @@ export const TorrentRow = memo(function TorrentRow({ id, hidden }: { id: string;
 			/>
 
 			{/* name */}
-			<div className="flex min-w-0 items-center gap-2">
-				{t.pinned && <Pin className="size-3 shrink-0 text-accent" aria-label="Pinned" />}
-				<Link href={`/torrents/${id}`} className="truncate text-sm font-medium text-fg hover:underline" title={t.name}>
-					{/* doc 04 §5.4: while a magnet resolves, qBittorrent has no name
-					    yet. The infohash beats an empty row that reads as a bug. */}
-					{metaPending ? <span className="font-mono text-xs">{t.infoHash.slice(0, 16)}…</span> : t.name}
-				</Link>
+			{/* Wraps on mobile so the name gets a full-width line of its own. It
+			    used to share one 360px row with the status chip, the percentage and
+			    up to two badges, which left the name about half the width — long
+			    release names were cut before the title even started. Widening the
+			    container beats truncating cleverly: any rule that strips a
+			    "www.tracker.org - " prefix eventually eats a name that really began
+			    that way. lg:flex-nowrap puts it all back on one row on desktop. */}
+			<div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 lg:flex-nowrap">
+				<span className="flex w-full min-w-0 items-center gap-2 lg:w-auto lg:flex-1">
+					{t.pinned && <Pin className="size-3 shrink-0 text-accent" aria-label="Pinned" />}
+					<Link
+						href={`/torrents/${id}`}
+						className="truncate text-sm font-medium text-fg hover:underline"
+						title={t.name}
+					>
+						{/* doc 04 §5.4: while a magnet resolves, qBittorrent has no name
+						    yet. The infohash beats an empty row that reads as a bug. */}
+						{metaPending ? <span className="font-mono text-xs">{t.infoHash.slice(0, 16)}…</span> : t.name}
+					</Link>
+				</span>
 				<StatusChip status={t.status} detail={t.qbtState} />
 
 				{metaPending && (
