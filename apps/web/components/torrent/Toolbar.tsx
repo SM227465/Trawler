@@ -35,62 +35,69 @@ export function Toolbar({
 
 	return (
 		<div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-			<div className="relative sm:max-w-xs sm:flex-1">
-				<Search
-					className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-fg-subtle"
-					aria-hidden
-				/>
-				<input
-					value={query}
-					onChange={(e) => onQuery(e.target.value)}
-					placeholder="Search torrents…"
-					aria-label="Search torrents"
-					className={cn(
-						"h-9 w-full rounded-[var(--ct-radius-sm)] pl-9 pr-8",
-						"bg-surface-inset text-sm text-fg placeholder:text-fg-subtle",
-						"border border-border focus:border-accent outline-none transition-colors",
+			{/* Search and sort share a row on mobile instead of stacking. Above sm
+			    the wrapper dissolves, so the desktop layout is untouched. */}
+			<div className="flex min-w-0 gap-2 sm:contents">
+				<div className="relative min-w-0 flex-1 sm:max-w-xs sm:flex-1">
+					<Search
+						className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-fg-subtle"
+						aria-hidden
+					/>
+					<input
+						value={query}
+						onChange={(e) => onQuery(e.target.value)}
+						placeholder="Search torrents…"
+						aria-label="Search torrents"
+						className={cn(
+							"h-9 w-full rounded-[var(--ct-radius-sm)] pl-9 pr-8",
+							"bg-surface-inset text-sm text-fg placeholder:text-fg-subtle",
+							"border border-border focus:border-accent outline-none transition-colors",
+						)}
+					/>
+					{query && (
+						<button
+							type="button"
+							onClick={() => onQuery("")}
+							aria-label="Clear search"
+							className="absolute right-2 top-1/2 grid size-5 -translate-y-1/2 place-items-center rounded-full text-fg-subtle hover:text-fg cursor-pointer"
+						>
+							<X className="size-3.5" aria-hidden />
+						</button>
 					)}
-				/>
-				{query && (
-					<button
-						type="button"
-						onClick={() => onQuery("")}
-						aria-label="Clear search"
-						className="absolute right-2 top-1/2 grid size-5 -translate-y-1/2 place-items-center rounded-full text-fg-subtle hover:text-fg cursor-pointer"
+				</div>
+
+				{/* Column headers are desktop-only, so mobile needs its own sort control. */}
+				<label className="flex w-36 shrink-0 items-center gap-2 lg:hidden">
+					<ArrowDownUp className="size-4 shrink-0 text-fg-subtle" aria-hidden />
+					<span className="sr-only">Sort by</span>
+					<select
+						value={`${sort.key}:${sort.dir}`}
+						onChange={(e) => {
+							const [key, dir] = e.target.value.split(":");
+							onSort({ key: key as SortKey, dir: dir as "asc" | "desc" });
+						}}
+						className={cn(
+							"h-9 w-full rounded-[var(--ct-radius-sm)] border border-border bg-surface-inset px-2",
+							"text-xs text-fg outline-none focus:border-accent cursor-pointer",
+						)}
 					>
-						<X className="size-3.5" aria-hidden />
-					</button>
-				)}
+						{(Object.keys(SORT_LABELS) as SortKey[]).flatMap((k) => [
+							<option key={`${k}:desc`} value={`${k}:desc`}>
+								{SORT_LABELS[k]} ↓
+							</option>,
+							<option key={`${k}:asc`} value={`${k}:asc`}>
+								{SORT_LABELS[k]} ↑
+							</option>,
+						])}
+					</select>
+				</label>
 			</div>
 
-			{/* Column headers are desktop-only, so mobile needs its own sort control. */}
-			<label className="flex items-center gap-2 lg:hidden">
-				<ArrowDownUp className="size-4 shrink-0 text-fg-subtle" aria-hidden />
-				<span className="sr-only">Sort by</span>
-				<select
-					value={`${sort.key}:${sort.dir}`}
-					onChange={(e) => {
-						const [key, dir] = e.target.value.split(":");
-						onSort({ key: key as SortKey, dir: dir as "asc" | "desc" });
-					}}
-					className={cn(
-						"h-9 w-full rounded-[var(--ct-radius-sm)] border border-border bg-surface-inset px-2",
-						"text-xs text-fg outline-none focus:border-accent cursor-pointer",
-					)}
-				>
-					{(Object.keys(SORT_LABELS) as SortKey[]).flatMap((k) => [
-						<option key={`${k}:desc`} value={`${k}:desc`}>
-							{SORT_LABELS[k]} ↓
-						</option>,
-						<option key={`${k}:asc`} value={`${k}:asc`}>
-							{SORT_LABELS[k]} ↑
-						</option>,
-					])}
-				</select>
-			</label>
-
+			{/* Wraps rather than scrolls: the last filter used to be cut off with
+			    nothing to say it was there. Five short chips wrap to two rows at
+			    360px, which costs one row of height and hides nothing. */}
 			<div
-				className="flex gap-1 overflow-x-auto rounded-[var(--ct-radius-sm)] border border-border bg-surface-inset p-1"
+				className="flex flex-wrap gap-1 rounded-[var(--ct-radius-sm)] border border-border bg-surface-inset p-1"
 				role="tablist"
 				aria-label="Filter by status"
 			>
@@ -105,7 +112,7 @@ export function Toolbar({
 							aria-selected={active}
 							onClick={() => onFilter(f.value)}
 							className={cn(
-								"flex shrink-0 items-center gap-1.5 rounded-[0.3rem] px-2.5 py-1 text-xs font-medium",
+								"flex items-center gap-1.5 rounded-[0.3rem] px-2.5 py-1 text-xs font-medium",
 								"transition-colors cursor-pointer",
 								active ? "bg-surface text-fg shadow-[var(--ct-shadow)]" : "text-fg-muted hover:text-fg",
 							)}
