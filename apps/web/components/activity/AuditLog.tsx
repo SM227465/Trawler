@@ -46,6 +46,13 @@ const TONE: Record<Tone, { dot: string; icon: string }> = {
 	bad: { dot: "bg-status-errored", icon: "bg-status-errored-soft text-status-errored" },
 };
 
+/**
+ * Actions where the source address changes how you read the entry. A failed
+ * sign-in from an address you recognise is a typo; the same from one you do not
+ * is someone trying the door.
+ */
+const SHOW_IP = new Set(["auth.login", "auth.login_failed", "auth.logout"]);
+
 const FILTERS: { label: string; action?: string }[] = [
 	{ label: "All" },
 	{ label: "Failed sign-ins", action: "auth.login_failed" },
@@ -171,10 +178,23 @@ export function AuditLog() {
 										<Icon className="size-3.5" aria-hidden />
 									</span>
 
-									<span className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2">
+									<span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
 										<span className={cn("text-sm", kind.tone === "bad" ? "text-status-errored" : "text-fg")}>
 											{kind.label}
 										</span>
+
+										{/* Shown inline only where the address is the point — a
+										    sign-in, or an attempt at one. On "changed a setting" it
+										    is noise, and it is still on the timestamp's tooltip. */}
+										{e.ip && SHOW_IP.has(e.action) && (
+											<span
+												className="tabular shrink-0 rounded bg-surface-inset px-1.5 py-0.5 font-mono text-[0.6875rem] text-fg-muted"
+												title={e.userAgent ?? "unknown client"}
+											>
+												{e.ip}
+											</span>
+										)}
+
 										{info && (
 											<span className="min-w-0 flex-1 truncate text-xs text-fg-muted" title={info}>
 												{info}

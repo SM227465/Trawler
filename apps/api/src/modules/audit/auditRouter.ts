@@ -47,3 +47,32 @@ auditRegistry.registerPath({
 	),
 });
 auditRouter.get("/", listAudit);
+
+const listShares: RequestHandler = async (req: Request, res: Response) => {
+	const page = await audit.listShareAccess({
+		limit: num(req.query.limit),
+		before: num(req.query.before),
+		kind: typeof req.query.kind === "string" && req.query.kind ? req.query.kind : undefined,
+	});
+	handleServiceResponse(ServiceResponse.success("Share access", page), res);
+};
+
+auditRegistry.registerPath({
+	method: "get",
+	path: "/api/v1/audit/shares",
+	tags: ["Audit"],
+	description:
+		"Access to share links across every share, newest first: kind, source address, user agent and outcome. Read-only; pruned at 30 days with the rest.",
+	request: {
+		query: z.object({
+			limit: z.coerce.number().min(1).max(200).optional(),
+			before: z.coerce.number().optional().describe("Keyset cursor: return entries with a lower id"),
+			kind: z.enum(["view", "download", "denied", "unlock_failed"]).optional(),
+		}),
+	},
+	responses: createApiResponse(
+		z.object({ entries: z.array(z.object({}).passthrough()), nextCursor: z.number().nullable() }),
+		"Share access",
+	),
+});
+auditRouter.get("/shares", listShares);

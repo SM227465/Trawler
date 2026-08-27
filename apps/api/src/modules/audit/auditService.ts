@@ -2,7 +2,7 @@ import { and, desc, eq, lt } from "drizzle-orm";
 import type { Request } from "express";
 import { logger } from "@/common/utils/logger";
 import { db } from "@/db/client";
-import { auditLog } from "@/db/schema";
+import { auditLog, shareAccessLog, shares } from "@/db/schema";
 
 /**
  * Owner-initiated state changes, recorded so "what happened to my box" has an
@@ -100,6 +100,7 @@ export async function list(opts: { limit?: number; before?: number; action?: str
 			targetType: auditLog.targetType,
 			targetId: auditLog.targetId,
 			ip: auditLog.ip,
+			userAgent: auditLog.userAgent,
 			metadata: auditLog.metadata,
 			at: auditLog.at,
 		})
@@ -121,8 +122,48 @@ export interface AuditRow {
 	targetType: string | null;
 	targetId: string | null;
 	ip: string | null;
+	userAgent: string | null;
 	metadata: unknown;
 	at: Date;
 }
 
-export const audit = { record, recordFromRequest, requestContext, list };
+/**
+ * Share access across every share, newest first — the other half of "what
+ * happened here". audit_log records what the OWNER did; this is what strangers
+ * did with the links the owner handed out, so it lives in its own table with
+ * its own sequence and gets its own keyset rather than being unioned into one.
+ */
+export async function listShareAccess(opts: { limit?: number; before?: number; kind?: string } = {}) {
+	const capped = Math.min(Math.max(opts.limit ?? 50, 1), 200);
+
+	const filters = [
+		opts.before !== undefined ? lt(shareAccessLog.id, opts.before) : undefined,
+		opts.kind ? eq(shareAccessLog.kind, opts.kind as "view" | "download" | "denied" | "unlock_failed") : undefined,
+	].filter((f) => f !== undefined);
+
+	const rows = await db
+		.select({
+			id: shareAccessLog.id,
+			shareId: shareAccessLog.shareId,
+			// The label is what the owner named it; the id alone means nothing to
+			// them a week later.
+			shareLabel: shares.label,
+			kind: shareAccessLog.kind,
+			status: shareAccessLog.status,
+			reason: shareAccessLog.reason,
+			ip: shareAccessLog.ip,
+			userAgent: shareAccessLog.userAgent,
+			bytes: shareAccessLog.bytes,
+			at: shareAccessLog.at,
+		})
+		.from(shareAccessLog)
+		.leftJoin(shares, eq(shares.id, shareAccessLog.shareId))
+		.where(filters.length ? and(...filters) : undefined)
+		.orderBy(desc(shareAccessLog.id))
+		.limit(capped + 1);
+
+	const entries = rows.slice(0, capped);
+	return { entries, nextCursor: rows.length > capped ? (entries.at(-1)?.id ?? null) : null };
+}
+
+export const audit = { record, recordFromRequest, requestContext, list, listShareAccess };

@@ -105,6 +105,7 @@ export interface AuditEntry {
 	targetType: string | null;
 	targetId: string | null;
 	ip: string | null;
+	userAgent: string | null;
 	metadata: Record<string, unknown> | null;
 	at: string;
 }
@@ -130,6 +131,16 @@ export interface ShareAccess {
 		lastAt: string | null;
 	};
 	entries: ShareAccessEntry[];
+}
+
+export interface ShareAccessFeedEntry extends ShareAccessEntry {
+	shareId: string;
+	shareLabel: string | null;
+}
+
+export interface ShareAccessFeedPage {
+	entries: ShareAccessFeedEntry[];
+	nextCursor: number | null;
 }
 
 export interface AuditPage {
@@ -358,6 +369,13 @@ export const api = {
 	runEviction: () => apiFetch<unknown>("/storage/evict", { method: "POST" }),
 
 	shareAccess: (id: string) => apiFetch<ShareAccess>(`/shares/${id}/access`),
+
+	shareAccessFeed: (opts: { limit?: number; before?: number; kind?: string } = {}) => {
+		const q = new URLSearchParams({ limit: String(opts.limit ?? 50) });
+		if (opts.before !== undefined) q.set("before", String(opts.before));
+		if (opts.kind) q.set("kind", opts.kind);
+		return apiFetch<ShareAccessFeedPage>(`/audit/shares?${q}`);
+	},
 
 	audit: (opts: { limit?: number; before?: number; action?: string } = {}) => {
 		const q = new URLSearchParams({ limit: String(opts.limit ?? 50) });
