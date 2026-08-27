@@ -101,6 +101,13 @@ jobs:
             # match. No separate migration step is needed or wanted here.
             docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans
 
+            # Caddy reads its config once, at startup, and the Caddyfile is a bind
+            # mount — so `up -d` does NOT restart it when the file changes, because
+            # the container definition is identical. Every Caddyfile edit silently
+            # did nothing until someone restarted it by hand. `caddy reload` is not
+            # an option either: the config sets `admin off`, deliberately.
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml restart caddy
+
             docker image prune -f --filter "until=168h"
 
       - name: Verify the deploy is actually serving

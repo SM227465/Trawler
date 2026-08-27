@@ -165,6 +165,16 @@ Mount by **UUID** (device order can change across reboots) and keep **`nofail`**
 without it, a detached volume drops the box into emergency mode with no SSH,
 which is not recoverable remotely.
 
+**Restart Caddy after any Caddyfile change.** It is a bind mount and Caddy reads
+its config once at startup, so `docker compose up -d` leaves it running the old
+one — the container definition has not changed, so nothing recreates it. The
+deploy workflow now restarts it on every deploy for exactly this reason.
+`caddy reload` is not an alternative: the config sets `admin off`.
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml restart caddy
+```
+
 **Egress is capped at 10 TB/month.** Trawler counts it and hard-stops share
 traffic before you exceed it, but set the speed and seeding limits in
 Settings too — seeding is what quietly spends it.
