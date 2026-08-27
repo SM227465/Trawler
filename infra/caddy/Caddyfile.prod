@@ -68,6 +68,28 @@
 		}
 	}
 
+	# ── folder downloads (streamed zip) ──────────────────────────────────────
+	# NOT file_server: the archive does not exist on disk, Node generates it as
+	# it streams. A plain proxy with buffering disabled and no read timeout — a
+	# large folder takes minutes and Caddy must not cut it off.
+	handle /zip/* {
+		reverse_proxy api:3000 {
+			flush_interval -1
+		}
+	}
+
+	# ── webdav ───────────────────────────────────────────────────────────────
+	# rclone handles its own Basic auth; Caddy only routes. `handle_path` strips
+	# the /webdav prefix so rclone sees paths rooted at /.
+	#
+	# This block existed in the dev Caddyfile and not here, so "Mount as a
+	# network drive" 404'd on every real deployment while working perfectly on
+	# localhost. Keep the two files in step: anything the app links to has to be
+	# routed in BOTH or it only breaks where nobody is testing.
+	handle_path /webdav* {
+		reverse_proxy webdav:8080
+	}
+
 	handle /api/* {
 		reverse_proxy api:3000
 	}
