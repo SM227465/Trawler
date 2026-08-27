@@ -36,6 +36,14 @@ export interface StorageStatus {
 	libraryBytes: number;
 	pressure: { overBudget: boolean; overDisk: boolean; active: boolean };
 	atRisk: { count: number; bytes: number; torrents: Array<{ id: string; name: string; sizeBytes: number }> };
+	egress: {
+		monthToDateBytes: number;
+		softAlertBytes: number;
+		hardStopBytes: number;
+		level: "ok" | "warn" | "stop";
+		usedPct: number;
+		daily: Array<{ day: string; bytes: number }>;
+	} | null;
 }
 
 export interface Share {
