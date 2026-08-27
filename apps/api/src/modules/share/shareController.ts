@@ -1,7 +1,12 @@
 import type { Request, RequestHandler, Response } from "express";
 import { handleServiceResponse } from "@/common/utils/httpHandlers";
 import { audit } from "@/modules/audit/auditService";
+import { shareRepository } from "./shareRepository";
 import { shareService } from "./shareService";
+
+/** Caddy fronts these, so req.ip is the proxy — XFF carries the real caller. */
+const clientIp = (req: Request) => req.header("X-Forwarded-For")?.split(",")[0]?.trim() ?? req.ip ?? null;
+const userAgent = (req: Request) => req.header("User-Agent")?.slice(0, 300) ?? null;
 
 /** Cookie proving a password-protected share was unlocked in this browser. */
 export const shareUnlockCookie = (id: string) => `ct_share_${id}`;
@@ -32,6 +37,10 @@ class ShareController {
 		handleServiceResponse(await shareService.list(req.user!.id), res);
 	};
 
+	public access: RequestHandler = async (req: Request, res: Response) => {
+		handleServiceResponse(await shareService.access(req.params.id), res);
+	};
+
 	public revoke: RequestHandler = async (req: Request, res: Response) => {
 		const result = await shareService.revoke(req.params.id, req.user!.id);
 		if (result.success) {
@@ -43,11 +52,41 @@ class ShareController {
 	// ── public, unauthenticated ──
 	public publicView: RequestHandler = async (req: Request, res: Response) => {
 		const unlocked = req.cookies?.[shareUnlockCookie(req.params.id)] === "1";
-		handleServiceResponse(await shareService.publicView(req.params.id, unlocked), res);
+		const result = await shareService.publicView(req.params.id, unlocked);
+
+		// Views were never recorded, so "40 downloads" could be one download and
+		// 39 people opening the page. Only logged once the share is known to
+		// exist — logging misses would let anyone fill the table with garbage.
+		if (result.success) {
+			shareRepository.logAccessSafe({
+				shareId: req.params.id,
+				kind: "view",
+				status: 200,
+				ip: clientIp(req),
+				userAgent: userAgent(req),
+				bytes: 0,
+			});
+		}
+		handleServiceResponse(result, res);
 	};
 
 	public unlock: RequestHandler = async (req: Request, res: Response) => {
 		const result = await shareService.unlock(req.params.id, req.body.password);
+
+		// The whole point of a password on a share is that someone might try to
+		// get past it. That attempt left no trace anywhere before this.
+		if (!result.success) {
+			shareRepository.logAccessSafe({
+				shareId: req.params.id,
+				kind: "unlock_failed",
+				status: result.statusCode,
+				reason: result.message,
+				ip: clientIp(req),
+				userAgent: userAgent(req),
+				bytes: 0,
+			});
+		}
+
 		if (result.success) {
 			res.cookie(shareUnlockCookie(req.params.id), "1", {
 				httpOnly: true,

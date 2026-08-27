@@ -20,8 +20,11 @@ import { shareState } from "@/modules/share/shareState";
  */
 
 export type AuthzDecision =
+	// `shareId` rides on the refusal too, so a denial can be attributed to the
+	// share that caused it. Without it, refused attempts on a leaked link were
+	// invisible — which is the one case you most want a record of.
 	| { allow: true; accelPath: string; fileId: string | null; sizeBytes: number; shareId?: string }
-	| { allow: false; reason: string };
+	| { allow: false; reason: string; shareId?: string };
 
 const DL_PREFIX = "/dl/";
 
@@ -101,7 +104,7 @@ async function authorizeShare(id: string): Promise<AuthzDecision | null> {
 	const { share, file } = found;
 
 	const state = shareState(share);
-	if (!state.active) return { allow: false, reason: `share ${state.reason}` };
+	if (!state.active) return { allow: false, reason: `share ${state.reason}`, shareId: id };
 
 	// The Oracle allowance guard. SHARE traffic only — owner downloads are never
 	// blocked, because locking yourself out of your own files to protect a quota
@@ -112,23 +115,23 @@ async function authorizeShare(id: string): Promise<AuthzDecision | null> {
 			{ shareId: id, monthToDateBytes: egress.monthToDateBytes },
 			"refusing share download - monthly egress hard stop reached",
 		);
-		return { allow: false, reason: "monthly egress limit reached" };
+		return { allow: false, reason: "monthly egress limit reached", shareId: id };
 	}
 	if (egress.level === "warn") {
 		logger.warn({ monthToDateBytes: egress.monthToDateBytes }, "egress past the soft alert threshold");
 	}
-	if (!share.allowDownload) return { allow: false, reason: "share does not allow downloading" };
+	if (!share.allowDownload) return { allow: false, reason: "share does not allow downloading", shareId: id };
 
 	// Only file-scoped shares can serve bytes directly. A torrent-scoped share
 	// is a landing page; its individual files are fetched through their own
 	// links, which are minted only after the share itself is validated.
-	if (!file) return { allow: false, reason: "share targets a torrent, not a single file" };
-	if (!file.isComplete) return { allow: false, reason: "shared file is incomplete" };
+	if (!file) return { allow: false, reason: "share targets a torrent, not a single file", shareId: id };
+	if (!file.isComplete) return { allow: false, reason: "shared file is incomplete", shareId: id };
 
 	const resolved = await resolveRealPath(file.path);
 	if (!resolved.ok) {
 		logger.error({ shareId: id, reason: resolved.reason }, "authz refused a shared path outside the downloads root");
-		return { allow: false, reason: "path outside downloads root" };
+		return { allow: false, reason: "path outside downloads root", shareId: id };
 	}
 
 	return {

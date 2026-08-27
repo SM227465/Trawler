@@ -41,6 +41,17 @@ shareRegistry.registerPath({
 	request: { params: z.object({ id: z.string() }) },
 	responses: createApiResponse(ShareSchema, "Revoked"),
 });
+shareRegistry.registerPath({
+	method: "get",
+	path: "/api/v1/shares/{id}/access",
+	tags: ["Share"],
+	description:
+		"Access history for one share: counts per kind, distinct visitors, and the recent entries with IP, user agent and outcome.",
+	request: { params: z.object({ id: z.string() }) },
+	responses: createApiResponse(z.object({}).passthrough(), "Share access"),
+});
+shareRouter.get("/:id/access", validateRequest(ShareIdParams), shareController.access);
+
 shareRouter.delete("/:id", validateRequest(ShareIdParams), shareController.revoke);
 
 /**

@@ -7,7 +7,19 @@ import { torrentService } from "./torrentService";
 class TorrentController {
 	public add: RequestHandler = async (req: Request, res: Response) => {
 		const { magnet, pinned } = req.body;
-		handleServiceResponse(await torrentService.add(magnet, req.user!.id, pinned ?? false), res);
+		const result = await torrentService.add(magnet, req.user!.id, pinned ?? false);
+		if (result.success) {
+			const t = result.responseObject as { id?: string; name?: string } | null;
+			// The magnet itself is never recorded — it names the content, and pino
+			// already redacts it everywhere else for exactly that reason.
+			audit.recordFromRequest(req, {
+				action: "torrent.add",
+				targetType: "torrent",
+				targetId: t?.id ?? null,
+				metadata: { name: t?.name ?? null, source: "magnet" },
+			});
+		}
+		handleServiceResponse(result, res);
 	};
 
 	public addFile: RequestHandler = async (req: Request, res: Response) => {
@@ -18,7 +30,17 @@ class TorrentController {
 				res,
 			);
 		}
-		handleServiceResponse(await torrentService.addFromFile(file.buffer, file.originalname, req.user!.id, false), res);
+		const result = await torrentService.addFromFile(file.buffer, file.originalname, req.user!.id, false);
+		if (result.success) {
+			const t = result.responseObject as { id?: string; name?: string } | null;
+			audit.recordFromRequest(req, {
+				action: "torrent.add",
+				targetType: "torrent",
+				targetId: t?.id ?? null,
+				metadata: { name: t?.name ?? file.originalname, source: "file" },
+			});
+		}
+		handleServiceResponse(result, res);
 	};
 
 	public addBatch: RequestHandler = async (req: Request, res: Response) => {

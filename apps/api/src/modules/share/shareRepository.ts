@@ -1,4 +1,5 @@
 import { and, desc, eq, isNull, or, sql } from "drizzle-orm";
+import { logger } from "@/common/utils/logger";
 import { db } from "@/db/client";
 import { shareAccessLog, shares, torrentFiles, torrents } from "@/db/schema";
 
@@ -66,6 +67,59 @@ export class ShareRepository {
 
 	logAccess(row: typeof shareAccessLog.$inferInsert) {
 		return db.insert(shareAccessLog).values(row);
+	}
+
+	/**
+	 * Fire-and-forget access logging. Never awaited and never throws: a share
+	 * must be served, or refused, on its own merits — a failing log table is not
+	 * a reason to change either answer.
+	 */
+	logAccessSafe(row: typeof shareAccessLog.$inferInsert) {
+		void this.logAccess(row).catch((err) =>
+			logger.error({ err, shareId: row.shareId, kind: row.kind }, "share access log failed"),
+		);
+	}
+
+	/** Recent accesses for one share, newest first. */
+	accessLog(shareId: string, limit = 100) {
+		return db
+			.select({
+				id: shareAccessLog.id,
+				kind: shareAccessLog.kind,
+				status: shareAccessLog.status,
+				reason: shareAccessLog.reason,
+				ip: shareAccessLog.ip,
+				userAgent: shareAccessLog.userAgent,
+				bytes: shareAccessLog.bytes,
+				at: shareAccessLog.at,
+			})
+			.from(shareAccessLog)
+			.where(eq(shareAccessLog.shareId, shareId))
+			.orderBy(desc(shareAccessLog.at), desc(shareAccessLog.id))
+			.limit(Math.min(Math.max(limit, 1), 500));
+	}
+
+	/**
+	 * Counts per kind plus distinct source addresses.
+	 *
+	 * The visitor count is the number that changes how you read the rest: five
+	 * downloads from one address is you testing the link, five from five
+	 * addresses is the link circulating.
+	 */
+	async accessSummary(shareId: string) {
+		const [row] = await db
+			.select({
+				views: sql<number>`count(*) filter (where ${shareAccessLog.kind} = 'view')::int`,
+				downloads: sql<number>`count(*) filter (where ${shareAccessLog.kind} = 'download')::int`,
+				denied: sql<number>`count(*) filter (where ${shareAccessLog.kind} = 'denied')::int`,
+				unlockFailed: sql<number>`count(*) filter (where ${shareAccessLog.kind} = 'unlock_failed')::int`,
+				visitors: sql<number>`count(distinct ${shareAccessLog.ip})::int`,
+				lastAt: sql<Date | null>`max(${shareAccessLog.at})`,
+			})
+			.from(shareAccessLog)
+			.where(eq(shareAccessLog.shareId, shareId));
+
+		return row ?? { views: 0, downloads: 0, denied: 0, unlockFailed: 0, visitors: 0, lastAt: null };
 	}
 }
 

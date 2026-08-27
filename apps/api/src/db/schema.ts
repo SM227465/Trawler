@@ -42,6 +42,20 @@ export const playbackMode = pgEnum("playback_mode", [
 
 export const shareScope = pgEnum("share_scope", ["file", "torrent"]);
 
+/**
+ * What a share_access_log row records.
+ *
+ *  view          — the landing page was opened
+ *  download      — bytes were authorised (Caddy then serves them)
+ *  denied        — refused: revoked, expired, over quota, downloads disabled
+ *  unlock_failed — wrong password on a protected share
+ *
+ * Without this every row looked like a successful download, so "40 downloads"
+ * could really be one download and 39 page loads, and a brute-force attempt
+ * left no trace at all.
+ */
+export const shareAccessKind = pgEnum("share_access_kind", ["view", "download", "denied", "unlock_failed"]);
+
 // ─────────────────────────────── users ───────────────────────────────
 
 export const users = pgTable("users", {
@@ -258,9 +272,19 @@ export const shareAccessLog = pgTable(
 		userAgent: text("user_agent"),
 		bytes: bigint("bytes", { mode: "number" }).notNull().default(0),
 		status: smallint("status").notNull(),
+		// Defaults to download so the rows written before this column existed keep
+		// the meaning they had — every one of them was a successful authorisation.
+		kind: shareAccessKind("kind").notNull().default("download"),
+		// Why it was refused, for denied/unlock_failed. Never shown to the caller:
+		// distinguishing "expired" from "no such share" is a probing oracle.
+		reason: text("reason"),
 		at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
 	},
-	(t) => [index("share_access_log_share_at_idx").on(t.shareId, t.at.desc()), index("share_access_log_at_idx").on(t.at)],
+	(t) => [
+		index("share_access_log_share_at_idx").on(t.shareId, t.at.desc()),
+		index("share_access_log_at_idx").on(t.at),
+		index("share_access_log_kind_idx").on(t.shareId, t.kind),
+	],
 );
 
 // ─────────────────────────────── audit ───────────────────────────────

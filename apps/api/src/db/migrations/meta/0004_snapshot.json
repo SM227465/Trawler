@@ -1,0 +1,1519 @@
+{
+	"id": "6350d830-62e6-4813-8a8f-a2c0948013c9",
+	"prevId": "21580de8-d77c-4443-ac75-1001b9584ba7",
+	"version": "7",
+	"dialect": "postgresql",
+	"tables": {
+		"public.app_settings": {
+			"name": "app_settings",
+			"schema": "",
+			"columns": {
+				"key": {
+					"name": "key",
+					"type": "text",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"value": {
+					"name": "value",
+					"type": "jsonb",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"updated_at": {
+					"name": "updated_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {},
+			"foreignKeys": {},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.audit_log": {
+			"name": "audit_log",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "bigserial",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"actor_id": {
+					"name": "actor_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"action": {
+					"name": "action",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"target_type": {
+					"name": "target_type",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"target_id": {
+					"name": "target_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"ip": {
+					"name": "ip",
+					"type": "inet",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"user_agent": {
+					"name": "user_agent",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"metadata": {
+					"name": "metadata",
+					"type": "jsonb",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"at": {
+					"name": "at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {
+				"audit_log_at_idx": {
+					"name": "audit_log_at_idx",
+					"columns": [
+						{
+							"expression": "at",
+							"isExpression": false,
+							"asc": false,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"audit_log_action_at_idx": {
+					"name": "audit_log_action_at_idx",
+					"columns": [
+						{
+							"expression": "action",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "at",
+							"isExpression": false,
+							"asc": false,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"audit_log_target_idx": {
+					"name": "audit_log_target_idx",
+					"columns": [
+						{
+							"expression": "target_type",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "target_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"audit_log_actor_id_users_id_fk": {
+					"name": "audit_log_actor_id_users_id_fk",
+					"tableFrom": "audit_log",
+					"tableTo": "users",
+					"columnsFrom": ["actor_id"],
+					"columnsTo": ["id"],
+					"onDelete": "set null",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.egress_daily": {
+			"name": "egress_daily",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "bigserial",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"day": {
+					"name": "day",
+					"type": "date",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"share_id": {
+					"name": "share_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"bytes_served": {
+					"name": "bytes_served",
+					"type": "bigint",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				}
+			},
+			"indexes": {
+				"egress_daily_day_share_key": {
+					"name": "egress_daily_day_share_key",
+					"columns": [
+						{
+							"expression": "day",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "coalesce(\"share_id\", '')",
+							"asc": true,
+							"isExpression": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": true,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"egress_daily_day_idx": {
+					"name": "egress_daily_day_idx",
+					"columns": [
+						{
+							"expression": "day",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.media_probes": {
+			"name": "media_probes",
+			"schema": "",
+			"columns": {
+				"file_id": {
+					"name": "file_id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"container": {
+					"name": "container",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"video_codec": {
+					"name": "video_codec",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"audio_codec": {
+					"name": "audio_codec",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"width": {
+					"name": "width",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"height": {
+					"name": "height",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"duration_seconds": {
+					"name": "duration_seconds",
+					"type": "real",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"bitrate_bps": {
+					"name": "bitrate_bps",
+					"type": "bigint",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"playback": {
+					"name": "playback",
+					"type": "playback_mode",
+					"typeSchema": "public",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"probed_at": {
+					"name": "probed_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				},
+				"probe_error": {
+					"name": "probe_error",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				}
+			},
+			"indexes": {},
+			"foreignKeys": {
+				"media_probes_file_id_torrent_files_id_fk": {
+					"name": "media_probes_file_id_torrent_files_id_fk",
+					"tableFrom": "media_probes",
+					"tableTo": "torrent_files",
+					"columnsFrom": ["file_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.refresh_tokens": {
+			"name": "refresh_tokens",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"user_id": {
+					"name": "user_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"family_id": {
+					"name": "family_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"token_hash": {
+					"name": "token_hash",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"expires_at": {
+					"name": "expires_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"used_at": {
+					"name": "used_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"revoked_at": {
+					"name": "revoked_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {
+				"refresh_tokens_family_idx": {
+					"name": "refresh_tokens_family_idx",
+					"columns": [
+						{
+							"expression": "family_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"refresh_tokens_user_idx": {
+					"name": "refresh_tokens_user_idx",
+					"columns": [
+						{
+							"expression": "user_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"refresh_tokens_user_id_users_id_fk": {
+					"name": "refresh_tokens_user_id_users_id_fk",
+					"tableFrom": "refresh_tokens",
+					"tableTo": "users",
+					"columnsFrom": ["user_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {
+				"refresh_tokens_token_hash_unique": {
+					"name": "refresh_tokens_token_hash_unique",
+					"nullsNotDistinct": false,
+					"columns": ["token_hash"]
+				}
+			},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.share_access_log": {
+			"name": "share_access_log",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "bigserial",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"share_id": {
+					"name": "share_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"ip": {
+					"name": "ip",
+					"type": "inet",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"user_agent": {
+					"name": "user_agent",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"bytes": {
+					"name": "bytes",
+					"type": "bigint",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"status": {
+					"name": "status",
+					"type": "smallint",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"kind": {
+					"name": "kind",
+					"type": "share_access_kind",
+					"typeSchema": "public",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "'download'"
+				},
+				"reason": {
+					"name": "reason",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"at": {
+					"name": "at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {
+				"share_access_log_share_at_idx": {
+					"name": "share_access_log_share_at_idx",
+					"columns": [
+						{
+							"expression": "share_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "at",
+							"isExpression": false,
+							"asc": false,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"share_access_log_at_idx": {
+					"name": "share_access_log_at_idx",
+					"columns": [
+						{
+							"expression": "at",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"share_access_log_kind_idx": {
+					"name": "share_access_log_kind_idx",
+					"columns": [
+						{
+							"expression": "share_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "kind",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"share_access_log_share_id_shares_id_fk": {
+					"name": "share_access_log_share_id_shares_id_fk",
+					"tableFrom": "share_access_log",
+					"tableTo": "shares",
+					"columnsFrom": ["share_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.shares": {
+			"name": "shares",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "text",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"scope": {
+					"name": "scope",
+					"type": "share_scope",
+					"typeSchema": "public",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"torrent_id": {
+					"name": "torrent_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"file_id": {
+					"name": "file_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"created_by": {
+					"name": "created_by",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"label": {
+					"name": "label",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"password_hash": {
+					"name": "password_hash",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"allow_stream": {
+					"name": "allow_stream",
+					"type": "boolean",
+					"primaryKey": false,
+					"notNull": true,
+					"default": true
+				},
+				"allow_download": {
+					"name": "allow_download",
+					"type": "boolean",
+					"primaryKey": false,
+					"notNull": true,
+					"default": true
+				},
+				"max_bytes": {
+					"name": "max_bytes",
+					"type": "bigint",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"bytes_served": {
+					"name": "bytes_served",
+					"type": "bigint",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"request_count": {
+					"name": "request_count",
+					"type": "bigint",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"expires_at": {
+					"name": "expires_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"revoked_at": {
+					"name": "revoked_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"last_accessed_at": {
+					"name": "last_accessed_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {
+				"shares_expires_idx": {
+					"name": "shares_expires_idx",
+					"columns": [
+						{
+							"expression": "expires_at",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"shares_file_idx": {
+					"name": "shares_file_idx",
+					"columns": [
+						{
+							"expression": "file_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"shares_torrent_idx": {
+					"name": "shares_torrent_idx",
+					"columns": [
+						{
+							"expression": "torrent_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"shares_torrent_id_torrents_id_fk": {
+					"name": "shares_torrent_id_torrents_id_fk",
+					"tableFrom": "shares",
+					"tableTo": "torrents",
+					"columnsFrom": ["torrent_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				},
+				"shares_file_id_torrent_files_id_fk": {
+					"name": "shares_file_id_torrent_files_id_fk",
+					"tableFrom": "shares",
+					"tableTo": "torrent_files",
+					"columnsFrom": ["file_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				},
+				"shares_created_by_users_id_fk": {
+					"name": "shares_created_by_users_id_fk",
+					"tableFrom": "shares",
+					"tableTo": "users",
+					"columnsFrom": ["created_by"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {
+				"shares_scope_target_ck": {
+					"name": "shares_scope_target_ck",
+					"value": "(scope = 'file'    AND file_id IS NOT NULL AND torrent_id IS NULL) OR\n\t\t\t    (scope = 'torrent' AND torrent_id IS NOT NULL AND file_id IS NULL)"
+				}
+			},
+			"isRLSEnabled": false
+		},
+		"public.torrent_files": {
+			"name": "torrent_files",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"torrent_id": {
+					"name": "torrent_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"qbt_index": {
+					"name": "qbt_index",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"path": {
+					"name": "path",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"size_bytes": {
+					"name": "size_bytes",
+					"type": "bigint",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"progress": {
+					"name": "progress",
+					"type": "real",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"priority": {
+					"name": "priority",
+					"type": "smallint",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 1
+				},
+				"is_complete": {
+					"name": "is_complete",
+					"type": "boolean",
+					"primaryKey": false,
+					"notNull": true,
+					"default": false
+				},
+				"content_type": {
+					"name": "content_type",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				}
+			},
+			"indexes": {
+				"torrent_files_torrent_path_key": {
+					"name": "torrent_files_torrent_path_key",
+					"columns": [
+						{
+							"expression": "torrent_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "path",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": true,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"torrent_files_torrent_idx": {
+					"name": "torrent_files_torrent_idx",
+					"columns": [
+						{
+							"expression": "torrent_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"torrent_files_complete_idx": {
+					"name": "torrent_files_complete_idx",
+					"columns": [
+						{
+							"expression": "torrent_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "is_complete",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"torrent_files_torrent_id_torrents_id_fk": {
+					"name": "torrent_files_torrent_id_torrents_id_fk",
+					"tableFrom": "torrent_files",
+					"tableTo": "torrents",
+					"columnsFrom": ["torrent_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.torrent_trackers": {
+			"name": "torrent_trackers",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"torrent_id": {
+					"name": "torrent_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"url": {
+					"name": "url",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"tier": {
+					"name": "tier",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"status": {
+					"name": "status",
+					"type": "smallint",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"num_peers": {
+					"name": "num_peers",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"num_seeds": {
+					"name": "num_seeds",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"num_leeches": {
+					"name": "num_leeches",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"num_downloaded": {
+					"name": "num_downloaded",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"message": {
+					"name": "message",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"updated_at": {
+					"name": "updated_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {
+				"torrent_trackers_torrent_url_key": {
+					"name": "torrent_trackers_torrent_url_key",
+					"columns": [
+						{
+							"expression": "torrent_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "url",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": true,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"torrent_trackers_torrent_idx": {
+					"name": "torrent_trackers_torrent_idx",
+					"columns": [
+						{
+							"expression": "torrent_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"torrent_trackers_torrent_id_torrents_id_fk": {
+					"name": "torrent_trackers_torrent_id_torrents_id_fk",
+					"tableFrom": "torrent_trackers",
+					"tableTo": "torrents",
+					"columnsFrom": ["torrent_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.torrents": {
+			"name": "torrents",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"info_hash": {
+					"name": "info_hash",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"name": {
+					"name": "name",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"magnet": {
+					"name": "magnet",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"size_bytes": {
+					"name": "size_bytes",
+					"type": "bigint",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"status": {
+					"name": "status",
+					"type": "torrent_status",
+					"typeSchema": "public",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "'queued'"
+				},
+				"progress": {
+					"name": "progress",
+					"type": "real",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"dl_speed_bps": {
+					"name": "dl_speed_bps",
+					"type": "bigint",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"up_speed_bps": {
+					"name": "up_speed_bps",
+					"type": "bigint",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"eta_seconds": {
+					"name": "eta_seconds",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"save_path": {
+					"name": "save_path",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"pinned": {
+					"name": "pinned",
+					"type": "boolean",
+					"primaryKey": false,
+					"notNull": true,
+					"default": false
+				},
+				"error_message": {
+					"name": "error_message",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"added_by": {
+					"name": "added_by",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"added_at": {
+					"name": "added_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				},
+				"completed_at": {
+					"name": "completed_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"last_accessed_at": {
+					"name": "last_accessed_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"evicted_at": {
+					"name": "evicted_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"qbt_state": {
+					"name": "qbt_state",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"seeds_connected": {
+					"name": "seeds_connected",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"seeds_total": {
+					"name": "seeds_total",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"peers_connected": {
+					"name": "peers_connected",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"peers_total": {
+					"name": "peers_total",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"ratio": {
+					"name": "ratio",
+					"type": "real",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"availability": {
+					"name": "availability",
+					"type": "real",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"downloaded_bytes": {
+					"name": "downloaded_bytes",
+					"type": "bigint",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"uploaded_bytes": {
+					"name": "uploaded_bytes",
+					"type": "bigint",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"wasted_bytes": {
+					"name": "wasted_bytes",
+					"type": "bigint",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"time_active_seconds": {
+					"name": "time_active_seconds",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"seeding_time_seconds": {
+					"name": "seeding_time_seconds",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"last_activity_at": {
+					"name": "last_activity_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"info_hash_v2": {
+					"name": "info_hash_v2",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"pieces_have": {
+					"name": "pieces_have",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"pieces_num": {
+					"name": "pieces_num",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"piece_size_bytes": {
+					"name": "piece_size_bytes",
+					"type": "bigint",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"is_private": {
+					"name": "is_private",
+					"type": "boolean",
+					"primaryKey": false,
+					"notNull": true,
+					"default": false
+				},
+				"comment": {
+					"name": "comment",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"created_by_client": {
+					"name": "created_by_client",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"torrent_created_at": {
+					"name": "torrent_created_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"content_path": {
+					"name": "content_path",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"category": {
+					"name": "category",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"tags": {
+					"name": "tags",
+					"type": "text[]",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"tracker_host": {
+					"name": "tracker_host",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"trackers_count": {
+					"name": "trackers_count",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"dl_limit_bps": {
+					"name": "dl_limit_bps",
+					"type": "bigint",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"up_limit_bps": {
+					"name": "up_limit_bps",
+					"type": "bigint",
+					"primaryKey": false,
+					"notNull": false
+				}
+			},
+			"indexes": {
+				"torrents_info_hash_key": {
+					"name": "torrents_info_hash_key",
+					"columns": [
+						{
+							"expression": "info_hash",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": true,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"torrents_status_idx": {
+					"name": "torrents_status_idx",
+					"columns": [
+						{
+							"expression": "status",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"torrents_evict_idx": {
+					"name": "torrents_evict_idx",
+					"columns": [
+						{
+							"expression": "status",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "last_accessed_at",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"torrents_added_at_idx": {
+					"name": "torrents_added_at_idx",
+					"columns": [
+						{
+							"expression": "added_at",
+							"isExpression": false,
+							"asc": false,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"torrents_added_by_users_id_fk": {
+					"name": "torrents_added_by_users_id_fk",
+					"tableFrom": "torrents",
+					"tableTo": "users",
+					"columnsFrom": ["added_by"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.users": {
+			"name": "users",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"email": {
+					"name": "email",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"password_hash": {
+					"name": "password_hash",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {},
+			"foreignKeys": {},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {
+				"users_email_unique": {
+					"name": "users_email_unique",
+					"nullsNotDistinct": false,
+					"columns": ["email"]
+				}
+			},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		}
+	},
+	"enums": {
+		"public.playback_mode": {
+			"name": "playback_mode",
+			"schema": "public",
+			"values": ["direct", "remux", "incompatible", "not_media"]
+		},
+		"public.share_access_kind": {
+			"name": "share_access_kind",
+			"schema": "public",
+			"values": ["view", "download", "denied", "unlock_failed"]
+		},
+		"public.share_scope": {
+			"name": "share_scope",
+			"schema": "public",
+			"values": ["file", "torrent"]
+		},
+		"public.torrent_status": {
+			"name": "torrent_status",
+			"schema": "public",
+			"values": ["queued", "downloading", "paused", "completed", "errored", "evicted"]
+		}
+	},
+	"schemas": {},
+	"sequences": {},
+	"roles": {},
+	"policies": {},
+	"views": {},
+	"_meta": {
+		"columns": {},
+		"schemas": {},
+		"tables": {}
+	}
+}

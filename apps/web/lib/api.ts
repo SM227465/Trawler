@@ -109,6 +109,29 @@ export interface AuditEntry {
 	at: string;
 }
 
+export interface ShareAccessEntry {
+	id: number;
+	kind: "view" | "download" | "denied" | "unlock_failed";
+	status: number;
+	reason: string | null;
+	ip: string | null;
+	userAgent: string | null;
+	bytes: number;
+	at: string;
+}
+
+export interface ShareAccess {
+	summary: {
+		views: number;
+		downloads: number;
+		denied: number;
+		unlockFailed: number;
+		visitors: number;
+		lastAt: string | null;
+	};
+	entries: ShareAccessEntry[];
+}
+
 export interface AuditPage {
 	entries: AuditEntry[];
 	nextCursor: number | null;
@@ -333,6 +356,8 @@ export const api = {
 		apiFetch<TransferSettings>("/settings/transfer", { method: "PATCH", body: JSON.stringify(patch) }),
 
 	runEviction: () => apiFetch<unknown>("/storage/evict", { method: "POST" }),
+
+	shareAccess: (id: string) => apiFetch<ShareAccess>(`/shares/${id}/access`),
 
 	audit: (opts: { limit?: number; before?: number; action?: string } = {}) => {
 		const q = new URLSearchParams({ limit: String(opts.limit ?? 50) });

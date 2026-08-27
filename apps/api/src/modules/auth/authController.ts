@@ -56,6 +56,9 @@ class AuthController {
 
 	public logout: RequestHandler = async (req: Request, res: Response) => {
 		const response = await authService.logout(req.cookies?.[REFRESH_COOKIE]);
+		// req.user is absent here (logout is not behind requireAuth), so this is
+		// an actorless row — the point is the timeline, not who.
+		audit.record({ ...audit.requestContext(req), action: "auth.logout" });
 		res.clearCookie(REFRESH_COOKIE, { path: cookieOptions.path });
 		res.clearCookie(ACCESS_COOKIE, { path: accessCookieOptions.path });
 		handleServiceResponse(response, res);

@@ -1,7 +1,8 @@
 "use client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Ban, Check, Copy, Link2Off, Lock, Share2 } from "lucide-react";
+import { Ban, Check, Copy, Eye, Link2Off, Lock, Share2 } from "lucide-react";
 import { useState } from "react";
+import { ShareAccessDialog } from "@/components/share/ShareAccessDialog";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { api, type Share } from "@/lib/api";
@@ -19,6 +20,7 @@ const STATE: Record<Share["state"], { label: string; tone: string }> = {
 function Row({ share }: { share: Share }) {
 	const qc = useQueryClient();
 	const { copied, copy } = useCopy();
+	const [access, setAccess] = useState(false);
 	const [confirm, setConfirm] = useState(false);
 
 	const revoke = useMutation({
@@ -53,6 +55,15 @@ function Row({ share }: { share: Share }) {
 				</span>
 
 				<div className="flex shrink-0 gap-1">
+					<Button
+						size="icon"
+						variant="ghost"
+						onClick={() => setAccess(true)}
+						title="Who used this link"
+						aria-label="Who used this link"
+					>
+						<Eye className="size-3.5" />
+					</Button>
 					<Button
 						size="icon"
 						variant="ghost"
@@ -111,6 +122,8 @@ function Row({ share }: { share: Share }) {
 					/>
 				</div>
 			)}
+
+			<ShareAccessDialog open={access} onClose={() => setAccess(false)} shareId={share.id} />
 
 			<ConfirmDialog
 				open={confirm}

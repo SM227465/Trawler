@@ -13,6 +13,10 @@ import { authorizeDownload } from "./authzService";
  */
 export const internalRouter: Router = express.Router();
 
+/** Caddy is the only peer, so req.ip is always the proxy — XFF has the caller. */
+const clientIp = (req: Request) => req.header("X-Forwarded-For")?.split(",")[0]?.trim() ?? null;
+const userAgent = (req: Request) => req.header("User-Agent")?.slice(0, 300) ?? null;
+
 internalRouter.get("/authz", async (req: Request, res: Response) => {
 	const decision = await authorizeDownload({
 		forwardedUri: req.header("X-Forwarded-Uri") ?? undefined,
@@ -21,6 +25,22 @@ internalRouter.get("/authz", async (req: Request, res: Response) => {
 
 	if (!decision.allow) {
 		logger.warn({ reason: decision.reason, uri: req.header("X-Forwarded-Uri") }, "download denied");
+
+		// Refusals used to leave no trace at all — only successes were logged, so
+		// a leaked link being hammered after revocation looked identical to a
+		// link nobody ever clicked. The reason is stored but never returned.
+		if (decision.shareId) {
+			shareRepository.logAccessSafe({
+				shareId: decision.shareId,
+				kind: "denied",
+				status: 403,
+				reason: decision.reason,
+				ip: clientIp(req),
+				userAgent: userAgent(req),
+				bytes: 0,
+			});
+		}
+
 		// Bare 403: no body, no code, nothing to distinguish failure modes.
 		return res.status(403).end();
 	}
@@ -36,17 +56,14 @@ internalRouter.get("/authz", async (req: Request, res: Response) => {
 			.recordServed(decision.shareId, decision.sizeBytes)
 			.catch((err) => logger.error({ err, shareId: decision.shareId }, "share accounting failed"));
 
-		void shareRepository
-			.logAccess({
-				shareId: decision.shareId,
-				ip: req.header("X-Forwarded-For")?.split(",")[0]?.trim() ?? null,
-				userAgent: req.header("User-Agent")?.slice(0, 300) ?? null,
-				bytes: decision.sizeBytes,
-				status: 200,
-			})
-			.catch(() => {
-				/* the log is best-effort; never block a download for it */
-			});
+		shareRepository.logAccessSafe({
+			shareId: decision.shareId,
+			kind: "download",
+			status: 200,
+			ip: clientIp(req),
+			userAgent: userAgent(req),
+			bytes: decision.sizeBytes,
+		});
 	}
 
 	// Caddy copies this header back onto the request, then rewrites the URI to

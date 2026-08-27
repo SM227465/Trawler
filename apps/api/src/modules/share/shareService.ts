@@ -170,6 +170,19 @@ export class ShareService {
 		});
 	}
 
+	/** Access history for one share: who hit it, how often, and what happened. */
+	async access(id: string) {
+		const row = await shareRepository.findById(id);
+		if (!row) {
+			return ServiceResponse.failure("Share not found", null, ErrorCode.RESOURCE_NOT_FOUND, "RESOURCE_NOT_FOUND");
+		}
+		const [summary, entries] = await Promise.all([
+			shareRepository.accessSummary(id),
+			shareRepository.accessLog(id, 100),
+		]);
+		return ServiceResponse.success("Share access", { summary, entries });
+	}
+
 	async unlock(id: string, password: string) {
 		const row = await shareRepository.findById(id);
 		if (!row || row.passwordHash === null) {

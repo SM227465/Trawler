@@ -231,6 +231,9 @@ and download.
       Fire-and-forget so auditing can never fail the audited action, no FK on
       the target so rows outlive what they describe, and pruned to 30 days by
       the nightly job alongside `share_access_log`.
+      Share access now distinguishes view / download / denied / unlock_failed
+      (migration 0004) — refusals and password attempts used to leave no trace,
+      so a leaked link being hammered looked like one nobody had clicked.
 
 **Transfers is list-only.** Add moved into a modal that takes many magnets
 (newline or whitespace separated, up to 50) AND many `.torrent` files (up to 20)
