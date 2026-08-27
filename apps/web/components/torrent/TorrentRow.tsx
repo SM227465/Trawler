@@ -193,7 +193,13 @@ export const TorrentRow = memo(function TorrentRow({ id, hidden }: { id: string;
 			</div>
 
 			{/* metrics — 3-up grid on mobile, aligned columns on lg */}
-			<div className="grid grid-cols-3 gap-x-4 gap-y-2 sm:grid-cols-6 lg:contents">
+			{/* w-fit, not full width: three equal columns stretched across a 360px
+			    screen gave each value ~105px to sit in when it needs ~50, so the
+			    numbers drifted apart with nothing between them. Shrinking to fit
+			    packs them left and sizes the columns to their widest cell, while
+			    grid-cols-3 keeps Size/Seeds/Peers aligned with Down/Up/ETA on the
+			    row beneath — which content-sized columns would not. */}
+			<div className="grid w-fit grid-cols-3 gap-x-5 gap-y-2 sm:w-auto sm:grid-cols-6 lg:contents">
 				{show("Size") && <Cell label="Size">{t.sizeBytes > 0 ? formatBytes(t.sizeBytes) : "—"}</Cell>}
 				{show("Seeds") && <Cell label="Seeds">{formatSwarm(t.seedsConnected, t.seedsTotal)}</Cell>}
 				{show("Peers") && <Cell label="Peers">{formatSwarm(t.peersConnected, t.peersTotal)}</Cell>}

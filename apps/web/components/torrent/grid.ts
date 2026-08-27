@@ -7,16 +7,30 @@ import type { SortKey } from "./sort";
  */
 export const COLUMNS = ["Name", "Size", "Seeds", "Peers", "Down", "Up", "ETA", ""] as const;
 
-/** Track width per column, in the same order. Name flexes; the rest are fixed. */
+/**
+ * Track width per column, in the same order. Name flexes; the rest are fixed.
+ *
+ * The actions track must fit its buttons or the whole row overflows: five
+ * `size="icon"` buttons are 5 x 2rem plus four 0.25rem gaps = 11rem exactly.
+ * It was 8rem, so every row overflowed by 48px on a 1366px laptop. That showed
+ * up twice — a horizontal scrollbar, and a progress fill that stopped short of
+ * the right edge, because `width: 100%` resolves against the visible box and
+ * not the scrolled width.
+ *
+ * The stat columns paid for it. They were sized for values like "1.23 GB/s"
+ * that only appear mid-transfer, and were carrying dead space the rest of the
+ * time. Total minimum is now ~908px against ~1010px available at 1366px, so
+ * there is room for the name to grow rather than none to spare.
+ */
 const WIDTH: Record<string, string> = {
-	Name: "minmax(12rem,1fr)",
-	Size: "5.5rem",
-	Seeds: "6.5rem",
-	Peers: "6.5rem",
-	Down: "7rem",
-	Up: "7rem",
-	ETA: "5rem",
-	"": "8rem", // actions
+	Name: "minmax(10rem,1fr)",
+	Size: "5rem",
+	Seeds: "5rem",
+	Peers: "5rem",
+	Down: "5.5rem",
+	Up: "5.5rem",
+	ETA: "4.5rem",
+	"": "11rem", // actions — 5 x size-8 + 4 x gap-1
 };
 
 /**
