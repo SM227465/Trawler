@@ -54,10 +54,15 @@ export function Dialog({
 			<div className="p-5">
 				<div className="flex items-start gap-3">
 					<div className="min-w-0 flex-1">
-						<h2 id={labelledBy} className="text-base font-semibold">
+						{/* break-words, because these are usually filenames. A release name
+						    like `exploitedtalent.23.06.09.darcy.dark…mp4` is one unbroken
+						    token with nothing to wrap at, so it set a min-content width
+						    wider than the dialog and the whole panel scrolled sideways —
+						    far enough that the content scrolled out of view. */}
+						<h2 id={labelledBy} className="break-words text-base font-semibold">
 							{title}
 						</h2>
-						{description && <p className="mt-1.5 text-sm text-fg-muted">{description}</p>}
+						{description && <p className="mt-1.5 break-words text-sm text-fg-muted">{description}</p>}
 					</div>
 					<button
 						type="button"
