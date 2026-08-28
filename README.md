@@ -72,9 +72,15 @@ The production overlay expects a **separate data volume mounted at `/data`**. Pu
 downloads on their own disk if you can: a full boot disk is what wedges a small
 VPS, and it is the failure that is hardest to recover from remotely.
 
-TLS is automatic once `DOMAIN` points at the box. See
-[docs/05-deployment.md](docs/05-deployment.md) for provider-specific notes —
-including the firewall rule that catches everyone, twice.
+TLS is automatic once `DOMAIN` points at the box.
+
+**[Full deployment guide →](docs/05-deployment.md)** — a step-by-step walkthrough
+for any VPS, written to be followed by someone who is comfortable pasting
+commands rather than someone who writes them. Covers the data disk, swap, the
+two separate firewalls that both have to be opened, DNS, TLS, automatic deploys,
+backups, and a troubleshooting section built from the things that actually went
+wrong. Oracle Cloud gets its own section, because its free tier is the most
+generous and has the most traps.
 
 ---
 
