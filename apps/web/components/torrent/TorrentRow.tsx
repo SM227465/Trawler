@@ -32,6 +32,20 @@ import { gridTemplate, ROW_GRID } from "./grid";
  * already validated against both themes, and they are pale enough that the row
  * text keeps its contrast on top of them.
  */
+/**
+ * Shared by the row and its loading placeholder, so both measure the same
+ * height in the virtualizer.
+ *
+ * border-STRONG, not border: the row fill runs edge to edge, and the subtle
+ * divider was tuned to sit against bg-surface — between two filled rows it
+ * disappeared and adjacent completed torrents merged into one block.
+ *
+ * `relative` + `isolate` so the progress fill can sit behind the content
+ * without escaping the row or catching pointer events.
+ */
+const ROW_SHELL =
+	"relative isolate border-b border-border-strong py-3 pr-3 last:border-b-0 hover:bg-surface-2 sm:pr-4 flex flex-col gap-3 lg:gap-0";
+
 const FILL: Record<string, string> = {
 	downloading: "bg-status-downloading-soft",
 	completed: "bg-status-completed-soft",
@@ -81,7 +95,22 @@ export const TorrentRow = memo(function TorrentRow({ id, hidden }: { id: string;
 		},
 	});
 
-	if (!t) return null;
+	// A placeholder, never null. The list is virtualized and measures each row's
+	// wrapper with measureElement: a row that renders nothing measures 0px while
+	// getTotalSize() still reserves its space, which is exactly the blank gap
+	// that used to appear mid-list. Rows unmount and remount as they leave the
+	// overscan window, so this happened intermittently rather than on load.
+	if (!t) {
+		return (
+			<div
+				className={cn(ROW_SHELL, "pl-3 sm:pl-4", ROW_GRID)}
+				style={{ "--ct-cols": gridTemplate(hidden) } as React.CSSProperties}
+				aria-hidden
+			>
+				<div className="h-4 w-2/3 animate-pulse rounded bg-surface-inset" />
+			</div>
+		);
+	}
 
 	// Magnet metadata not resolved yet: no name, no size, no files.
 	const metaPending = t.qbtState === "metaDL" || (!t.name && t.sizeBytes === 0);
@@ -97,14 +126,7 @@ export const TorrentRow = memo(function TorrentRow({ id, hidden }: { id: string;
 	return (
 		<div
 			className={cn(
-				// `relative` + `isolate` so the progress fill below can sit behind the
-				// content without escaping the row or catching pointer events.
-				// border-STRONG, not border: the row fill now runs edge to edge, and the
-				// subtle divider was tuned to sit against bg-surface — between two
-				// filled rows it disappeared entirely and adjacent completed torrents
-				// merged into one block.
-				"relative isolate border-b border-border-strong py-3 pr-3 last:border-b-0 hover:bg-surface-2 sm:pr-4",
-				"flex flex-col gap-3 lg:gap-0",
+				ROW_SHELL,
 				// A pinned torrent is protected from cleanup — worth seeing at a
 				// glance, not only by hunting for the icon.
 				t.pinned ? "border-l-2 border-l-accent pl-[calc(0.75rem-2px)] sm:pl-[calc(1rem-2px)]" : "pl-3 sm:pl-4",
