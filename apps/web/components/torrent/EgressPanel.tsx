@@ -19,7 +19,10 @@ export function EgressPanel() {
 	const e = data?.egress;
 	if (!e) return null;
 
-	const used = e.monthToDateBytes;
+	// Both halves count against Oracle's allowance, so the meter is the total.
+	const http = e.monthToDateBytes;
+	const seeded = e.torrentBytes ?? 0;
+	const used = e.totalBytes ?? http + seeded;
 	const pct = Math.min(100, (used / ALLOWANCE) * 100);
 
 	// Straight-line projection from the month so far. Crude, but the question it
@@ -57,8 +60,12 @@ export function EgressPanel() {
 
 			<dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-xs sm:grid-cols-4">
 				<div>
-					<dt className="text-fg-subtle">Used</dt>
-					<dd className="tabular mt-0.5 text-fg">{pct.toFixed(1)}%</dd>
+					<dt className="text-fg-subtle">Downloads &amp; shares</dt>
+					<dd className="tabular mt-0.5 text-fg">{formatBytes(http)}</dd>
+				</div>
+				<div>
+					<dt className="text-fg-subtle">Seeding</dt>
+					<dd className="tabular mt-0.5 text-fg">{formatBytes(seeded)}</dd>
 				</div>
 				<div>
 					<dt className="text-fg-subtle">Days left</dt>
@@ -69,10 +76,6 @@ export function EgressPanel() {
 					<dd className={cn("tabular mt-0.5", willExceed ? "text-status-errored" : "text-fg")}>
 						{formatBytes(projected)}
 					</dd>
-				</div>
-				<div>
-					<dt className="text-fg-subtle">Stops sharing at</dt>
-					<dd className="tabular mt-0.5 text-fg">{formatBytes(e.hardStopBytes)}</dd>
 				</div>
 			</dl>
 
@@ -93,29 +96,22 @@ export function EgressPanel() {
 				</p>
 			)}
 
-			{/* Being explicit about what is and is not in this number. Getting this
-			    wrong in the reassuring direction is how someone gets a bill. */}
+			{/* Still worth naming what is in the number and what is free, because
+			    being reassuring and wrong here is how someone gets a bill. */}
 			<div className="mt-3 flex flex-col gap-1 border-t border-border pt-3 text-xs text-fg-subtle">
 				<p className="flex items-start gap-1.5">
 					<ArrowUp className="mt-0.5 size-3 shrink-0" aria-hidden />
 					<span>
 						<strong className="font-medium text-fg-muted">Counted:</strong> everything served over HTTPS — share links,
-						your own downloads, streaming, the web app itself.
+						your own downloads, streaming — plus BitTorrent seeding, read from qBittorrent&apos;s own counter. The share
+						guard can only throttle the first kind; seeding is bounded by the ratio and upload limits in Settings.
 					</span>
 				</p>
 				<p className="flex items-start gap-1.5">
 					<ArrowDown className="mt-0.5 size-3 shrink-0" aria-hidden />
 					<span>
-						<strong className="font-medium text-fg-muted">Not counted:</strong> downloading torrents. Inbound traffic is
-						free and unmetered on Oracle.
-					</span>
-				</p>
-				<p className="flex items-start gap-1.5">
-					<ArrowUp className="mt-0.5 size-3 shrink-0 text-status-paused" aria-hidden />
-					<span>
-						<strong className="font-medium text-status-paused">Billed but not measured here:</strong> BitTorrent
-						seeding. Those bytes leave on port 6881 without passing through Caddy, so this figure cannot see them — cap
-						them with a share ratio and an upload limit in Settings.
+						<strong className="font-medium text-fg-muted">Free:</strong> downloading torrents. Inbound traffic is not
+						metered on Oracle, so a 5 TB download month costs nothing.
 					</span>
 				</p>
 			</div>

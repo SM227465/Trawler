@@ -58,9 +58,17 @@ export async function checkEgress(): Promise<EgressVerdict> {
 }
 
 export async function egressStatus() {
-	const bytes = await egressRepository.monthToDateBytes();
+	const [bytes, torrentBytes] = await Promise.all([
+		egressRepository.monthToDateBytes(),
+		egressRepository.monthToDateTorrentBytes(),
+	]);
 	return {
 		monthToDateBytes: bytes,
+		// Seeding, counted from qBittorrent rather than Caddy's log. Reported
+		// separately because only the HTTP half can be throttled by the share
+		// guard — the torrent port does not pass through us at all.
+		torrentBytes,
+		totalBytes: bytes + torrentBytes,
 		softAlertBytes: env.EGRESS_SOFT_ALERT_BYTES,
 		hardStopBytes: env.EGRESS_HARD_STOP_BYTES,
 		level:

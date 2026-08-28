@@ -28,7 +28,25 @@ export async function registerJobs(boss: PgBoss) {
 	await boss.work(JOB.EGRESS_INGEST, { batchSize: 1 }, async (jobs: Job<object>[]) => {
 		for (const _job of jobs) {
 			const r = await ingestEgressLog();
-			if (r.bytes > 0) invalidateEgressCache();
+
+			// Seeding never touches Caddy — those bytes leave on the torrent port
+			// — so the access log cannot see them, but qBittorrent counts them.
+			// Poll its all-time upload total and bank the growth. Same tick, so
+			// the two halves of the allowance stay in step.
+			let seeded = 0;
+			try {
+				const { qbt } = await import("@/integrations/qbittorrent/client");
+				const state = (await qbt.syncMainData(0)).server_state;
+				if (typeof state?.alltime_ul === "number") {
+					const { egressRepository } = await import("@/modules/egress/egressRepository");
+					seeded = await egressRepository.bankTorrentUpload(state.alltime_ul);
+				}
+			} catch (err) {
+				// qBittorrent being briefly unreachable must not stop log ingest.
+				logger.warn({ err }, "could not read qBittorrent upload counter");
+			}
+
+			if (r.bytes > 0 || seeded > 0) invalidateEgressCache();
 		}
 	});
 	await boss.schedule(JOB.EGRESS_INGEST, "* * * * *");

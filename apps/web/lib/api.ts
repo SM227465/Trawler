@@ -38,6 +38,8 @@ export interface StorageStatus {
 	atRisk: { count: number; bytes: number; torrents: Array<{ id: string; name: string; sizeBytes: number }> };
 	egress: {
 		monthToDateBytes: number;
+		torrentBytes: number;
+		totalBytes: number;
 		softAlertBytes: number;
 		hardStopBytes: number;
 		level: "ok" | "warn" | "stop";

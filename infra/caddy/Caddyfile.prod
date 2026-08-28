@@ -32,6 +32,11 @@
 	# lines at all.
 	log {
 		output file /var/log/caddy/access.log {
+			# Caddy creates log files 0600 by default, and it runs as root while
+			# the worker that reads this runs as uid 1000. Without this the
+			# egress ingest got EACCES on every tick and the allowance meter sat
+			# at zero forever.
+			mode 644
 			roll_size 16MiB
 			roll_keep 3
 			roll_keep_for 168h

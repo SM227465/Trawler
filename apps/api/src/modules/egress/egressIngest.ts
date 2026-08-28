@@ -42,8 +42,16 @@ export async function ingestEgressLog(): Promise<{ lines: number; bytes: number;
 	let size: number;
 	try {
 		size = (await stat(logPath)).size;
-	} catch {
-		// No log yet is normal on a fresh box.
+	} catch (err) {
+		const code = (err as NodeJS.ErrnoException).code;
+		// No log yet is normal on a fresh box. Anything else is not, and this
+		// swallowed EACCES silently for weeks: Caddy creates the file 0600 as
+		// root, this worker runs as uid 1000, and the allowance meter therefore
+		// read zero no matter how much was served. A guard that fails quietly is
+		// worse than no guard, because it is trusted.
+		if (code !== "ENOENT") {
+			logger.error({ err, code, logPath }, "cannot read the Caddy access log — egress is NOT being counted");
+		}
 		return result;
 	}
 
