@@ -29,10 +29,29 @@ export type ShareDeadReason = "revoked" | "expired" | "quota" | "missing";
 
 export type ShareLookup = { ok: true; share: PublicShare } | { ok: false; reason: ShareDeadReason };
 
-export async function fetchPublicShare(id: string, cookie?: string): Promise<ShareLookup> {
+/**
+ * @param client forwarded from the incoming request. This page is server
+ * rendered, so without it the API sees the WEB CONTAINER as the caller and
+ * every share view was logged against 172.18.x.x — an address that tells you
+ * nothing about who opened your link.
+ */
+export async function fetchPublicShare(
+	id: string,
+	cookie?: string,
+	client?: { ip?: string; userAgent?: string; countAsView?: boolean },
+): Promise<ShareLookup> {
 	try {
+		const headers: Record<string, string> = {};
+		if (cookie) headers.cookie = cookie;
+		if (client?.ip) headers["x-forwarded-for"] = client.ip;
+		if (client?.userAgent) headers["user-agent"] = client.userAgent;
+		// Next calls this twice per open — once for generateMetadata, once for the
+		// page — so the view is counted explicitly by the page only. Opt-in, so a
+		// future third caller cannot inflate the number by forgetting to opt out.
+		if (client?.countAsView) headers["x-trawler-view"] = "1";
+
 		const res = await fetch(`${INTERNAL}/api/v1/public/shares/${encodeURIComponent(id)}`, {
-			headers: cookie ? { cookie } : undefined,
+			headers,
 			// A share's state changes the moment it is revoked — never cache it.
 			cache: "no-store",
 		});

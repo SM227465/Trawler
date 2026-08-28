@@ -57,7 +57,11 @@ class ShareController {
 		// Views were never recorded, so "40 downloads" could be one download and
 		// 39 people opening the page. Only logged once the share is known to
 		// exist — logging misses would let anyone fill the table with garbage.
-		if (result.success) {
+		//
+		// `x-trawler-view` is set by the page render only. Next also calls this
+		// endpoint from generateMetadata, which would otherwise double every
+		// count, and link-preview crawlers hit that path too.
+		if (result.success && req.header("x-trawler-view") === "1") {
 			shareRepository.logAccessSafe({
 				shareId: req.params.id,
 				kind: "view",

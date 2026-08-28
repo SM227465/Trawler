@@ -37,6 +37,7 @@ const KINDS: Record<string, { label: string; icon: typeof LogIn; tone: Tone }> =
 	"settings.transfer": { label: "Changed transfer limits", icon: SlidersHorizontal, tone: "neutral" },
 	"settings.storage": { label: "Changed storage settings", icon: SlidersHorizontal, tone: "warn" },
 	"storage.evict": { label: "Ran cleanup", icon: Trash2, tone: "warn" },
+	"audit.clear": { label: "Cleared the log", icon: Trash2, tone: "bad" },
 };
 
 const TONE: Record<Tone, { dot: string; icon: string }> = {
@@ -71,6 +72,7 @@ function detail(e: AuditEntry): string | null {
 	if (e.action === "torrent.add") return typeof m.name === "string" ? m.name : e.targetId;
 	if (e.action === "torrent.remove") return m.deleteFiles ? "files deleted too" : "kept the files";
 	if (e.action === "file.delete") return e.targetId;
+	if (e.action === "audit.clear") return typeof m.removed === "number" ? `${m.removed} entries removed` : null;
 	if (e.action === "share.create") {
 		const bits = [typeof m.label === "string" && m.label ? m.label : null, m.hasPassword ? "password" : null].filter(
 			Boolean,

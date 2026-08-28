@@ -32,7 +32,8 @@ export type AuditAction =
 	| "share.revoke"
 	| "settings.transfer"
 	| "settings.storage"
-	| "storage.evict";
+	| "storage.evict"
+	| "audit.clear";
 
 export interface AuditEntry {
 	action: AuditAction;
@@ -166,4 +167,25 @@ export async function listShareAccess(opts: { limit?: number; before?: number; k
 	return { entries, nextCursor: rows.length > capped ? (entries.at(-1)?.id ?? null) : null };
 }
 
-export const audit = { record, recordFromRequest, requestContext, list, listShareAccess };
+/**
+ * Empties one of the two logs.
+ *
+ * Deliberate tension, resolved deliberately: a log the app can erase is weaker
+ * evidence than one it cannot. But this is a single-owner appliance, the owner
+ * is the only actor, and a history they cannot clear is a privacy problem
+ * rather than a security feature.
+ *
+ * The clear itself is written back into audit_log immediately afterwards, with
+ * the row count. So the trail can be emptied but never silently — "cleared 412
+ * entries" is always the first thing left behind.
+ */
+export async function clear(target: "audit" | "shares"): Promise<number> {
+	if (target === "shares") {
+		const res = await db.delete(shareAccessLog);
+		return res.rowCount ?? 0;
+	}
+	const res = await db.delete(auditLog);
+	return res.rowCount ?? 0;
+}
+
+export const audit = { record, recordFromRequest, requestContext, list, listShareAccess, clear };

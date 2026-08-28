@@ -51,7 +51,20 @@ internalRouter.get("/authz", async (req: Request, res: Response) => {
 	// serves the file itself, so we never see the transfer finish, and a Range
 	// request would under-count anyway. Over-counting a cancelled download is
 	// the safe direction for a limit whose job is to cap exposure.
-	if (decision.shareId) {
+	//
+	// But authz runs once per HTTP REQUEST, and one download is many requests:
+	// browsers open parallel connections for a large file and aria2c opens 16.
+	// Charging the full size each time meant a single 5 GB download billed 25 GB
+	// against the share and exhausted its own quota, while the access log filled
+	// with a dozen identical "Downloaded 5.14 GB" rows for one person.
+	//
+	// A request that resumes or continues a transfer carries a Range that does
+	// not start at zero. Those are the same download, so they are authorised and
+	// then ignored for accounting.
+	const range = req.header("Range");
+	const isContinuation = Boolean(range) && !/^bytes=0-/.test(range ?? "");
+
+	if (decision.shareId && !isContinuation) {
 		void shareRepository
 			.recordServed(decision.shareId, decision.sizeBytes)
 			.catch((err) => logger.error({ err, shareId: decision.shareId }, "share accounting failed"));

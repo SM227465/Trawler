@@ -2,6 +2,7 @@
 import { KeyRound, Share2 } from "lucide-react";
 import { useState } from "react";
 import { AuditLog } from "@/components/activity/AuditLog";
+import { ClearLogButton } from "@/components/activity/ClearLogButton";
 import { ShareAccessFeed } from "@/components/activity/ShareAccessFeed";
 import { PageHeader } from "@/components/nav/PageHeader";
 import { Tabs } from "@/components/ui/Tabs";
@@ -26,7 +27,13 @@ export default function ActivityPage() {
 				title="Activity"
 				description="Sign-ins, changes to this box, and who used your share links. Read-only, kept for 30 days."
 			/>
-			<Tabs items={TABS} active={tab} onChange={setTab} />
+			<div className="flex flex-wrap items-center gap-3">
+				<Tabs items={TABS} active={tab} onChange={setTab} className="min-w-0 flex-1" />
+				<ClearLogButton
+					target={tab === "account" ? "audit" : "shares"}
+					label={tab === "account" ? "the activity log" : "share access history"}
+				/>
+			</div>
 			{tab === "account" ? <AuditLog /> : <ShareAccessFeed />}
 		</div>
 	);

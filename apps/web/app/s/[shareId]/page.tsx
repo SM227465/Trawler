@@ -69,7 +69,12 @@ function Shell({ children }: { children: React.ReactNode }) {
 
 export default async function SharePage({ params }: Params) {
 	const { shareId } = await params;
-	const result = await fetchPublicShare(shareId, (await headers()).get("cookie") ?? undefined);
+	const h = await headers();
+	const result = await fetchPublicShare(shareId, h.get("cookie") ?? undefined, {
+		ip: h.get("x-forwarded-for") ?? undefined,
+		userAgent: h.get("user-agent") ?? undefined,
+		countAsView: true,
+	});
 
 	if (!result.ok) {
 		return (

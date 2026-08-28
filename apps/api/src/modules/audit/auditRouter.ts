@@ -76,3 +76,27 @@ auditRegistry.registerPath({
 	),
 });
 auditRouter.get("/shares", listShares);
+
+const clearHandler =
+	(target: "audit" | "shares"): RequestHandler =>
+	async (req: Request, res: Response) => {
+		const removed = await audit.clear(target);
+		// Written after the delete, so it survives it. The trail can be emptied,
+		// never silently emptied.
+		audit.recordFromRequest(req, { action: "audit.clear", targetType: target, metadata: { removed } });
+		handleServiceResponse(ServiceResponse.success("Cleared", { removed }), res);
+	};
+
+for (const [path, target] of [
+	["/", "audit"],
+	["/shares", "shares"],
+] as const) {
+	auditRegistry.registerPath({
+		method: "delete",
+		path: `/api/v1/audit${path === "/" ? "" : path}`,
+		tags: ["Audit"],
+		description: `Permanently delete every ${target === "shares" ? "share access" : "activity"} entry. The clear itself is recorded.`,
+		responses: createApiResponse(z.object({ removed: z.number() }), "Cleared"),
+	});
+	auditRouter.delete(path, clearHandler(target));
+}

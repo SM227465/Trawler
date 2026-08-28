@@ -378,6 +378,9 @@ export const api = {
 
 	shareAccess: (id: string) => apiFetch<ShareAccess>(`/shares/${id}/access`),
 
+	clearAudit: (target: "audit" | "shares") =>
+		apiFetch<{ removed: number }>(target === "shares" ? "/audit/shares" : "/audit", { method: "DELETE" }),
+
 	shareAccessFeed: (opts: { limit?: number; before?: number; kind?: string } = {}) => {
 		const q = new URLSearchParams({ limit: String(opts.limit ?? 50) });
 		if (opts.before !== undefined) q.set("before", String(opts.before));
