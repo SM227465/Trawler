@@ -44,6 +44,12 @@ services:
       - /data/qbittorrent:/config
       - /data/downloads:/downloads
 
+  # Same seed step, against the production volume paths.
+  qbittorrent-init:
+    volumes: !override
+      - ./infra/qbittorrent/qBittorrent.conf:/seed/qBittorrent.conf:ro
+      - /data/qbittorrent:/config
+
   # Applies pending migrations, then exits. api and worker gate on it completing
   # successfully (see docker-compose.yml), so a failed migration ABORTS the
   # deploy rather than starting code against a schema it does not match.

@@ -159,6 +159,41 @@ services:
     volumes:
       - ./data/qbittorrent:/config
       - ./data/downloads:/downloads
+    depends_on:
+      qbittorrent-init:
+        condition: service_completed_successfully
+
+  # Seeds qBittorrent's config on a FRESH volume, then exits.
+  #
+  # Without it a new deployment gets stock qBittorrent, which requires auth and
+  # has no subnet whitelist — so every api call returns 403 and the app reports
+  # "qBittorrent is unavailable". That reads as an app bug and is not one; it
+  # cost a full afternoon to diagnose once, on a box where everything else was
+  # working.
+  #
+  # Copies only when the file is absent, so it never clobbers settings changed
+  # from the UI. Same one-shot + service_completed_successfully shape as the
+  # `migrate` service, for the same reason: the thing that depends on it must
+  # not start until it has finished.
+  qbittorrent-init:
+    image: busybox:1.36
+    user: "0:0"
+    volumes:
+      - ./infra/qbittorrent/qBittorrent.conf:/seed/qBittorrent.conf:ro
+      - ./data/qbittorrent:/config
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        if [ -f /config/qBittorrent/qBittorrent.conf ]; then
+          echo "qBittorrent config already present - leaving it alone"
+        else
+          echo "seeding qBittorrent config"
+          mkdir -p /config/qBittorrent
+          cp /seed/qBittorrent.conf /config/qBittorrent/qBittorrent.conf
+        fi
+        chown -R "${PUID:-1000}:${PGID:-1000}" /config
 
   # Read-only WebDAV over the finished downloads. rclone rather than a full
   # SFTP/Samba stack: one small static binary, no host users to manage, and it

@@ -449,9 +449,13 @@ chat, and downloads. Revoking kills it immediately.
 - [x] 10.1 Caddy access-log tailer → `egress_daily` ✅
 - [x] 10.2 Soft alert 8 TB / hard stop 9.5 TB on share tokens ✅
 - [x] 10.3 Nightly `pg_dump` + `log.prune` ✅
-- [ ] 10.4 Oracle: reserved IP, DuckDNS updater, separate block volume
-- [ ] 10.5 Pay-As-You-Go with $0 budget alert (stops idle reclamation)
-- [ ] 10.6 Torrent port open in **both** Security List and `iptables`
+- [x] 10.4 Oracle: reserved IP, DuckDNS updater, separate block volume
+- [~] 10.5 Pay-As-You-Go — ABANDONED. Oracle wants a ~₹10,872 card
+      verification and the debit card was declined; on a debit card that money
+      actually leaves the account for days. Consequence: Ampere A1 is
+      unavailable (`standard-a1-core-count` limit is 0, not a capacity
+      shortage) and idle-reclaim risk is accepted. The box runs on E2.1.Micro.
+- [x] 10.6 Torrent port open in **both** Security List and `iptables`
 - [ ] 10.7 Uptime ping
 
 **Exit:** running on the Oracle box, reachable at the real domain, self-managing.
