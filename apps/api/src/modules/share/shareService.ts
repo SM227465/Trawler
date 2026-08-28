@@ -170,6 +170,12 @@ export class ShareService {
 		});
 	}
 
+	/** Removes every share that can no longer serve anything. */
+	async clearDead(userId: string) {
+		const removed = await shareRepository.deleteInactive(userId);
+		return ServiceResponse.success("Cleared", { removed });
+	}
+
 	/** Access history for one share: who hit it, how often, and what happened. */
 	async access(id: string) {
 		const row = await shareRepository.findById(id);

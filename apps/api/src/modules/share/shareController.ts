@@ -37,6 +37,19 @@ class ShareController {
 		handleServiceResponse(await shareService.list(req.user!.id), res);
 	};
 
+	public clearDead: RequestHandler = async (req: Request, res: Response) => {
+		const result = await shareService.clearDead(req.user!.id);
+		if (result.success) {
+			const out = result.responseObject as { removed?: number } | null;
+			audit.recordFromRequest(req, {
+				action: "share.clear",
+				targetType: "share",
+				metadata: { removed: out?.removed ?? 0 },
+			});
+		}
+		handleServiceResponse(result, res);
+	};
+
 	public access: RequestHandler = async (req: Request, res: Response) => {
 		handleServiceResponse(await shareService.access(req.params.id), res);
 	};

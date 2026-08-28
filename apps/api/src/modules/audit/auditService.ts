@@ -30,6 +30,7 @@ export type AuditAction =
 	| "file.delete"
 	| "share.create"
 	| "share.revoke"
+	| "share.clear"
 	| "settings.transfer"
 	| "settings.storage"
 	| "storage.evict"

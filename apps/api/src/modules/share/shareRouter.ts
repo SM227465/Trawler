@@ -42,6 +42,17 @@ shareRegistry.registerPath({
 	responses: createApiResponse(ShareSchema, "Revoked"),
 });
 shareRegistry.registerPath({
+	method: "delete",
+	path: "/api/v1/shares/dead",
+	tags: ["Share"],
+	description:
+		"Permanently delete every share that can no longer serve anything — revoked, expired, or over its byte cap. Their access history goes with them.",
+	responses: createApiResponse(z.object({ removed: z.number() }), "Cleared"),
+});
+// Before /:id/access and /:id, or "dead" is parsed as a share id.
+shareRouter.delete("/dead", shareController.clearDead);
+
+shareRegistry.registerPath({
 	method: "get",
 	path: "/api/v1/shares/{id}/access",
 	tags: ["Share"],

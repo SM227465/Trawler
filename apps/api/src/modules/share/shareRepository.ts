@@ -70,6 +70,34 @@ export class ShareRepository {
 	}
 
 	/**
+	 * Deletes every share that can no longer serve anything: revoked, past its
+	 * expiry, or over its byte cap.
+	 *
+	 * The predicate is shareState() expressed in SQL. It lives in two places now,
+	 * which is a real cost — but the alternative is loading every share to filter
+	 * in JS, and this one is a bulk delete where that would be silly. If
+	 * shareState gains a condition, this needs the same one.
+	 *
+	 * share_access_log rows cascade with the share, so this also drops their
+	 * history. That is stated plainly in the confirm dialog.
+	 */
+	async deleteInactive(userId: string): Promise<number> {
+		const res = await db
+			.delete(shares)
+			.where(
+				and(
+					eq(shares.createdBy, userId),
+					or(
+						sql`${shares.revokedAt} is not null`,
+						sql`${shares.expiresAt} is not null and ${shares.expiresAt} <= now()`,
+						sql`${shares.maxBytes} is not null and ${shares.bytesServed} >= ${shares.maxBytes}`,
+					),
+				),
+			);
+		return res.rowCount ?? 0;
+	}
+
+	/**
 	 * Fire-and-forget access logging. Never awaited and never throws: a share
 	 * must be served, or refused, on its own merits — a failing log table is not
 	 * a reason to change either answer.

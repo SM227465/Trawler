@@ -380,6 +380,8 @@ export const api = {
 
 	shareAccess: (id: string) => apiFetch<ShareAccess>(`/shares/${id}/access`),
 
+	clearDeadShares: () => apiFetch<{ removed: number }>("/shares/dead", { method: "DELETE" }),
+
 	clearAudit: (target: "audit" | "shares") =>
 		apiFetch<{ removed: number }>(target === "shares" ? "/audit/shares" : "/audit", { method: "DELETE" }),
 

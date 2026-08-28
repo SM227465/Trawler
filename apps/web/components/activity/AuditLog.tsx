@@ -34,6 +34,7 @@ const KINDS: Record<string, { label: string; icon: typeof LogIn; tone: Tone }> =
 	"file.delete": { label: "Deleted", icon: FolderMinus, tone: "warn" },
 	"share.create": { label: "Created a share link", icon: Link2, tone: "good" },
 	"share.revoke": { label: "Revoked a share link", icon: Link2Off, tone: "warn" },
+	"share.clear": { label: "Cleared dead share links", icon: Link2Off, tone: "warn" },
 	"settings.transfer": { label: "Changed transfer limits", icon: SlidersHorizontal, tone: "neutral" },
 	"settings.storage": { label: "Changed storage settings", icon: SlidersHorizontal, tone: "warn" },
 	"storage.evict": { label: "Ran cleanup", icon: Trash2, tone: "warn" },
@@ -73,6 +74,7 @@ function detail(e: AuditEntry): string | null {
 	if (e.action === "torrent.remove") return m.deleteFiles ? "files deleted too" : "kept the files";
 	if (e.action === "file.delete") return e.targetId;
 	if (e.action === "audit.clear") return typeof m.removed === "number" ? `${m.removed} entries removed` : null;
+	if (e.action === "share.clear") return typeof m.removed === "number" ? `${m.removed} links removed` : null;
 	if (e.action === "share.create") {
 		const bits = [typeof m.label === "string" && m.label ? m.label : null, m.hasPassword ? "password" : null].filter(
 			Boolean,

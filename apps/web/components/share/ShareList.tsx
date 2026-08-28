@@ -2,6 +2,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ban, Check, Copy, Eye, Link2Off, Lock, Share2 } from "lucide-react";
 import { useState } from "react";
+import { ClearDeadShares } from "@/components/share/ClearDeadShares";
 import { ShareAccessDialog } from "@/components/share/ShareAccessDialog";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -186,6 +187,9 @@ export function ShareList() {
 					<h3 className="mb-2 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-fg-subtle">
 						<Link2Off className="size-3.5" aria-hidden />
 						No longer working ({dead.length})
+						<span className="ml-auto normal-case tracking-normal">
+							<ClearDeadShares count={dead.length} />
+						</span>
 					</h3>
 					<ul className="overflow-hidden rounded-[var(--ct-radius)] border border-border bg-surface">
 						{dead.map((s) => (
