@@ -1,7 +1,7 @@
 "use client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { refreshSession, type Torrent } from "./api";
+import { api, refreshSession, type Torrent } from "./api";
 import { useCacheOnly } from "./useCacheOnly";
 
 export interface QbtStats {
@@ -128,7 +128,22 @@ export function useTorrentStream(enabled: boolean) {
 
 				for (const d of deltas) {
 					const existed = qc.getQueryData<Torrent>(torrentKey(d.id)) !== undefined;
-					qc.setQueryData<Torrent>(torrentKey(d.id), (prev) => (prev ? { ...prev, ...d } : (d as Torrent)));
+
+					if (existed) {
+						qc.setQueryData<Torrent>(torrentKey(d.id), (prev) => (prev ? { ...prev, ...d } : prev));
+					} else {
+						// A delta carries only what CHANGED. Casting one to Torrent for
+						// a torrent we have never seen wrote a half-object into the
+						// cache — no name, no sizeBytes, no peer counts — and because
+						// useQuery then had data it never fetched the real thing. The
+						// row rendered blank with "NaN (NaN)" where the swarm should be,
+						// and toIndexEntry copied the same holes into the sort index.
+						//
+						// Fetch the whole torrent instead. One GET, only for genuinely
+						// new ids, and the row shows its placeholder until it lands.
+						void qc.fetchQuery({ queryKey: torrentKey(d.id), queryFn: () => api.getTorrent(d.id) });
+					}
+
 					if (!existed) fresh.push(d.id);
 					// The index backs filtering AND sorting, so it tracks every
 					// sortable field. Rows still own their full data, so a tick

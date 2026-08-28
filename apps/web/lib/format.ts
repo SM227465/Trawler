@@ -47,8 +47,18 @@ export const formatPercent = (fraction: number): string => `${nf1.format(Math.mi
 export const formatRatio = (r: number): string => nf2.format(r ?? 0);
 
 /** Seeds/peers are shown as "connected (swarm)" — they are different numbers. */
-export const formatSwarm = (connected: number, total: number): string =>
-	`${nf0.format(connected)} (${nf0.format(total)})`;
+/**
+ * `2 (5)` — connected, and the swarm total in brackets.
+ *
+ * Guards non-finite input rather than trusting it. A partially populated
+ * torrent once reached this and rendered "NaN (NaN)", which looks like a bug in
+ * the swarm rather than in whatever handed us an incomplete object. The real
+ * cause is fixed upstream; this makes the symptom impossible to reproduce.
+ */
+export const formatSwarm = (connected: number | undefined, total: number | undefined): string => {
+	const n = (v: number | undefined) => (Number.isFinite(v) ? nf0.format(v as number) : "—");
+	return `${n(connected)} (${n(total)})`;
+};
 
 export function formatRelative(iso: string | null | undefined): string {
 	if (!iso) return "—";
