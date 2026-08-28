@@ -27,47 +27,54 @@ export function Tabs({
 	};
 
 	return (
-		<div
-			role="tablist"
-			aria-label="System sections"
-			onKeyDown={(e) => {
-				if (e.key === "ArrowRight") {
-					e.preventDefault();
-					move(1);
-				}
-				if (e.key === "ArrowLeft") {
-					e.preventDefault();
-					move(-1);
-				}
-			}}
-			className={cn("flex gap-1 overflow-x-auto border-b border-border", className)}
-		>
-			{items.map((t) => {
-				const on = t.id === active;
-				const Icon = t.icon;
-				return (
-					<button
-						key={t.id}
-						type="button"
-						role="tab"
-						id={`tab-${t.id}`}
-						aria-selected={on}
-						aria-controls={`panel-${t.id}`}
-						tabIndex={on ? 0 : -1}
-						onClick={() => onChange(t.id)}
-						className={cn(
-							"-mb-px flex shrink-0 cursor-pointer items-center gap-2 border-b-2 px-3 py-2 text-sm",
-							"transition-colors",
-							on
-								? "border-accent font-medium text-fg"
-								: "border-transparent text-fg-muted hover:border-border-strong hover:text-fg",
-						)}
-					>
-						{Icon && <Icon className="size-4 shrink-0" aria-hidden />}
-						{t.label}
-					</button>
-				);
-			})}
+		// The border lives on the WRAPPER, not the scroller. overflow-x:auto makes
+		// the other axis compute to auto as well, so the 1px the tabs are pulled
+		// down by to sit over that border counted as vertical overflow — a 1px
+		// scroll range, and a stray vertical scrollbar beside the tab strip.
+		// With the border out here, nothing overflows vertically at all.
+		<div className={cn("border-b border-border", className)}>
+			<div
+				role="tablist"
+				aria-label="Sections"
+				onKeyDown={(e) => {
+					if (e.key === "ArrowRight") {
+						e.preventDefault();
+						move(1);
+					}
+					if (e.key === "ArrowLeft") {
+						e.preventDefault();
+						move(-1);
+					}
+				}}
+				className="-mb-px flex gap-1 overflow-x-auto overflow-y-hidden"
+			>
+				{items.map((t) => {
+					const on = t.id === active;
+					const Icon = t.icon;
+					return (
+						<button
+							key={t.id}
+							type="button"
+							role="tab"
+							id={`tab-${t.id}`}
+							aria-selected={on}
+							aria-controls={`panel-${t.id}`}
+							tabIndex={on ? 0 : -1}
+							onClick={() => onChange(t.id)}
+							className={cn(
+								"flex shrink-0 cursor-pointer items-center gap-2 border-b-2 px-3 py-2 text-sm",
+								"transition-colors",
+								on
+									? "border-accent font-medium text-fg"
+									: "border-transparent text-fg-muted hover:border-border-strong hover:text-fg",
+							)}
+						>
+							{Icon && <Icon className="size-4 shrink-0" aria-hidden />}
+							{t.label}
+						</button>
+					);
+				})}
+			</div>
 		</div>
 	);
 }
