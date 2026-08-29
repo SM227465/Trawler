@@ -70,6 +70,12 @@ const envSchema = z.object({
 	BACKUP_DIR: z.string().default("/backups"),
 	EGRESS_SOFT_ALERT_BYTES: z.coerce.number().default(8_000_000_000_000),
 	EGRESS_HARD_STOP_BYTES: z.coerce.number().default(9_500_000_000_000),
+
+	// ── external storage (rclone remote-control daemon) ──
+	// Compose-internal only, exactly like QBT_URL. rcd is unauthenticated on that
+	// network and MUST NOT be published: it can read and write every remote the
+	// user has configured.
+	RCLONE_URL: z.string().default("http://rclone:5572"),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);

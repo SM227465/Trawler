@@ -195,6 +195,41 @@ services:
         fi
         chown -R "${PUID:-1000}:${PGID:-1000}" /config
 
+  # rclone's remote-control daemon — external storage backends.
+  #
+  # A daemon rather than shelling out to `rclone copy`, for the same reason
+  # Caddy serves downloads: bytes must never flow through Node. The api sends a
+  # job over rcd's JSON API and reads progress back, exactly the shape the
+  # qBittorrent integration already has.
+  #
+  # --rc-no-auth is safe ONLY because 5572 is never published. Anything that can
+  # reach this can read and write every remote the user has configured, so it
+  # must stay on the compose network. Note there is no `ports:` here, and there
+  # must not be.
+  #
+  # Credentials live in rclone's own config on /config, written through
+  # config/create. Postgres never holds a secret key, so a database dump cannot
+  # leak one.
+  rclone:
+    image: rclone/rclone:latest
+    restart: unless-stopped
+    command:
+      - rcd
+      - --rc-addr=:5572
+      - --rc-no-auth
+      # Tuned for a 1 GB box that is already swapping. Defaults here would open
+      # four concurrent transfers with a 16 MiB buffer each.
+      - --transfers=2
+      - --checkers=2
+      - --buffer-size=0
+      - --use-json-log
+      - --log-level=INFO
+    volumes:
+      - ./data/downloads:/downloads:ro
+      - ./data/rclone:/config
+    environment:
+      RCLONE_CONFIG: /config/rclone.conf
+
   # Read-only WebDAV over the finished downloads. rclone rather than a full
   # SFTP/Samba stack: one small static binary, no host users to manage, and it
   # speaks a protocol Windows, macOS and Linux all mount natively.

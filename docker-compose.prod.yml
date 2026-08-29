@@ -86,6 +86,11 @@ services:
     image: ${IMAGE_BASE:-ghcr.io/OWNER/trawler}-web:${IMAGE_TAG:-latest}
     volumes: !override []
 
+  rclone:
+    volumes: !override
+      - /data/downloads:/downloads:ro
+      - /data/rclone:/config
+
   webdav:
     volumes: !override
       - /data/downloads:/data:ro
