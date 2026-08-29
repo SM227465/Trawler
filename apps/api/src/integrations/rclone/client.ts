@@ -143,26 +143,44 @@ export class RcloneClient {
 	}
 
 	/**
-	 * Starts a copy and returns immediately with a job id.
+	 * Starts a transfer and returns immediately with a job id.
 	 *
-	 * `_async` is not optional here: a multi-gigabyte upload would otherwise hold
-	 * the HTTP request open for hours, and any proxy timeout in between would
-	 * make it look like it failed while it carried on running.
+	 * `_async` is not optional: a multi-gigabyte upload would otherwise hold the
+	 * HTTP request open for hours, and any proxy timeout in between would make it
+	 * look like it failed while it carried on running.
 	 *
-	 * `_group` names the job's stats bucket so progress can be read back per
-	 * upload rather than as one global number.
+	 * `_group` names the job's stats bucket so progress can be read per upload
+	 * rather than as one global number.
+	 *
+	 * A DIRECTORY and a FILE need different endpoints. sync/copy takes two
+	 * directories and refuses a file with "is a file not a directory";
+	 * operations/copyfile takes a parent plus a leaf on each side. Getting this
+	 * wrong fails at the provider, not at validation, so the caller states which
+	 * it has rather than letting rclone guess.
 	 */
-	async copyPath(opts: {
+	async copyDir(opts: { srcFs: string; dstFs: string; group: string }): Promise<number> {
+		const { jobid } = await this.rc<{ jobid: number }>("sync/copy", {
+			srcFs: opts.srcFs,
+			dstFs: opts.dstFs,
+			createEmptySrcDirs: false,
+			_async: true,
+			_group: opts.group,
+		});
+		return jobid;
+	}
+
+	async copyFile(opts: {
 		srcFs: string;
 		srcRemote: string;
 		dstFs: string;
 		dstRemote: string;
 		group: string;
 	}): Promise<number> {
-		const { jobid } = await this.rc<{ jobid: number }>("sync/copy", {
+		const { jobid } = await this.rc<{ jobid: number }>("operations/copyfile", {
 			srcFs: opts.srcFs,
+			srcRemote: opts.srcRemote,
 			dstFs: opts.dstFs,
-			createEmptySrcDirs: false,
+			dstRemote: opts.dstRemote,
 			_async: true,
 			_group: opts.group,
 		});

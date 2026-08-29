@@ -39,6 +39,7 @@ export interface StorageStatus {
 	egress: {
 		monthToDateBytes: number;
 		torrentBytes: number;
+		remoteBytes: number;
 		totalBytes: number;
 		softAlertBytes: number;
 		hardStopBytes: number;
@@ -145,6 +146,21 @@ export interface CreateRemoteInput {
 	endpoint?: string;
 	region?: string;
 	prefix?: string;
+}
+
+export interface Upload {
+	id: string;
+	remoteName: string;
+	srcPath: string;
+	dstFs: string;
+	status: "queued" | "running" | "completed" | "failed" | "cancelled";
+	bytesTotal: number;
+	bytesDone: number;
+	speedBps?: number;
+	etaSeconds?: number | null;
+	error: string | null;
+	createdAt: string;
+	finishedAt: string | null;
 }
 
 export interface ShareAccessEntry {
@@ -372,6 +388,15 @@ export const api = {
 	storage: () => apiFetch<StorageStatus>("/storage"),
 
 	remotes: () => apiFetch<RemoteList>("/remotes"),
+
+	uploads: () => apiFetch<Upload[]>("/uploads"),
+
+	startUpload: (remote: string, path: string) =>
+		apiFetch<Upload>("/uploads", { method: "POST", body: JSON.stringify({ remote, path }) }),
+
+	cancelUpload: (id: string) => apiFetch<Upload>(`/uploads/${id}`, { method: "DELETE" }),
+
+	clearFinishedUploads: () => apiFetch<{ removed: number }>("/uploads/finished", { method: "DELETE" }),
 
 	createRemote: (body: CreateRemoteInput) =>
 		apiFetch<{ name: string }>("/remotes", { method: "POST", body: JSON.stringify(body) }),

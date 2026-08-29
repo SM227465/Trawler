@@ -458,6 +458,23 @@ chat, and downloads. Revoking kills it immediately.
 - [x] 10.6 Torrent port open in **both** Security List and `iptables`
 - [ ] 10.7 Uptime ping
 
+## 11. External storage
+
+- [x] 11.1 rclone rcd sidecar + client. A daemon, not `rclone copy`, so bytes
+      never pass through Node. Never published: --rc-no-auth means anything that
+      reaches it owns every remote.
+- [x] 11.2 S3-compatible remotes — R2, B2 (own backend), Wasabi, AWS, other.
+      Tested with operations/about BEFORE being kept; a failing remote is rolled
+      back rather than left looking configured. Credentials live in rclone's
+      config, never in Postgres, and are redacted by name pattern on the way out.
+- [x] 11.3 Uploads: queue, live progress from rclone's own stats, cancel, and a
+      minute reconciler for terminal state. Uploaded bytes count against the
+      egress allowance, shown as a third line on the bandwidth panel.
+- [ ] 11.4 OAuth providers (Drive, OneDrive, pCloud, Dropbox) — one headless
+      authorisation flow, reused four times.
+- [ ] 11.5 Eviction uploads before deleting, so the remote becomes a tier rather
+      than an export.
+
 **Exit:** running on the Oracle box, reachable at the real domain, self-managing.
 
 ---

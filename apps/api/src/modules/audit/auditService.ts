@@ -36,6 +36,7 @@ export type AuditAction =
 	| "storage.evict"
 	| "storage.remote.add"
 	| "storage.remote.remove"
+	| "storage.upload"
 	| "audit.clear";
 
 export interface AuditEntry {

@@ -58,9 +58,10 @@ export async function checkEgress(): Promise<EgressVerdict> {
 }
 
 export async function egressStatus() {
-	const [bytes, torrentBytes] = await Promise.all([
+	const [bytes, torrentBytes, remoteBytes] = await Promise.all([
 		egressRepository.monthToDateBytes(),
 		egressRepository.monthToDateTorrentBytes(),
+		egressRepository.monthToDateRemoteBytes(),
 	]);
 	return {
 		monthToDateBytes: bytes,
@@ -68,7 +69,10 @@ export async function egressStatus() {
 		// separately because only the HTTP half can be throttled by the share
 		// guard — the torrent port does not pass through us at all.
 		torrentBytes,
-		totalBytes: bytes + torrentBytes,
+		// Archiving to a bucket leaves this box exactly like a share download
+		// does. Counted separately so the panel can say which spent what.
+		remoteBytes,
+		totalBytes: bytes + torrentBytes + remoteBytes,
 		softAlertBytes: env.EGRESS_SOFT_ALERT_BYTES,
 		hardStopBytes: env.EGRESS_HARD_STOP_BYTES,
 		level:

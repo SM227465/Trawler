@@ -23,6 +23,7 @@ import { publicShareRouter, shareRouter } from "@/modules/share/shareRouter";
 import { storageRouter } from "@/modules/storage/storageRouter";
 import { systemRouter } from "@/modules/system/systemRouter";
 import { torrentRouter } from "@/modules/torrent/torrentRouter";
+import { uploadRouter } from "@/modules/upload/uploadRouter";
 
 const app: Express = express();
 
@@ -44,6 +45,7 @@ app.use("/api/v1/torrents", torrentRouter);
 app.use("/api/v1/files", fileRouter);
 app.use("/api/v1/audit", auditRouter);
 app.use("/api/v1/remotes", remoteRouter);
+app.use("/api/v1/uploads", uploadRouter);
 app.use("/api/v1/storage", storageRouter);
 app.use("/api/v1/shares", shareRouter);
 // Public share endpoints — deliberately NOT under the authenticated router.

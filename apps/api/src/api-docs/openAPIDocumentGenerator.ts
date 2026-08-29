@@ -10,6 +10,7 @@ import { shareRegistry } from "@/modules/share/shareRouter";
 import { storageRegistry } from "@/modules/storage/storageRouter";
 import { systemRegistry } from "@/modules/system/systemRouter";
 import { torrentRegistry } from "@/modules/torrent/torrentRouter";
+import { uploadRegistry } from "@/modules/upload/uploadRouter";
 
 export type OpenAPIDocument = ReturnType<OpenApiGeneratorV3["generateDocument"]>;
 
@@ -18,6 +19,7 @@ export function generateOpenAPIDocument(): OpenAPIDocument {
 		healthCheckRegistry,
 		auditRegistry,
 		remoteRegistry,
+		uploadRegistry,
 		fileRegistry,
 		authRegistry,
 		torrentRegistry,

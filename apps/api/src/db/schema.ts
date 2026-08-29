@@ -287,6 +287,46 @@ export const shareAccessLog = pgTable(
 	],
 );
 
+// ─────────────────────────── external storage ────────────────────────
+// One row per upload to a configured remote. rclone moves the bytes; this
+// records what was asked for, what happened, and what it cost.
+
+export const uploadStatus = pgEnum("upload_status", ["queued", "running", "completed", "failed", "cancelled"]);
+
+export const uploads = pgTable(
+	"uploads",
+	{
+		id: uuid("id").primaryKey(),
+		// The rclone remote NAME, not a foreign key: remotes live in rclone's
+		// config, not in this database. A row therefore outlives the remote it
+		// used, which is correct — "uploaded to r2 last week" stays true after r2
+		// is disconnected.
+		remoteName: text("remote_name").notNull(),
+		// Relative to DOWNLOADS_DIR, same coordinate space as torrent_files.path.
+		srcPath: text("src_path").notNull(),
+		// Where it landed, as an rclone fs string, for display and for retry.
+		dstFs: text("dst_fs").notNull(),
+		status: uploadStatus("status").notNull().default("queued"),
+		// rclone's own job id. Null until the transfer has actually started, and
+		// meaningless across an rclone restart — which is why terminal state is
+		// reconciled rather than trusted from here.
+		rcloneJobId: integer("rclone_job_id"),
+		bytesTotal: bigint("bytes_total", { mode: "number" }).notNull().default(0),
+		bytesDone: bigint("bytes_done", { mode: "number" }).notNull().default(0),
+		error: text("error"),
+		createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+		startedAt: timestamp("started_at", { withTimezone: true }),
+		finishedAt: timestamp("finished_at", { withTimezone: true }),
+	},
+	(t) => [
+		index("uploads_created_idx").on(t.createdAt.desc()),
+		index("uploads_status_idx").on(t.status),
+		// One live upload per path: queueing the same folder twice would have two
+		// rclone jobs writing the same destination.
+		uniqueIndex("uploads_active_src_key").on(t.srcPath).where(sql`status in ('queued','running')`),
+	],
+);
+
 // ─────────────────────────────── audit ───────────────────────────────
 // Who changed what, and from where. Distinct from share_access_log, which
 // records anonymous READS of a share link; this records OWNER-initiated writes.

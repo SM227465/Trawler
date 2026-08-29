@@ -10,6 +10,7 @@ export const JOB = {
 	SHARE_EXPIRE: "share.expire",
 	DB_BACKUP: "db.backup",
 	LOG_PRUNE: "log.prune",
+	UPLOAD_RECONCILE: "storage.upload.reconcile",
 } as const;
 
 export type JobName = (typeof JOB)[keyof typeof JOB];

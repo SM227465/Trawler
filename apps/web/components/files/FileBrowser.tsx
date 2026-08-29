@@ -18,6 +18,7 @@ import {
 	Trash2,
 } from "lucide-react";
 import { useState } from "react";
+import { UploadToRemote } from "@/components/files/UploadToRemote";
 import { CreateShareDialog } from "@/components/share/CreateShareDialog";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { api, type BrowseEntry } from "@/lib/api";
@@ -153,8 +154,8 @@ function Row({ entry, onOpen, onDeleted }: { entry: BrowseEntry; onOpen: (p: str
 
 				{/* Fixed width, right-aligned: Play is conditional, and without a
 				    reserved slot its absence dragged the size and time columns 30px
-				    left on every non-playable row. 5 x size-7 + 4 x gap-0.5 = 9.25rem. */}
-				<span className="flex w-[9.25rem] shrink-0 justify-end gap-0.5">
+				    left on every non-playable row. 6 x size-7 + 5 x gap-0.5 = 11.125rem. */}
+				<span className="flex w-[11.125rem] shrink-0 justify-end gap-0.5">
 					{!isDir && (media.playable || media.needsExternalPlayer) && (
 						<button
 							type="button"
@@ -207,6 +208,8 @@ function Row({ entry, onOpen, onDeleted }: { entry: BrowseEntry; onOpen: (p: str
 							<Download className="size-3.5" aria-hidden />
 						)}
 					</button>
+
+					<UploadToRemote path={entry.path} name={entry.name} />
 
 					{entry.fileId && (
 						<button

@@ -22,7 +22,8 @@ export function EgressPanel() {
 	// Both halves count against Oracle's allowance, so the meter is the total.
 	const http = e.monthToDateBytes;
 	const seeded = e.torrentBytes ?? 0;
-	const used = e.totalBytes ?? http + seeded;
+	const archived = e.remoteBytes ?? 0;
+	const used = e.totalBytes ?? http + seeded + archived;
 	const pct = Math.min(100, (used / ALLOWANCE) * 100);
 
 	// Straight-line projection from the month so far. Crude, but the question it
@@ -66,6 +67,10 @@ export function EgressPanel() {
 				<div>
 					<dt className="text-fg-subtle">Seeding</dt>
 					<dd className="tabular mt-0.5 text-fg">{formatBytes(seeded)}</dd>
+				</div>
+				<div>
+					<dt className="text-fg-subtle">Archived</dt>
+					<dd className="tabular mt-0.5 text-fg">{formatBytes(archived)}</dd>
 				</div>
 				<div>
 					<dt className="text-fg-subtle">Days left</dt>

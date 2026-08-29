@@ -5,6 +5,8 @@ import { appSettings } from "@/db/schema";
 export const OFFSET_KEY = "egress.logOffset";
 /** Last `alltime_ul` seen from qBittorrent, so we can bank the delta. */
 export const TORRENT_UL_SEEN_KEY = "egress.torrentUlSeen";
+/** Month bucket for bytes pushed to external storage. */
+export const remoteUlKey = (month: string) => `egress.remoteUl.${month}`;
 /** Month bucket for seeded bytes: `egress.torrentUl.2026-08`. */
 export const torrentUlKey = (month: string) => `egress.torrentUl.${month}`;
 
@@ -100,6 +102,17 @@ export class EgressRepository {
 		const key = torrentUlKey(currentMonth());
 		await this.setNumber(key, (await this.getNumber(key)) + delta);
 		return delta;
+	}
+
+	/** Bytes sent to a storage remote. Same allowance, different cause. */
+	async bankRemoteUpload(bytes: number): Promise<void> {
+		if (bytes <= 0) return;
+		const key = remoteUlKey(currentMonth());
+		await this.setNumber(key, (await this.getNumber(key)) + bytes);
+	}
+
+	async monthToDateRemoteBytes(): Promise<number> {
+		return this.getNumber(remoteUlKey(currentMonth()));
 	}
 
 	async monthToDateTorrentBytes(): Promise<number> {

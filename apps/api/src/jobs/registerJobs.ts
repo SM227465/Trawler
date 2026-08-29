@@ -51,6 +51,20 @@ export async function registerJobs(boss: PgBoss) {
 	});
 	await boss.schedule(JOB.EGRESS_INGEST, "* * * * *");
 
+	// ── external storage ──
+	// No queue for STARTING an upload: the api starts it directly, because
+	// start() needs only rclone and the database and rclone runs the transfer
+	// asynchronously regardless. This is the safety net — terminal state, byte
+	// counts, and any row that was created but never started., byte counts and stuck-queue recovery. Every minute: nobody
+	// may be watching when a transfer ends, and rclone forgets a job's stats
+	// eventually and all of them on restart.
+	await boss.createQueue(JOB.UPLOAD_RECONCILE);
+	const { uploadReconcileHandler } = await import("./handlers/uploadReconcile");
+	await boss.work(JOB.UPLOAD_RECONCILE, { batchSize: 1 }, async (jobs: Job<object>[]) => {
+		for (const _job of jobs) await uploadReconcileHandler();
+	});
+	await boss.schedule(JOB.UPLOAD_RECONCILE, "* * * * *");
+
 	// ── nightly maintenance ──
 	await boss.createQueue(JOB.DB_BACKUP);
 	const { backupHandler } = await import("./handlers/dbBackup");

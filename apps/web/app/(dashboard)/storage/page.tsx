@@ -1,6 +1,7 @@
 "use client";
 import { PageHeader } from "@/components/nav/PageHeader";
 import { RemotesPanel } from "@/components/storage/RemotesPanel";
+import { UploadsPanel } from "@/components/storage/UploadsPanel";
 import { EgressPanel } from "@/components/torrent/EgressPanel";
 import { StoragePanel } from "@/components/torrent/StoragePanel";
 
@@ -11,6 +12,7 @@ export default function StoragePage() {
 			<StoragePanel />
 			<EgressPanel />
 			<RemotesPanel />
+			<UploadsPanel />
 		</div>
 	);
 }
