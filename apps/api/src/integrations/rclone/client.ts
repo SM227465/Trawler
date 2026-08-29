@@ -38,16 +38,29 @@ export class RcloneError extends Error {
 export class RcloneClient {
 	constructor(private readonly baseUrl = env.RCLONE_URL.replace(/\/$/, "")) {}
 
-	/** Every rc endpoint is POST with a JSON body, even the read-only ones. */
-	private async rc<T>(path: string, body: Record<string, unknown> = {}): Promise<T> {
+	/**
+	 * Every rc endpoint is POST with a JSON body, even the read-only ones.
+	 *
+	 * Always with a deadline. A connection test against a provider that will
+	 * never answer — a mistyped endpoint, a token issued to a different client —
+	 * leaves rclone retrying on its own backoff, and this call runs inside the
+	 * request that adds a remote. Without a deadline the browser waits for
+	 * however long rclone decides to keep trying, which reads as a frozen app
+	 * rather than a rejected credential.
+	 */
+	private async rc<T>(path: string, body: Record<string, unknown> = {}, timeoutMs = 15_000): Promise<T> {
 		let res: Response;
 		try {
 			res = await fetch(`${this.baseUrl}/${path}`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify(body),
+				signal: AbortSignal.timeout(timeoutMs),
 			});
 		} catch (err) {
+			if ((err as Error).name === "TimeoutError") {
+				throw new RcloneError("The provider did not respond in time — check the endpoint, keys and bucket");
+			}
 			// The daemon being down is expected on a box that never configured a
 			// remote, so this is not logged as an error by the caller.
 			throw new RcloneError(`rclone unreachable: ${(err as Error).message}`);
@@ -128,13 +141,16 @@ export class RcloneClient {
 	 */
 	async testRemote(name: string, path = ""): Promise<{ ok: true; about: RcAbout } | { ok: false; error: string }> {
 		const fs = `${name}:${path}`;
+		// Deliberately short. This runs inside the request that adds a remote, and
+		// a wrong credential should be reported in seconds rather than eventually.
+		const PROBE_MS = 20_000;
 		try {
-			const about = await this.rc<RcAbout>("operations/about", { fs });
+			const about = await this.rc<RcAbout>("operations/about", { fs }, PROBE_MS);
 			return { ok: true, about };
 		} catch (err) {
 			if (!(err instanceof RcloneError)) throw err;
 			try {
-				await this.rc("operations/list", { fs, remote: "", opt: { recurse: false } });
+				await this.rc("operations/list", { fs, remote: "", opt: { recurse: false } }, PROBE_MS);
 				return { ok: true, about: {} };
 			} catch (listErr) {
 				return { ok: false, error: (listErr as RcloneError).message };

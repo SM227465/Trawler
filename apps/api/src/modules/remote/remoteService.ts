@@ -2,7 +2,7 @@ import { ErrorCode } from "@/common/models/errorCodes";
 import { ServiceResponse } from "@/common/models/serviceResponse";
 import { logger } from "@/common/utils/logger";
 import { RcloneError, rclone, redactConfig } from "@/integrations/rclone/client";
-import type { RemoteKind } from "./remoteModel";
+import type { OAuthKind, RemoteKind } from "./remoteModel";
 import { remoteRepository } from "./remoteRepository";
 
 interface CreateInput {
@@ -50,6 +50,15 @@ function toRcloneConfig(input: CreateInput): { type: string; parameters: Record<
 export function remoteFs(name: string, bucket: string, prefix?: string): string {
 	const path = [bucket, (prefix ?? "").replace(/^\/+|\/+$/g, "")].filter(Boolean).join("/");
 	return `${name}:${path}`;
+}
+
+interface CreateOAuthInput {
+	name: string;
+	kind: OAuthKind;
+	token: string;
+	clientId?: string;
+	clientSecret?: string;
+	prefix?: string;
 }
 
 class RemoteService {
@@ -122,6 +131,60 @@ class RemoteService {
 		});
 
 		logger.info({ name: input.name, kind: input.kind, type }, "remote configured");
+		return ServiceResponse.success("Remote added", { name: input.name, about: result.about });
+	}
+
+	/**
+	 * Creates a remote from a token obtained elsewhere.
+	 *
+	 * This server has no browser, so it cannot complete an OAuth round trip
+	 * itself. rclone's documented answer is to run `rclone authorize` on a
+	 * machine that does have one and carry the token across — which is what this
+	 * takes. No redirect URI to register, and the secret never travels through
+	 * this app's own auth flow.
+	 *
+	 * The client id and secret must be the SAME pair given to `rclone authorize`.
+	 * A token issued to one client is not valid for another, and the failure
+	 * looks like a bad token rather than a mismatched client, so the form says so.
+	 */
+	async createOAuth(input: CreateOAuthInput) {
+		if (!(await rclone.reachable())) {
+			return ServiceResponse.failure(
+				"External storage is not running",
+				null,
+				ErrorCode.INTERNAL_ERROR,
+				"RCLONE_UNAVAILABLE",
+			);
+		}
+
+		const parameters: Record<string, string> = { token: input.token.trim() };
+		if (input.clientId) parameters.client_id = input.clientId;
+		if (input.clientSecret) parameters.client_secret = input.clientSecret;
+
+		try {
+			await rclone.createRemote(input.name, input.kind, parameters);
+		} catch (err) {
+			logger.error({ err, name: input.name }, "could not create oauth remote");
+			return ServiceResponse.failure(
+				err instanceof RcloneError ? err.message : "Could not save the remote",
+				null,
+				ErrorCode.VALIDATION_ERROR,
+				"REMOTE_REJECTED",
+			);
+		}
+
+		const prefix = (input.prefix ?? "").replace(/^\/+|\/+$/g, "");
+		const result = await rclone.testRemote(input.name, prefix);
+		if (!result.ok) {
+			await rclone.deleteRemote(input.name).catch(() => undefined);
+			return ServiceResponse.failure(result.error, null, ErrorCode.VALIDATION_ERROR, "REMOTE_UNREACHABLE");
+		}
+
+		// No bucket: for these providers the account is the root and the prefix
+		// is the only addressing there is.
+		await remoteRepository.set(input.name, { kind: input.kind, bucket: "", prefix });
+
+		logger.info({ name: input.name, kind: input.kind }, "oauth remote configured");
 		return ServiceResponse.success("Remote added", { name: input.name, about: result.about });
 	}
 

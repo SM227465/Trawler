@@ -222,6 +222,13 @@ services:
       - --transfers=2
       - --checkers=2
       - --buffer-size=0
+      # Bound the failure case as well as the success one. Without these rclone
+      # retries a dead endpoint with its own backoff for minutes, and the client
+      # timeout above only stops US waiting — the daemon carries on.
+      - --contimeout=10s
+      - --timeout=60s
+      - --low-level-retries=3
+      - --retries=1
       - --use-json-log
       - --log-level=INFO
     volumes:

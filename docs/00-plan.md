@@ -470,8 +470,13 @@ chat, and downloads. Revoking kills it immediately.
 - [x] 11.3 Uploads: queue, live progress from rclone's own stats, cancel, and a
       minute reconciler for terminal state. Uploaded bytes count against the
       egress allowance, shown as a third line on the bandwidth panel.
-- [ ] 11.4 OAuth providers (Drive, OneDrive, pCloud, Dropbox) — one headless
-      authorisation flow, reused four times.
+- [x] 11.4 OAuth providers (Drive, OneDrive, pCloud, Dropbox). The server has no
+      browser, so it cannot complete an OAuth round trip: the token comes from
+      `rclone authorize` on a machine that has one, which is rclone's own
+      documented answer for headless hosts. Drive additionally needs the user's
+      own OAuth client — rclone's shared one is retired during 2026 — and the
+      SAME client pair must be passed to `rclone authorize`, so the form builds
+      the exact command to run.
 - [ ] 11.5 Eviction uploads before deleting, so the remote becomes a tier rather
       than an export.
 

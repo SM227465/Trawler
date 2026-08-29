@@ -5,7 +5,7 @@ import { createApiResponse } from "@/api-docs/openAPIResponseBuilders";
 import { requireAuth } from "@/common/middleware/requireAuth";
 import { validateRequest } from "@/common/utils/httpHandlers";
 import { remoteController } from "./remoteController";
-import { CreateRemoteSchema, RemoteNameParams, RemoteSchema } from "./remoteModel";
+import { CreateOAuthRemoteSchema, CreateRemoteSchema, RemoteNameParams, RemoteSchema } from "./remoteModel";
 
 export const remoteRegistry = new OpenAPIRegistry();
 export const remoteRouter: Router = express.Router();
@@ -34,6 +34,18 @@ remoteRegistry.registerPath({
 	responses: createApiResponse(z.object({}).passthrough(), "Remote added"),
 });
 remoteRouter.post("/", validateRequest(CreateRemoteSchema), remoteController.create);
+
+remoteRegistry.registerPath({
+	method: "post",
+	path: "/api/v1/remotes/oauth",
+	tags: ["Remote"],
+	description:
+		"Add a Drive, OneDrive, Dropbox or pCloud remote from a token produced by `rclone authorize` on a machine with a browser. This server has none, so it cannot complete the round trip itself.",
+	request: { body: { content: { "application/json": { schema: CreateOAuthRemoteSchema.shape.body } } } },
+	responses: createApiResponse(z.object({}).passthrough(), "Remote added"),
+});
+// Before /:name/test, or "oauth" would be read as a remote name.
+remoteRouter.post("/oauth", validateRequest(CreateOAuthRemoteSchema), remoteController.createOAuth);
 
 remoteRegistry.registerPath({
 	method: "post",

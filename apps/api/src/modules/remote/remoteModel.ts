@@ -12,6 +12,16 @@ export const REMOTE_KINDS = ["r2", "b2", "wasabi", "aws", "s3-other"] as const;
 export type RemoteKind = (typeof REMOTE_KINDS)[number];
 
 /**
+ * Providers reached by OAuth rather than a key pair.
+ *
+ * Separate from the S3 list because the setup is a different shape: there is no
+ * bucket, no endpoint and no secret to type — instead a token obtained on a
+ * machine that HAS a browser, which this server does not.
+ */
+export const OAUTH_KINDS = ["drive", "onedrive", "dropbox", "pcloud"] as const;
+export type OAuthKind = (typeof OAUTH_KINDS)[number];
+
+/**
  * rclone remote names appear in paths as `name:bucket/path`, so a colon or a
  * space makes an unusable remote. Restricted rather than escaped: there is no
  * reason a user needs punctuation here, and a name that round-trips cleanly is
@@ -47,6 +57,38 @@ export const CreateRemoteSchema = z.object({
 				ctx.addIssue({ code: "custom", path: ["region"], message: "AWS needs a region" });
 			}
 		}),
+});
+
+export const CreateOAuthRemoteSchema = z.object({
+	body: z.object({
+		name: remoteName,
+		kind: z.enum(OAUTH_KINDS),
+		/**
+		 * The JSON blob printed by `rclone authorize`. Validated as parseable
+		 * here so a truncated paste — the most likely mistake by far — is caught
+		 * with a useful message instead of failing at the provider later.
+		 */
+		token: z
+			.string()
+			.min(10)
+			.refine((t) => {
+				try {
+					const parsed = JSON.parse(t.trim());
+					return typeof parsed === "object" && parsed !== null && "access_token" in parsed;
+				} catch {
+					return false;
+				}
+			}, "That does not look like the token from `rclone authorize` — paste everything between the arrows, including the braces"),
+		/**
+		 * Google is retiring rclone's shared client during 2026, so Drive
+		 * effectively requires your own. The SAME pair must have been passed to
+		 * `rclone authorize`, or the token will not match the client.
+		 */
+		clientId: z.string().max(255).optional(),
+		clientSecret: z.string().max(255).optional(),
+		/** Everything lands under this folder. No bucket — the account is the root. */
+		prefix: z.string().max(255).optional(),
+	}),
 });
 
 export const RemoteNameParams = z.object({ params: z.object({ name: remoteName }) });

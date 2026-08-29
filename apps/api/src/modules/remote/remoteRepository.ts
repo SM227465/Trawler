@@ -16,6 +16,7 @@ const key = (name: string) => `remote.${name}`;
 
 export interface RemoteMeta {
 	kind: string;
+	/** Empty for OAuth providers — the account itself is the root. */
 	bucket: string;
 	prefix: string;
 }

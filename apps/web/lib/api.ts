@@ -122,11 +122,12 @@ export interface AuditEntry {
 }
 
 export type RemoteKind = "r2" | "b2" | "wasabi" | "aws" | "s3-other";
+export type OAuthKind = "drive" | "onedrive" | "dropbox" | "pcloud";
 
 export interface Remote {
 	name: string;
 	type: string;
-	kind: RemoteKind | null;
+	kind: RemoteKind | OAuthKind | null;
 	bucket: string | null;
 	prefix: string | null;
 	config: Record<string, string>;
@@ -161,6 +162,15 @@ export interface Upload {
 	error: string | null;
 	createdAt: string;
 	finishedAt: string | null;
+}
+
+export interface CreateOAuthRemoteInput {
+	name: string;
+	kind: OAuthKind;
+	token: string;
+	clientId?: string;
+	clientSecret?: string;
+	prefix?: string;
 }
 
 export interface ShareAccessEntry {
@@ -400,6 +410,9 @@ export const api = {
 
 	createRemote: (body: CreateRemoteInput) =>
 		apiFetch<{ name: string }>("/remotes", { method: "POST", body: JSON.stringify(body) }),
+
+	createOAuthRemote: (body: CreateOAuthRemoteInput) =>
+		apiFetch<{ name: string }>("/remotes/oauth", { method: "POST", body: JSON.stringify(body) }),
 
 	testRemote: (name: string) =>
 		apiFetch<{ ok: boolean }>(`/remotes/${encodeURIComponent(name)}/test`, { method: "POST" }),

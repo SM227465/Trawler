@@ -22,6 +22,20 @@ class RemoteController {
 		handleServiceResponse(result, res);
 	};
 
+	public createOAuth: RequestHandler = async (req: Request, res: Response) => {
+		const result = await remoteService.createOAuth(req.body);
+		if (result.success) {
+			// Never the token, never the client secret — only which provider.
+			audit.recordFromRequest(req, {
+				action: "storage.remote.add",
+				targetType: "remote",
+				targetId: req.body.name,
+				metadata: { kind: req.body.kind, auth: "oauth" },
+			});
+		}
+		handleServiceResponse(result, res);
+	};
+
 	public test: RequestHandler = async (req: Request, res: Response) => {
 		handleServiceResponse(await remoteService.test(req.params.name), res);
 	};

@@ -2,6 +2,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { LoaderCircle } from "lucide-react";
 import { useState } from "react";
+import { AddOAuthRemote } from "@/components/storage/AddOAuthRemote";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { api, type CreateRemoteInput, type RemoteKind } from "@/lib/api";
@@ -72,6 +73,10 @@ const inputCls = cn(
 
 export function AddRemoteDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
 	const qc = useQueryClient();
+	// Two genuinely different setups, not two styles of the same one: a bucket
+	// takes a key pair typed here, a personal cloud takes a token obtained
+	// somewhere with a browser. Splitting them keeps each form to what it needs.
+	const [mode, setMode] = useState<"bucket" | "cloud">("bucket");
 	const [kind, setKind] = useState<RemoteKind>("r2");
 	const [form, setForm] = useState<Partial<CreateRemoteInput>>({ name: "", bucket: "" });
 
@@ -100,128 +105,159 @@ export function AddRemoteDialog({ open, onClose }: { open: boolean; onClose: () 
 			description="Somewhere to copy finished files. Nothing is uploaded until you ask for it."
 		>
 			<div className="mt-4 flex flex-col gap-4">
-				<div className="flex flex-col gap-1.5">
-					<span className="text-xs font-medium text-fg">Provider</span>
-					<div className="grid gap-1.5 sm:grid-cols-2">
-						{KINDS.map((k) => (
-							<button
-								key={k.id}
-								type="button"
-								onClick={() => setKind(k.id)}
-								aria-pressed={kind === k.id}
-								className={cn(
-									"cursor-pointer rounded-[var(--ct-radius-sm)] border px-3 py-2 text-left transition-colors",
-									kind === k.id
-										? "border-accent bg-accent-soft"
-										: "border-border bg-surface-inset hover:border-border-strong",
-								)}
-							>
-								<span className={cn("block text-sm", kind === k.id ? "font-medium text-accent" : "text-fg")}>
-									{k.label}
-								</span>
-								<span className="mt-0.5 block text-[0.6875rem] leading-snug text-fg-subtle">{k.blurb}</span>
-							</button>
-						))}
-					</div>
+				<div className="flex gap-1 rounded-[var(--ct-radius-sm)] border border-border bg-surface-inset p-1">
+					{(
+						[
+							["bucket", "Object storage", "S3, R2, B2 — a key and a secret"],
+							["cloud", "Personal cloud", "Drive, OneDrive, Dropbox, pCloud"],
+						] as const
+					).map(([id, label, hint]) => (
+						<button
+							key={id}
+							type="button"
+							onClick={() => setMode(id)}
+							aria-pressed={mode === id}
+							className={cn(
+								"flex-1 cursor-pointer rounded-[0.3rem] px-3 py-1.5 text-left transition-colors",
+								mode === id ? "bg-surface shadow-[var(--ct-shadow)]" : "hover:bg-surface-2",
+							)}
+						>
+							<span className={cn("block text-xs font-medium", mode === id ? "text-fg" : "text-fg-muted")}>
+								{label}
+							</span>
+							<span className="block text-[0.625rem] text-fg-subtle">{hint}</span>
+						</button>
+					))}
 				</div>
 
-				<div className="grid gap-3 sm:grid-cols-2">
-					<Field id="rf-name" label="Name" hint="How you refer to it here.">
-						<input
-							id="rf-name"
-							className={inputCls}
-							value={form.name ?? ""}
-							onChange={(e) => set("name", e.target.value)}
-							placeholder="r2"
-						/>
-					</Field>
+				{mode === "cloud" && <AddOAuthRemote onDone={onClose} />}
 
-					<Field id="rf-bucket" label="Bucket">
-						<input
-							id="rf-bucket"
-							className={inputCls}
-							value={form.bucket ?? ""}
-							onChange={(e) => set("bucket", e.target.value)}
-							placeholder="trawler"
-						/>
-					</Field>
+				{mode === "bucket" && (
+					<>
+						<div className="flex flex-col gap-1.5">
+							<span className="text-xs font-medium text-fg">Provider</span>
+							<div className="grid gap-1.5 sm:grid-cols-2">
+								{KINDS.map((k) => (
+									<button
+										key={k.id}
+										type="button"
+										onClick={() => setKind(k.id)}
+										aria-pressed={kind === k.id}
+										className={cn(
+											"cursor-pointer rounded-[var(--ct-radius-sm)] border px-3 py-2 text-left transition-colors",
+											kind === k.id
+												? "border-accent bg-accent-soft"
+												: "border-border bg-surface-inset hover:border-border-strong",
+										)}
+									>
+										<span className={cn("block text-sm", kind === k.id ? "font-medium text-accent" : "text-fg")}>
+											{k.label}
+										</span>
+										<span className="mt-0.5 block text-[0.6875rem] leading-snug text-fg-subtle">{k.blurb}</span>
+									</button>
+								))}
+							</div>
+						</div>
 
-					<Field id="rf-accessKeyId" label={preset.keyLabel ?? "Access key ID"}>
-						<input
-							id="rf-accessKeyId"
-							className={inputCls}
-							value={form.accessKeyId ?? ""}
-							onChange={(e) => set("accessKeyId", e.target.value)}
-							autoComplete="off"
-						/>
-					</Field>
+						<div className="grid gap-3 sm:grid-cols-2">
+							<Field id="rf-name" label="Name" hint="How you refer to it here.">
+								<input
+									id="rf-name"
+									className={inputCls}
+									value={form.name ?? ""}
+									onChange={(e) => set("name", e.target.value)}
+									placeholder="r2"
+								/>
+							</Field>
 
-					<Field id="rf-secretAccessKey" label={preset.secretLabel ?? "Secret access key"}>
-						<input
-							id="rf-secretAccessKey"
-							className={inputCls}
-							type="password"
-							value={form.secretAccessKey ?? ""}
-							onChange={(e) => set("secretAccessKey", e.target.value)}
-							autoComplete="new-password"
-						/>
-					</Field>
+							<Field id="rf-bucket" label="Bucket">
+								<input
+									id="rf-bucket"
+									className={inputCls}
+									value={form.bucket ?? ""}
+									onChange={(e) => set("bucket", e.target.value)}
+									placeholder="trawler"
+								/>
+							</Field>
 
-					{preset.needsEndpoint && (
-						<Field id="rf-endpoint" label="Endpoint" hint={preset.endpointHint}>
-							<input
-								id="rf-endpoint"
-								className={inputCls}
-								value={form.endpoint ?? ""}
-								onChange={(e) => set("endpoint", e.target.value)}
-								placeholder={preset.endpointHint}
-							/>
-						</Field>
-					)}
+							<Field id="rf-accessKeyId" label={preset.keyLabel ?? "Access key ID"}>
+								<input
+									id="rf-accessKeyId"
+									className={inputCls}
+									value={form.accessKeyId ?? ""}
+									onChange={(e) => set("accessKeyId", e.target.value)}
+									autoComplete="off"
+								/>
+							</Field>
 
-					{preset.needsRegion && (
-						<Field id="rf-region" label="Region">
-							<input
-								id="rf-region"
-								className={inputCls}
-								value={form.region ?? ""}
-								onChange={(e) => set("region", e.target.value)}
-								placeholder="us-east-1"
-							/>
-						</Field>
-					)}
+							<Field id="rf-secretAccessKey" label={preset.secretLabel ?? "Secret access key"}>
+								<input
+									id="rf-secretAccessKey"
+									className={inputCls}
+									type="password"
+									value={form.secretAccessKey ?? ""}
+									onChange={(e) => set("secretAccessKey", e.target.value)}
+									autoComplete="new-password"
+								/>
+							</Field>
 
-					<Field id="rf-prefix" label="Folder (optional)" hint="Everything lands under this prefix.">
-						<input
-							id="rf-prefix"
-							className={inputCls}
-							value={form.prefix ?? ""}
-							onChange={(e) => set("prefix", e.target.value)}
-							placeholder="trawler"
-						/>
-					</Field>
-				</div>
+							{preset.needsEndpoint && (
+								<Field id="rf-endpoint" label="Endpoint" hint={preset.endpointHint}>
+									<input
+										id="rf-endpoint"
+										className={inputCls}
+										value={form.endpoint ?? ""}
+										onChange={(e) => set("endpoint", e.target.value)}
+										placeholder={preset.endpointHint}
+									/>
+								</Field>
+							)}
 
-				<p className="text-xs text-fg-muted">
-					The connection is tested before this is saved, so wrong keys or a missing bucket are reported now rather than
-					at the first upload. Credentials are stored on the server, outside the database.
-				</p>
+							{preset.needsRegion && (
+								<Field id="rf-region" label="Region">
+									<input
+										id="rf-region"
+										className={inputCls}
+										value={form.region ?? ""}
+										onChange={(e) => set("region", e.target.value)}
+										placeholder="us-east-1"
+									/>
+								</Field>
+							)}
 
-				{create.isError && (
-					<p className="rounded-[var(--ct-radius-sm)] bg-status-errored-soft px-3 py-2 text-sm text-status-errored">
-						{create.error instanceof Error ? create.error.message : "Could not add that."}
-					</p>
+							<Field id="rf-prefix" label="Folder (optional)" hint="Everything lands under this prefix.">
+								<input
+									id="rf-prefix"
+									className={inputCls}
+									value={form.prefix ?? ""}
+									onChange={(e) => set("prefix", e.target.value)}
+									placeholder="trawler"
+								/>
+							</Field>
+						</div>
+
+						<p className="text-xs text-fg-muted">
+							The connection is tested before this is saved, so wrong keys or a missing bucket are reported now rather
+							than at the first upload. Credentials are stored on the server, outside the database.
+						</p>
+
+						{create.isError && (
+							<p className="rounded-[var(--ct-radius-sm)] bg-status-errored-soft px-3 py-2 text-sm text-status-errored">
+								{create.error instanceof Error ? create.error.message : "Could not add that."}
+							</p>
+						)}
+
+						<div className="flex justify-end gap-2">
+							<Button variant="subtle" onClick={onClose}>
+								Cancel
+							</Button>
+							<Button variant="primary" disabled={!ready || create.isPending} onClick={() => create.mutate()}>
+								{create.isPending && <LoaderCircle className="size-4 animate-spin" aria-hidden />}
+								{create.isPending ? "Testing…" : "Add storage"}
+							</Button>
+						</div>
+					</>
 				)}
-
-				<div className="flex justify-end gap-2">
-					<Button variant="subtle" onClick={onClose}>
-						Cancel
-					</Button>
-					<Button variant="primary" disabled={!ready || create.isPending} onClick={() => create.mutate()}>
-						{create.isPending && <LoaderCircle className="size-4 animate-spin" aria-hidden />}
-						{create.isPending ? "Testing…" : "Add storage"}
-					</Button>
-				</div>
 			</div>
 		</Dialog>
 	);

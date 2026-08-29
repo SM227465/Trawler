@@ -14,6 +14,10 @@ const KIND_LABEL: Record<string, string> = {
 	wasabi: "Wasabi",
 	aws: "Amazon S3",
 	"s3-other": "S3-compatible",
+	drive: "Google Drive",
+	onedrive: "OneDrive",
+	dropbox: "Dropbox",
+	pcloud: "pCloud",
 };
 
 function Row({ remote }: { remote: Remote }) {
