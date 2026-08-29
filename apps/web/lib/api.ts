@@ -120,6 +120,33 @@ export interface AuditEntry {
 	at: string;
 }
 
+export type RemoteKind = "r2" | "b2" | "wasabi" | "aws" | "s3-other";
+
+export interface Remote {
+	name: string;
+	type: string;
+	kind: RemoteKind | null;
+	bucket: string | null;
+	prefix: string | null;
+	config: Record<string, string>;
+}
+
+export interface RemoteList {
+	available: boolean;
+	remotes: Remote[];
+}
+
+export interface CreateRemoteInput {
+	name: string;
+	kind: RemoteKind;
+	accessKeyId: string;
+	secretAccessKey: string;
+	bucket: string;
+	endpoint?: string;
+	region?: string;
+	prefix?: string;
+}
+
 export interface ShareAccessEntry {
 	id: number;
 	kind: "view" | "download" | "denied" | "unlock_failed";
@@ -343,6 +370,17 @@ export const api = {
 	fileLink: (fileId: string) => apiFetch<DownloadLink>(`/files/${fileId}/link`),
 
 	storage: () => apiFetch<StorageStatus>("/storage"),
+
+	remotes: () => apiFetch<RemoteList>("/remotes"),
+
+	createRemote: (body: CreateRemoteInput) =>
+		apiFetch<{ name: string }>("/remotes", { method: "POST", body: JSON.stringify(body) }),
+
+	testRemote: (name: string) =>
+		apiFetch<{ ok: boolean }>(`/remotes/${encodeURIComponent(name)}/test`, { method: "POST" }),
+
+	deleteRemote: (name: string) =>
+		apiFetch<{ name: string }>(`/remotes/${encodeURIComponent(name)}`, { method: "DELETE" }),
 
 	listShares: () => apiFetch<Share[]>("/shares"),
 

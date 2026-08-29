@@ -34,6 +34,8 @@ export type AuditAction =
 	| "settings.transfer"
 	| "settings.storage"
 	| "storage.evict"
+	| "storage.remote.add"
+	| "storage.remote.remove"
 	| "audit.clear";
 
 export interface AuditEntry {

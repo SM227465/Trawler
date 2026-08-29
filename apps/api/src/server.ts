@@ -17,6 +17,7 @@ import { fileRouter } from "@/modules/file/fileRouter";
 import { zipRouter } from "@/modules/file/zipRouter";
 import { healthCheckRouter } from "@/modules/healthCheck/healthCheckRouter";
 import { internalRouter } from "@/modules/internal/internalRouter";
+import { remoteRouter } from "@/modules/remote/remoteRouter";
 import { settingsRouter } from "@/modules/settings/settingsRouter";
 import { publicShareRouter, shareRouter } from "@/modules/share/shareRouter";
 import { storageRouter } from "@/modules/storage/storageRouter";
@@ -42,6 +43,7 @@ app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/torrents", torrentRouter);
 app.use("/api/v1/files", fileRouter);
 app.use("/api/v1/audit", auditRouter);
+app.use("/api/v1/remotes", remoteRouter);
 app.use("/api/v1/storage", storageRouter);
 app.use("/api/v1/shares", shareRouter);
 // Public share endpoints — deliberately NOT under the authenticated router.

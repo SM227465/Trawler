@@ -1,0 +1,150 @@
+import { ErrorCode } from "@/common/models/errorCodes";
+import { ServiceResponse } from "@/common/models/serviceResponse";
+import { logger } from "@/common/utils/logger";
+import { RcloneError, rclone, redactConfig } from "@/integrations/rclone/client";
+import type { RemoteKind } from "./remoteModel";
+import { remoteRepository } from "./remoteRepository";
+
+interface CreateInput {
+	name: string;
+	kind: RemoteKind;
+	accessKeyId: string;
+	secretAccessKey: string;
+	bucket: string;
+	endpoint?: string;
+	region?: string;
+	prefix?: string;
+}
+
+/**
+ * Maps a preset to rclone's own backend and provider values.
+ *
+ * Backblaze is the odd one: it is S3-compatible, but rclone ships a dedicated
+ * `b2` backend that knows about its application keys and lifecycle rules, and
+ * rclone's own S3 provider list does not include it. Use the backend that was
+ * written for it.
+ */
+function toRcloneConfig(input: CreateInput): { type: string; parameters: Record<string, string> } {
+	if (input.kind === "b2") {
+		return {
+			type: "b2",
+			parameters: { account: input.accessKeyId, key: input.secretAccessKey },
+		};
+	}
+
+	const provider = { r2: "Cloudflare", wasabi: "Wasabi", aws: "AWS", "s3-other": "Other" }[input.kind] ?? "Other";
+	const parameters: Record<string, string> = {
+		provider,
+		access_key_id: input.accessKeyId,
+		secret_access_key: input.secretAccessKey,
+	};
+	if (input.endpoint) parameters.endpoint = input.endpoint.replace(/^https?:\/\//, "");
+	// R2 has one region and rejects anything else; rclone's own docs use "auto".
+	if (input.kind === "r2") parameters.region = "auto";
+	else if (input.region) parameters.region = input.region;
+
+	return { type: "s3", parameters };
+}
+
+/** `name:bucket/prefix` — what every rclone operation addresses. */
+export function remoteFs(name: string, bucket: string, prefix?: string): string {
+	const path = [bucket, (prefix ?? "").replace(/^\/+|\/+$/g, "")].filter(Boolean).join("/");
+	return `${name}:${path}`;
+}
+
+class RemoteService {
+	async available(): Promise<boolean> {
+		return rclone.reachable();
+	}
+
+	async list() {
+		if (!(await rclone.reachable())) {
+			return ServiceResponse.success("External storage is not running", { available: false, remotes: [] });
+		}
+
+		const [remotes, meta] = await Promise.all([rclone.remotesWithTypes(), remoteRepository.all()]);
+		const detailed = await Promise.all(
+			remotes.map(async (r) => ({
+				name: r.name,
+				type: r.type,
+				kind: meta[r.name]?.kind ?? null,
+				bucket: meta[r.name]?.bucket ?? null,
+				prefix: meta[r.name]?.prefix ?? null,
+				// Redacted, always. The raw config contains a working secret key.
+				config: await rclone.remoteConfigRedacted(r.name).catch(() => ({})),
+			})),
+		);
+		return ServiceResponse.success("Remotes", { available: true, remotes: detailed });
+	}
+
+	/**
+	 * Creates the remote, then immediately proves it works.
+	 *
+	 * A remote that was accepted but cannot reach its bucket is worse than a
+	 * rejected one: it sits in the list looking configured until the first upload
+	 * fails hours later. So a failing test rolls the remote back out again and
+	 * reports the provider's own words.
+	 */
+	async create(input: CreateInput) {
+		if (!(await rclone.reachable())) {
+			return ServiceResponse.failure(
+				"External storage is not running",
+				null,
+				ErrorCode.INTERNAL_ERROR,
+				"RCLONE_UNAVAILABLE",
+			);
+		}
+
+		const { type, parameters } = toRcloneConfig(input);
+
+		try {
+			await rclone.createRemote(input.name, type, parameters);
+		} catch (err) {
+			logger.error({ err, name: input.name }, "could not create rclone remote");
+			return ServiceResponse.failure(
+				err instanceof RcloneError ? err.message : "Could not save the remote",
+				null,
+				ErrorCode.VALIDATION_ERROR,
+				"REMOTE_REJECTED",
+			);
+		}
+
+		const result = await rclone.testRemote(input.name, [input.bucket, input.prefix].filter(Boolean).join("/"));
+		if (!result.ok) {
+			await rclone.deleteRemote(input.name).catch(() => undefined);
+			return ServiceResponse.failure(result.error, null, ErrorCode.VALIDATION_ERROR, "REMOTE_UNREACHABLE");
+		}
+
+		await remoteRepository.set(input.name, {
+			kind: input.kind,
+			bucket: input.bucket,
+			prefix: (input.prefix ?? "").replace(/^\/+|\/+$/g, ""),
+		});
+
+		logger.info({ name: input.name, kind: input.kind, type }, "remote configured");
+		return ServiceResponse.success("Remote added", { name: input.name, about: result.about });
+	}
+
+	async test(name: string) {
+		const meta = await remoteRepository.get(name);
+		const path = meta ? [meta.bucket, meta.prefix].filter(Boolean).join("/") : "";
+		const result = await rclone.testRemote(name, path);
+		return result.ok
+			? ServiceResponse.success("Reachable", { ok: true, about: result.about })
+			: ServiceResponse.failure(result.error, { ok: false }, ErrorCode.VALIDATION_ERROR, "REMOTE_UNREACHABLE");
+	}
+
+	/**
+	 * Forgets the remote here. NOTHING is deleted at the provider — the same rule
+	 * the rest of the app follows, and doubly so for data on someone else's disk
+	 * that this app did not pay for.
+	 */
+	async remove(name: string) {
+		await rclone.deleteRemote(name).catch(() => undefined);
+		await remoteRepository.remove(name);
+		logger.info({ name }, "remote removed - nothing deleted at the provider");
+		return ServiceResponse.success("Remote removed", { name });
+	}
+}
+
+export const remoteService = new RemoteService();

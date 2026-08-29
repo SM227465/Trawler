@@ -4,6 +4,7 @@ import { authRegistry } from "@/modules/auth/authRouter";
 import { eventRegistry } from "@/modules/event/eventRouter";
 import { fileRegistry } from "@/modules/file/fileRouter";
 import { healthCheckRegistry } from "@/modules/healthCheck/healthCheckRouter";
+import { remoteRegistry } from "@/modules/remote/remoteRouter";
 import { settingsRegistry } from "@/modules/settings/settingsRouter";
 import { shareRegistry } from "@/modules/share/shareRouter";
 import { storageRegistry } from "@/modules/storage/storageRouter";
@@ -16,6 +17,7 @@ export function generateOpenAPIDocument(): OpenAPIDocument {
 	const registry = new OpenAPIRegistry([
 		healthCheckRegistry,
 		auditRegistry,
+		remoteRegistry,
 		fileRegistry,
 		authRegistry,
 		torrentRegistry,
