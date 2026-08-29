@@ -1,8 +1,9 @@
 "use client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Cloud, LoaderCircle, Plus, Trash2 } from "lucide-react";
+import { Check, Cloud, FolderOpen, LoaderCircle, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { AddRemoteDialog } from "@/components/storage/AddRemoteDialog";
+import { RemoteBrowser } from "@/components/storage/RemoteBrowser";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { api, type Remote } from "@/lib/api";
@@ -23,6 +24,7 @@ const KIND_LABEL: Record<string, string> = {
 function Row({ remote }: { remote: Remote }) {
 	const qc = useQueryClient();
 	const [confirming, setConfirming] = useState(false);
+	const [browsing, setBrowsing] = useState(false);
 
 	const test = useMutation({ mutationFn: () => api.testRemote(remote.name) });
 	const remove = useMutation({
@@ -63,6 +65,11 @@ function Row({ remote }: { remote: Remote }) {
 					</span>
 				)}
 
+				<Button size="sm" variant="ghost" onClick={() => setBrowsing(true)}>
+					<FolderOpen className="size-3.5" aria-hidden />
+					Browse
+				</Button>
+
 				<Button size="sm" variant="ghost" onClick={() => test.mutate()} disabled={test.isPending}>
 					{test.isPending && <LoaderCircle className="size-3.5 animate-spin" aria-hidden />}
 					Test
@@ -79,6 +86,8 @@ function Row({ remote }: { remote: Remote }) {
 					<Trash2 className="size-3.5" />
 				</Button>
 			</span>
+
+			<RemoteBrowser open={browsing} onClose={() => setBrowsing(false)} remote={remote.name} />
 
 			<ConfirmDialog
 				open={confirming}

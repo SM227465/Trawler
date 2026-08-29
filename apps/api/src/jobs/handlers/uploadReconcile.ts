@@ -52,10 +52,12 @@ export async function uploadReconcileHandler() {
 				finishedAt: new Date(),
 			});
 
-			// Uploading spends the same allowance as sharing does. Counted only on
-			// success, and only once, because this is the one place that knows the
-			// transfer actually ended.
-			if (job.success && bytes > 0) await egressRepository.bankRemoteUpload(bytes);
+			// Only an UPLOAD spends the allowance. A restore is inbound traffic,
+			// which providers do not meter — counting it would inflate the number
+			// that decides whether this box costs money.
+			if (job.success && bytes > 0 && row.direction === "up") {
+				await egressRepository.bankRemoteUpload(bytes);
+			}
 
 			finished++;
 			logger.info({ uploadId: row.id, success: job.success, bytes }, "upload finished");

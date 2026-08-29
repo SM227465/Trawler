@@ -40,6 +40,10 @@ class RemoteController {
 		handleServiceResponse(await remoteService.test(req.params.name), res);
 	};
 
+	public browse: RequestHandler = async (req: Request, res: Response) => {
+		handleServiceResponse(await remoteService.browse(req.params.name, req.query.path as string | undefined), res);
+	};
+
 	public remove: RequestHandler = async (req: Request, res: Response) => {
 		const result = await remoteService.remove(req.params.name);
 		if (result.success) {

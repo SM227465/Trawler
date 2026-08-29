@@ -88,7 +88,9 @@ services:
 
   rclone:
     volumes: !override
-      - /data/downloads:/downloads:ro
+      # RW: restores write back onto the disk. Containment is enforced in code,
+      # not by the mount.
+      - /data/downloads:/downloads
       - /data/rclone:/config
 
   webdav:

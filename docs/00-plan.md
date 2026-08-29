@@ -485,8 +485,12 @@ chat, and downloads. Revoking kills it immediately.
       A remote name that does not resolve is rejected at save time, because it
       would look configured, archive nothing, and the first sign would be a
       deleted torrent.
-- [ ] 11.6 Browse and restore from the remote, so an archived torrent is still
-      reachable rather than merely safe.
+- [x] 11.6 Browse and restore. A remote can be walked from the Storage page and
+      anything on it copied back, which is what makes archived data a TIER
+      rather than a backup — reachable from here instead of from the provider's
+      own app. Restores reuse the upload pipeline with the direction flipped:
+      same progress, same reconciler, same terminal states. They are NOT counted
+      against the egress allowance, because inbound traffic is not metered.
 
 **Exit:** running on the Oracle box, reachable at the real domain, self-managing.
 

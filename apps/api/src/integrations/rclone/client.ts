@@ -1,6 +1,6 @@
 import { env } from "@/common/utils/envConfig";
 import { logger } from "@/common/utils/logger";
-import type { RcAbout, RcJobStatus, RcRemote, RcRemoteConfig, RcTransferStats } from "./types";
+import type { RcAbout, RcJobStatus, RcListEntry, RcRemote, RcRemoteConfig, RcTransferStats } from "./types";
 
 export class RcloneError extends Error {
 	constructor(
@@ -201,6 +201,22 @@ export class RcloneClient {
 			_group: opts.group,
 		});
 		return jobid;
+	}
+
+	/**
+	 * One level of a remote, without recursing.
+	 *
+	 * `recurse: false` is not a default worth trusting here: a recursive list of
+	 * a bucket holding a media library is thousands of round trips and, on a
+	 * metered provider, a real bill.
+	 */
+	async listPath(fs: string, remote: string): Promise<RcListEntry[]> {
+		const { list } = await this.rc<{ list?: RcListEntry[] }>(
+			"operations/list",
+			{ fs, remote, opt: { recurse: false } },
+			30_000,
+		);
+		return list ?? [];
 	}
 
 	async jobStatus(jobid: number): Promise<RcJobStatus> {

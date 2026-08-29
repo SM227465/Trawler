@@ -6,7 +6,7 @@ import { ServiceResponse } from "@/common/models/serviceResponse";
 import { env } from "@/common/utils/envConfig";
 import { logger } from "@/common/utils/logger";
 import { rclone } from "@/integrations/rclone/client";
-import { resolveRealPath } from "@/modules/file/filePath";
+import { resolveDownloadPath, resolveRealPath } from "@/modules/file/filePath";
 import { remoteRepository } from "@/modules/remote/remoteRepository";
 import { remoteFs } from "@/modules/remote/remoteService";
 import { uploadRepository } from "./uploadRepository";
@@ -32,25 +32,42 @@ class UploadService {
 	 * symlink escapes refused before anything is queued, because this one hands a
 	 * path to a process that will read whatever it is given.
 	 */
-	async queue(remoteName: string, rawPath: string) {
+	async queue(remoteName: string, rawPath: string, direction: "up" | "down" = "up") {
 		const meta = await remoteRepository.get(remoteName);
 		if (!meta) {
 			return ServiceResponse.failure("No such storage", null, ErrorCode.RESOURCE_NOT_FOUND, "REMOTE_NOT_FOUND");
 		}
 
-		const rel = (rawPath ?? "").replace(/^\/+/, "");
+		const rel = (rawPath ?? "").replace(/^\/+/, "").replace(/\/+$/, "");
 		if (!rel) {
-			return ServiceResponse.failure("Nothing to upload", null, ErrorCode.VALIDATION_ERROR, "VALIDATION_ERROR");
+			return ServiceResponse.failure("Nothing to transfer", null, ErrorCode.VALIDATION_ERROR, "VALIDATION_ERROR");
+		}
+		if (rel.split("/").includes("..")) {
+			return ServiceResponse.failure("Invalid path", null, ErrorCode.VALIDATION_ERROR, "VALIDATION_ERROR");
 		}
 
-		const resolved = await resolveRealPath(rel);
-		if (!resolved.ok) {
-			logger.warn({ rawPath, reason: resolved.reason }, "upload refused");
-			return ServiceResponse.failure("Path not found", null, ErrorCode.RESOURCE_NOT_FOUND, "RESOURCE_NOT_FOUND");
+		// Uploading reads a local path, so it must exist and be inside the
+		// downloads root. Restoring WRITES there, so the source is the remote and
+		// there is nothing local to resolve yet — but the destination still has to
+		// be contained, which resolveDownloadPath checks without requiring the
+		// path to exist.
+		if (direction === "up") {
+			const resolved = await resolveRealPath(rel);
+			if (!resolved.ok) {
+				logger.warn({ rawPath, reason: resolved.reason }, "upload refused");
+				return ServiceResponse.failure("Path not found", null, ErrorCode.RESOURCE_NOT_FOUND, "RESOURCE_NOT_FOUND");
+			}
+		} else {
+			const contained = resolveDownloadPath(rel);
+			if (!contained.ok) {
+				logger.warn({ rawPath, reason: contained.reason }, "restore refused - destination escapes the downloads root");
+				return ServiceResponse.failure("Invalid path", null, ErrorCode.VALIDATION_ERROR, "VALIDATION_ERROR");
+			}
 		}
 
 		// Mirrors the source layout under the remote's prefix, so a bucket shared
-		// with other things stays navigable.
+		// with other things stays navigable. dstFs always names the REMOTE side;
+		// which end is source and which is destination is decided by `direction`.
 		const dstFs = `${remoteFs(remoteName, meta.bucket, meta.prefix)}/${rel}`.replace(/\/+$/, "");
 
 		try {
@@ -59,9 +76,10 @@ class UploadService {
 				remoteName,
 				srcPath: rel,
 				dstFs,
+				direction,
 				status: "queued",
 			});
-			return ServiceResponse.success("Upload queued", row);
+			return ServiceResponse.success(direction === "up" ? "Upload queued" : "Restore queued", row);
 		} catch (err) {
 			// The partial unique index rejects a second live upload of the same
 			// path. That is the intended answer, not an error worth 500ing over.
@@ -71,7 +89,7 @@ class UploadService {
 			// came back as a 500.
 			if (pgErrorCode(err) === "23505") {
 				return ServiceResponse.failure(
-					"That is already uploading",
+					"That is already transferring",
 					null,
 					ErrorCode.VALIDATION_ERROR,
 					"UPLOAD_IN_PROGRESS",
@@ -97,27 +115,41 @@ class UploadService {
 			// will not work it out for us. Resolve again here rather than trusting
 			// what was true at queue time — a torrent can finish, or be deleted,
 			// between the two.
-			const resolved = await resolveRealPath(row.srcPath);
-			if (!resolved.ok) throw new Error("The source no longer exists");
-			const isDir = (await stat(resolved.absPath)).isDirectory();
-
+			const localFs = `${LOCAL_ROOT}/${row.srcPath}`;
 			const group = groupFor(row.id);
+
+			// Which end is a directory decides the endpoint, and only the local
+			// side can be stat'd. Uploading: ask the filesystem. Restoring: ask
+			// rclone, because the answer lives at the provider.
+			let isDir: boolean;
+			if (row.direction === "up") {
+				const resolved = await resolveRealPath(row.srcPath);
+				if (!resolved.ok) throw new Error("The source no longer exists");
+				isDir = (await stat(resolved.absPath)).isDirectory();
+			} else {
+				const parent = row.dstFs.slice(0, row.dstFs.lastIndexOf("/"));
+				const leaf = row.dstFs.slice(row.dstFs.lastIndexOf("/") + 1);
+				const siblings = await rclone.listPath(parent, "");
+				const match = siblings.find((e) => e.Name === leaf);
+				if (!match) throw new Error("That is no longer on the remote");
+				isDir = match.IsDir;
+			}
+
+			const from = row.direction === "up" ? localFs : row.dstFs;
+			const to = row.direction === "up" ? row.dstFs : localFs;
+
 			const jobid = isDir
-				? await rclone.copyDir({
-						srcFs: `${LOCAL_ROOT}/${row.srcPath}`,
-						dstFs: row.dstFs,
-						group,
-					})
+				? await rclone.copyDir({ srcFs: from, dstFs: to, group })
 				: await rclone.copyFile({
 						// Parent plus leaf on each side, which is what copyfile takes.
-						srcFs: path.posix.join(LOCAL_ROOT, path.posix.dirname(row.srcPath)),
-						srcRemote: path.posix.basename(row.srcPath),
-						dstFs: row.dstFs.slice(0, row.dstFs.lastIndexOf("/")),
-						dstRemote: row.dstFs.slice(row.dstFs.lastIndexOf("/") + 1),
+						srcFs: from.slice(0, from.lastIndexOf("/")),
+						srcRemote: from.slice(from.lastIndexOf("/") + 1),
+						dstFs: to.slice(0, to.lastIndexOf("/")),
+						dstRemote: to.slice(to.lastIndexOf("/") + 1),
 						group,
 					});
 			await uploadRepository.update(row.id, { rcloneJobId: jobid });
-			logger.info({ uploadId: row.id, jobid, dst: row.dstFs }, "upload started");
+			logger.info({ uploadId: row.id, jobid, direction: row.direction, dst: row.dstFs }, "transfer started");
 		} catch (err) {
 			await uploadRepository.update(row.id, {
 				status: "failed",

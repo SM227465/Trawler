@@ -198,6 +198,55 @@ class RemoteService {
 	}
 
 	/**
+	 * Lists one directory of a remote, so an archived torrent can be found and
+	 * brought back.
+	 *
+	 * Paths are relative to the remote's own bucket and prefix, exactly like the
+	 * local file browser is relative to the downloads root. The caller never
+	 * addresses the bucket directly, so a share of the same bucket with other
+	 * software stays out of reach.
+	 */
+	async browse(name: string, rawPath: string | undefined) {
+		const meta = await remoteRepository.get(name);
+		if (!meta) {
+			return ServiceResponse.failure("No such storage", null, ErrorCode.RESOURCE_NOT_FOUND, "REMOTE_NOT_FOUND");
+		}
+
+		// `..` would escape the prefix this remote is confined to.
+		const rel = (rawPath ?? "").replace(/^\/+/, "").replace(/\/+$/, "");
+		if (rel.split("/").includes("..")) {
+			return ServiceResponse.failure("Invalid path", null, ErrorCode.VALIDATION_ERROR, "VALIDATION_ERROR");
+		}
+
+		try {
+			const entries = await rclone.listPath(remoteFs(name, meta.bucket, meta.prefix), rel);
+			return ServiceResponse.success("Listing", {
+				path: rel,
+				parent: rel === "" ? null : rel.split("/").slice(0, -1).join("/"),
+				entries: entries
+					.map((e) => ({
+						name: e.Name,
+						path: rel ? `${rel}/${e.Name}` : e.Name,
+						type: e.IsDir ? ("dir" as const) : ("file" as const),
+						sizeBytes: e.IsDir ? 0 : e.Size,
+						modifiedAt: e.ModTime,
+					}))
+					.sort((a, b) =>
+						a.type === b.type ? a.name.localeCompare(b.name, undefined, { numeric: true }) : a.type === "dir" ? -1 : 1,
+					),
+			});
+		} catch (err) {
+			logger.warn({ err, name, rel }, "remote listing failed");
+			return ServiceResponse.failure(
+				err instanceof RcloneError ? err.message : "Could not read that folder",
+				null,
+				ErrorCode.INTERNAL_ERROR,
+				"REMOTE_UNREACHABLE",
+			);
+		}
+	}
+
+	/**
 	 * Forgets the remote here. NOTHING is deleted at the provider — the same rule
 	 * the rest of the app follows, and doubly so for data on someone else's disk
 	 * that this app did not pay for.

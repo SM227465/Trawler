@@ -1,6 +1,6 @@
 "use client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CircleCheck, CircleX, LoaderCircle, Upload as UploadIcon, X } from "lucide-react";
+import { ArrowDown, ArrowUp, CircleCheck, CircleX, LoaderCircle, Upload as UploadIcon, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { api, type Upload } from "@/lib/api";
 import { cn } from "@/lib/cn";
@@ -8,7 +8,7 @@ import { formatBytes, formatEta, formatSince } from "@/lib/format";
 
 const STATE = {
 	queued: { label: "Waiting", tone: "text-fg-muted", icon: LoaderCircle, spin: false },
-	running: { label: "Uploading", tone: "text-accent", icon: LoaderCircle, spin: true },
+	running: { label: "Moving", tone: "text-accent", icon: LoaderCircle, spin: true },
 	completed: { label: "Done", tone: "text-status-completed", icon: CircleCheck, spin: false },
 	failed: { label: "Failed", tone: "text-status-errored", icon: CircleX, spin: false },
 	cancelled: { label: "Cancelled", tone: "text-fg-subtle", icon: CircleX, spin: false },
@@ -32,6 +32,13 @@ function Row({ upload }: { upload: Upload }) {
 		<li className="border-b border-border px-4 py-2.5 last:border-b-0">
 			<div className="flex flex-wrap items-center gap-x-3 gap-y-1">
 				<Icon className={cn("size-3.5 shrink-0", s.tone, s.spin && "animate-spin")} aria-hidden />
+				{/* Direction is the difference between "my file went away" and "my
+				    file came back" — worth more than a label saying "transfer". */}
+				{upload.direction === "down" ? (
+					<ArrowDown className="size-3 shrink-0 text-fg-subtle" aria-label="Restoring" />
+				) : (
+					<ArrowUp className="size-3 shrink-0 text-fg-subtle" aria-label="Uploading" />
+				)}
 				<span className="min-w-0 flex-1 truncate text-sm text-fg" title={upload.srcPath}>
 					{upload.srcPath}
 				</span>
@@ -101,7 +108,7 @@ export function UploadsPanel() {
 		<section className="rounded-[var(--ct-radius)] border border-border bg-surface">
 			<div className="flex items-center gap-2 border-b border-border px-4 py-3">
 				<UploadIcon className="size-4 shrink-0 text-fg-subtle" aria-hidden />
-				<h2 className="text-sm font-medium text-fg">Uploads</h2>
+				<h2 className="text-sm font-medium text-fg">Transfers to storage</h2>
 				{finished > 0 && (
 					<span className="ml-auto">
 						<Button size="sm" variant="ghost" onClick={() => clear.mutate()} disabled={clear.isPending}>

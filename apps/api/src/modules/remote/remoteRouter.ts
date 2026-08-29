@@ -58,6 +58,17 @@ remoteRegistry.registerPath({
 remoteRouter.post("/:name/test", validateRequest(RemoteNameParams), remoteController.test);
 
 remoteRegistry.registerPath({
+	method: "get",
+	path: "/api/v1/remotes/{name}/browse",
+	tags: ["Remote"],
+	description:
+		"List one directory of a remote. Paths are relative to that remote's bucket and prefix, so a bucket shared with other software stays out of reach.",
+	request: { params: z.object({ name: z.string() }), query: z.object({ path: z.string().optional() }) },
+	responses: createApiResponse(z.object({}).passthrough(), "Listing"),
+});
+remoteRouter.get("/:name/browse", validateRequest(RemoteNameParams), remoteController.browse);
+
+remoteRegistry.registerPath({
 	method: "delete",
 	path: "/api/v1/remotes/{name}",
 	tags: ["Remote"],

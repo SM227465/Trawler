@@ -134,6 +134,20 @@ export interface Remote {
 	config: Record<string, string>;
 }
 
+export interface RemoteEntry {
+	name: string;
+	path: string;
+	type: "dir" | "file";
+	sizeBytes: number;
+	modifiedAt: string;
+}
+
+export interface RemoteListing {
+	path: string;
+	parent: string | null;
+	entries: RemoteEntry[];
+}
+
 export interface RemoteList {
 	available: boolean;
 	remotes: Remote[];
@@ -155,6 +169,7 @@ export interface Upload {
 	remoteName: string;
 	srcPath: string;
 	dstFs: string;
+	direction: "up" | "down";
 	status: "queued" | "running" | "completed" | "failed" | "cancelled";
 	bytesTotal: number;
 	bytesDone: number;
@@ -401,6 +416,15 @@ export const api = {
 	remotes: () => apiFetch<RemoteList>("/remotes"),
 
 	uploads: () => apiFetch<Upload[]>("/uploads"),
+
+	browseRemote: (name: string, path: string) =>
+		apiFetch<RemoteListing>(`/remotes/${encodeURIComponent(name)}/browse?path=${encodeURIComponent(path)}`),
+
+	restoreFromRemote: (remote: string, path: string) =>
+		apiFetch<Upload>("/uploads", {
+			method: "POST",
+			body: JSON.stringify({ remote, path, direction: "down" }),
+		}),
 
 	startUpload: (remote: string, path: string) =>
 		apiFetch<Upload>("/uploads", { method: "POST", body: JSON.stringify({ remote, path }) }),

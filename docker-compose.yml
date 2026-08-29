@@ -232,7 +232,13 @@ services:
       - --use-json-log
       - --log-level=INFO
     volumes:
-      - ./data/downloads:/downloads:ro
+      # RW, not :ro. Uploading only ever reads, but restoring writes a file back
+      # onto the disk — with :ro that failed at the provider's last step with
+      # "mkdir /downloads/x: read-only file system", after the bytes had already
+      # been fetched. What keeps this safe is not the mount flag: every path is
+      # resolved and proven inside the downloads root before a transfer is
+      # queued, in both directions.
+      - ./data/downloads:/downloads
       - ./data/rclone:/config
     environment:
       RCLONE_CONFIG: /config/rclone.conf

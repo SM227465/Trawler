@@ -293,6 +293,9 @@ export const shareAccessLog = pgTable(
 
 export const uploadStatus = pgEnum("upload_status", ["queued", "running", "completed", "failed", "cancelled"]);
 
+/** Which way the bytes move. Restores are the same machinery in reverse. */
+export const transferDirection = pgEnum("transfer_direction", ["up", "down"]);
+
 export const uploads = pgTable(
 	"uploads",
 	{
@@ -306,6 +309,11 @@ export const uploads = pgTable(
 		srcPath: text("src_path").notNull(),
 		// Where it landed, as an rclone fs string, for display and for retry.
 		dstFs: text("dst_fs").notNull(),
+		// The table is still called `uploads` because that is what it was built
+		// for and renaming it would cost a destructive migration for a word. A
+		// restore is the same row with the direction flipped and src/dst swapped:
+		// same progress, same reconciler, same terminal states.
+		direction: transferDirection("direction").notNull().default("up"),
 		status: uploadStatus("status").notNull().default("queued"),
 		// rclone's own job id. Null until the transfer has actually started, and
 		// meaningless across an rclone restart — which is why terminal state is

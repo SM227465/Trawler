@@ -9,7 +9,8 @@ class UploadController {
 	};
 
 	public create: RequestHandler = async (req: Request, res: Response) => {
-		const result = await uploadService.queue(req.body.remote, req.body.path);
+		const direction = (req.body.direction ?? "up") as "up" | "down";
+		const result = await uploadService.queue(req.body.remote, req.body.path, direction);
 		if (result.success) {
 			const row = result.responseObject as { id?: string } | null;
 			// Started here rather than queued through pg-boss. Only the worker runs
@@ -23,7 +24,7 @@ class UploadController {
 				action: "storage.upload",
 				targetType: "upload",
 				targetId: row?.id ?? null,
-				metadata: { remote: req.body.remote, path: req.body.path },
+				metadata: { remote: req.body.remote, path: req.body.path, direction },
 			});
 		}
 		handleServiceResponse(result, res);

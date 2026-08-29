@@ -42,3 +42,13 @@ export interface RcTransferStats {
 		eta: number | null;
 	}>;
 }
+
+/** One entry from `operations/list`. */
+export interface RcListEntry {
+	Path: string;
+	Name: string;
+	Size: number;
+	MimeType?: string;
+	ModTime: string;
+	IsDir: boolean;
+}
