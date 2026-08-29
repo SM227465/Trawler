@@ -1,17 +1,37 @@
 import { ErrorCode } from "@/common/models/errorCodes";
 import { ServiceResponse } from "@/common/models/serviceResponse";
+import { env } from "@/common/utils/envConfig";
 import { logger } from "@/common/utils/logger";
 import { qbt } from "@/integrations/qbittorrent/client";
+import { rclone } from "@/integrations/rclone/client";
 import { egressStatus } from "@/modules/egress/egressGuard";
 import { torrentRepository } from "@/modules/torrent/torrentRepository";
+import { uploadRepository } from "@/modules/upload/uploadRepository";
+import { uploadService } from "@/modules/upload/uploadService";
 import { safeDiskStats } from "./diskStats";
 import { storageRepository } from "./storageRepository";
 import { type EvictionSettings, getEvictionSettings, saveEvictionSettings } from "./storageSettings";
+
+/**
+ * qBittorrent reports an ABSOLUTE content path; uploads address paths relative
+ * to the downloads root. Anything outside that root cannot be archived and must
+ * not be guessed at — returning null makes the caller skip it rather than
+ * upload something unexpected.
+ */
+export function relativeDownloadPath(contentPath: string | null): string | null {
+	if (!contentPath) return null;
+	const root = env.DOWNLOADS_DIR.replace(/\/+$/, "");
+	if (contentPath === root) return null;
+	if (!contentPath.startsWith(`${root}/`)) return null;
+	return contentPath.slice(root.length + 1).replace(/^\/+|\/+$/g, "") || null;
+}
 
 /** Arbitrary but fixed — the advisory-lock key for storage.evict. */
 const EVICT_LOCK_KEY = 4_812_001;
 
 export interface EvictionOutcome {
+	/** Queued or still uploading — deliberately NOT deleted on this pass. */
+	archiving?: Array<{ id: string; name: string; sizeBytes: number }>;
 	evaluated: boolean;
 	reason: string;
 	deleted: Array<{ id: string; name: string; sizeBytes: number }>;
@@ -58,6 +78,21 @@ export class StorageService {
 	}
 
 	async updateSettings(patch: Partial<EvictionSettings>) {
+		// A name that does not resolve would look configured and archive nothing,
+		// and the first sign of that would be a deleted torrent. Checked here so
+		// the mistake is impossible to save rather than merely unlikely.
+		if (patch.archiveRemote) {
+			const known = await rclone.listRemotes().catch(() => [] as string[]);
+			if (!known.includes(patch.archiveRemote)) {
+				return ServiceResponse.failure(
+					`No storage called "${patch.archiveRemote}" is connected`,
+					null,
+					ErrorCode.VALIDATION_ERROR,
+					"REMOTE_NOT_FOUND",
+				);
+			}
+		}
+
 		try {
 			const settings = await saveEvictionSettings(patch);
 			return ServiceResponse.success("Settings updated", settings);
@@ -90,6 +125,7 @@ export class StorageService {
 			evaluated: false,
 			reason: "",
 			deleted: [],
+			archiving: [],
 			libraryBytes: 0,
 			freedBytes: 0,
 			usedPctBefore: null,
@@ -161,6 +197,47 @@ export class StorageService {
 				if (overHigh && freed >= targetFreeBytes) break;
 
 				try {
+					// ── archive first, delete later ──────────────────────────────
+					// With a remote configured, a torrent is only ever removed once a
+					// copy of it has verifiably finished uploading. Uploads are
+					// asynchronous, so a pass that starts one does NOT delete on the
+					// same pass: it leaves the torrent alone and a later pass, seeing
+					// a completed upload, removes it.
+					//
+					// The ordering is the whole safety property. Deleting first and
+					// uploading after would turn a failed transfer into data loss,
+					// and the failure mode of getting it wrong is silent.
+					if (settings.archiveRemote) {
+						const rel = relativeDownloadPath(c.contentPath);
+						if (!rel) {
+							logger.warn({ torrentId: c.id, name: c.name }, "cannot archive: no usable content path");
+							continue;
+						}
+
+						const prior = await uploadRepository.latestFor(settings.archiveRemote, rel);
+
+						if (!prior || prior.status === "failed" || prior.status === "cancelled") {
+							const queued = await uploadService.queue(settings.archiveRemote, rel);
+							if (queued.success) {
+								const row = queued.responseObject as { id?: string } | null;
+								if (row?.id) void uploadService.start(row.id);
+								logger.info(
+									{ torrentId: c.id, name: c.name, remote: settings.archiveRemote },
+									"archiving before cleanup",
+								);
+							}
+							out.archiving?.push({ id: c.id, name: c.name, sizeBytes: c.sizeBytes });
+							continue;
+						}
+
+						if (prior.status !== "completed") {
+							// Still moving. Leave it; the next pass will find it done.
+							out.archiving?.push({ id: c.id, name: c.name, sizeBytes: c.sizeBytes });
+							continue;
+						}
+						// completed — falls through to deletion below
+					}
+
 					// Through the qBittorrent API, NEVER rm: deleting behind its back
 					// leaves its state disagreeing with the filesystem, and it
 					// re-checks or re-downloads on next start (doc 02 §4).
@@ -170,7 +247,13 @@ export class StorageService {
 					freed += c.sizeBytes;
 					out.deleted.push({ id: c.id, name: c.name, sizeBytes: c.sizeBytes });
 					logger.info(
-						{ torrentId: c.id, name: c.name, sizeBytes: c.sizeBytes, trigger: overHigh ? "pressure" : "ttl" },
+						{
+							torrentId: c.id,
+							name: c.name,
+							sizeBytes: c.sizeBytes,
+							trigger: overHigh ? "pressure" : "ttl",
+							archivedTo: settings.archiveRemote || null,
+						},
 						"evicted torrent",
 					);
 				} catch (err) {
@@ -181,6 +264,11 @@ export class StorageService {
 			}
 
 			out.freedBytes = freed;
+			if (out.archiving?.length) {
+				out.reason = `${out.archiving.length} torrent(s) uploading to ${settings.archiveRemote} — they are removed once the copy finishes`;
+				out.usedPctAfter = (await safeDiskStats())?.usedPct ?? null;
+				return out;
+			}
 			out.reason = overBudget
 				? `library ${(libraryBytes / 1e9).toFixed(1)} GB over the ${(settings.budgetBytes / 1e9).toFixed(0)} GB budget`
 				: overDisk

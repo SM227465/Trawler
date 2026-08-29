@@ -18,6 +18,9 @@ export const EvictionSettingsSchema = z.object({
 	highWatermarkPct: z.number(),
 	lowWatermarkPct: z.number(),
 	enabled: z.boolean(),
+	archiveRemote: z.string().openapi({
+		description: "Remote to copy a torrent to before deleting it. Empty means cleanup deletes outright.",
+	}),
 });
 
 export const StorageStatusSchema = z.object({
@@ -45,6 +48,8 @@ export const UpdateSettingsSchema = z.object({
 			budgetBytes: z.number().int().min(0).optional(),
 			highWatermarkPct: z.number().int().min(1).max(99).optional(),
 			lowWatermarkPct: z.number().int().min(1).max(99).optional(),
+			/** "" turns archiving off; any other value must name a configured remote. */
+			archiveRemote: z.string().max(32).optional(),
 		})
 		.refine(
 			(b) =>

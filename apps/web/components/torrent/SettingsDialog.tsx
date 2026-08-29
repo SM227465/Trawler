@@ -1,5 +1,5 @@
 "use client";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { LoaderCircle, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
@@ -85,6 +85,9 @@ export function SettingsDialog({
 	});
 
 	const set = <K extends keyof Settings>(k: K, v: Settings[K]) => setDraft((d) => ({ ...d, [k]: v }));
+	const { data: remoteList } = useQuery({ queryKey: ["remotes"], queryFn: api.remotes, staleTime: 60_000 });
+	const remotes = remoteList?.available ? remoteList.remotes : [];
+
 	const watermarksInvalid = draft.lowWatermarkPct >= draft.highWatermarkPct;
 
 	return (
@@ -107,6 +110,42 @@ export function SettingsDialog({
 						</p>
 					)}
 				</div>
+
+				{/* Archiving turns cleanup from "delete" into "move". Offered next to
+				    the delete switch because it is the thing that makes the delete
+				    switch safe to turn on. */}
+				{remotes.length > 0 && (
+					<div>
+						<label htmlFor="archive-remote" className="text-sm text-fg">
+							Copy to storage before deleting
+						</label>
+						<p className="mt-0.5 text-xs text-fg-muted">
+							A torrent is uploaded first and only removed from disk once that copy has finished. A failed upload never
+							deletes anything.
+						</p>
+						<select
+							id="archive-remote"
+							value={draft.archiveRemote ?? ""}
+							onChange={(e) => set("archiveRemote", e.target.value)}
+							className={cn(
+								"mt-2 h-9 w-full rounded-[var(--ct-radius-sm)] border border-border bg-surface-inset px-2.5",
+								"text-sm text-fg outline-none transition-colors focus:border-accent cursor-pointer",
+							)}
+						>
+							<option value="">Do not archive — delete outright</option>
+							{remotes.map((r) => (
+								<option key={r.name} value={r.name}>
+									{r.name}
+								</option>
+							))}
+						</select>
+						{draft.archiveRemote && (
+							<p className="mt-2 text-xs text-fg-subtle">
+								Uploading spends the same outbound allowance as sharing does.
+							</p>
+						)}
+					</div>
+				)}
 
 				<Field
 					label="Idle time before cleanup"

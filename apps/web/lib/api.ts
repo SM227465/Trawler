@@ -32,6 +32,7 @@ export interface StorageStatus {
 		highWatermarkPct: number;
 		lowWatermarkPct: number;
 		enabled: boolean;
+		archiveRemote: string;
 	};
 	libraryBytes: number;
 	pressure: { overBudget: boolean; overDisk: boolean; active: boolean };

@@ -477,8 +477,16 @@ chat, and downloads. Revoking kills it immediately.
       own OAuth client — rclone's shared one is retired during 2026 — and the
       SAME client pair must be passed to `rclone authorize`, so the form builds
       the exact command to run.
-- [ ] 11.5 Eviction uploads before deleting, so the remote becomes a tier rather
-      than an export.
+- [x] 11.5 Cleanup archives before it deletes. With a remote selected, a torrent
+      is uploaded and only removed once that copy has VERIFIABLY completed —
+      uploads are async, so the pass that starts one deletes nothing and a later
+      pass, seeing a completed upload, removes it. Ordering is the safety
+      property: deleting first would turn a failed transfer into data loss.
+      A remote name that does not resolve is rejected at save time, because it
+      would look configured, archive nothing, and the first sign would be a
+      deleted torrent.
+- [ ] 11.6 Browse and restore from the remote, so an archived torrent is still
+      reachable rather than merely safe.
 
 **Exit:** running on the Oracle box, reachable at the real domain, self-managing.
 

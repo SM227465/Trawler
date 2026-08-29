@@ -16,6 +16,15 @@ export interface EvictionSettings {
 	ttlHours: number;
 	highWatermarkPct: number;
 	lowWatermarkPct: number;
+	/**
+	 * Name of a configured remote, or "" for off.
+	 *
+	 * When set, cleanup ARCHIVES before it deletes: a torrent is copied to the
+	 * remote and only removed from disk once that copy has verifiably finished.
+	 * Turns the disk into a cache in front of storage the user actually owns,
+	 * rather than the place data goes to die.
+	 */
+	archiveRemote: string;
 }
 
 /**
@@ -30,6 +39,7 @@ const KEY = {
 	ttlHours: "eviction.ttlHours",
 	highWatermarkPct: "eviction.highWatermarkPct",
 	lowWatermarkPct: "eviction.lowWatermarkPct",
+	archiveRemote: "eviction.archiveRemote",
 } as const satisfies Record<keyof EvictionSettings, string>;
 
 const ALL_KEYS = Object.values(KEY) as string[];
@@ -40,6 +50,9 @@ const envDefaults = (): EvictionSettings => ({
 	ttlHours: env.EVICTION_TTL_HOURS,
 	highWatermarkPct: env.EVICTION_HIGH_WATERMARK_PCT,
 	lowWatermarkPct: env.EVICTION_LOW_WATERMARK_PCT,
+	// No env default: this names a remote that only exists once the user has
+	// configured one, so it is meaningless before then.
+	archiveRemote: "",
 });
 
 export async function getEvictionSettings(): Promise<EvictionSettings> {
@@ -55,6 +68,7 @@ export async function getEvictionSettings(): Promise<EvictionSettings> {
 			ttlHours: coerceNum(byKey.get(KEY.ttlHours), defaults.ttlHours),
 			highWatermarkPct: coerceNum(byKey.get(KEY.highWatermarkPct), defaults.highWatermarkPct),
 			lowWatermarkPct: coerceNum(byKey.get(KEY.lowWatermarkPct), defaults.lowWatermarkPct),
+			archiveRemote: String(byKey.get(KEY.archiveRemote) ?? defaults.archiveRemote),
 		};
 
 		// A low mark at or above the high one makes every pass try to free the

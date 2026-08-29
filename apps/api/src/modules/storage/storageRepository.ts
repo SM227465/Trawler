@@ -9,6 +9,8 @@ export interface EvictionCandidate extends Record<string, unknown> {
 	infoHash: string;
 	sizeBytes: number;
 	name: string;
+	/** Absolute path qBittorrent reports. Null until metadata resolves. */
+	contentPath: string | null;
 }
 
 export class StorageRepository {
@@ -30,7 +32,8 @@ export class StorageRepository {
 		exec: Executor = db,
 	) {
 		const { rows } = await exec.execute<EvictionCandidate>(sql`
-			SELECT t.id, t.info_hash AS "infoHash", t.size_bytes AS "sizeBytes", t.name
+			SELECT t.id, t.info_hash AS "infoHash", t.size_bytes AS "sizeBytes", t.name,
+			       t.content_path AS "contentPath"
 			FROM torrents t
 			WHERE t.status = 'completed'
 			  AND t.pinned = false

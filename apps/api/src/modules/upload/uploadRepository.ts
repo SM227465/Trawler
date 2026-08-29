@@ -49,6 +49,22 @@ export const uploadRepository = {
 		return row ?? null;
 	},
 
+	/**
+	 * The most recent upload of a path to a remote, whatever its state.
+	 *
+	 * Cleanup asks this before deleting anything: only a `completed` row is
+	 * permission to remove the local copy.
+	 */
+	async latestFor(remoteName: string, srcPath: string): Promise<UploadRow | null> {
+		const [row] = await db
+			.select()
+			.from(uploads)
+			.where(and(eq(uploads.remoteName, remoteName), eq(uploads.srcPath, srcPath)))
+			.orderBy(desc(uploads.createdAt))
+			.limit(1);
+		return row ?? null;
+	},
+
 	/** Removes finished rows; the live ones are never touched. */
 	async clearFinished(): Promise<number> {
 		const res = await db.delete(uploads).where(sql`status in ('completed','failed','cancelled')`);
