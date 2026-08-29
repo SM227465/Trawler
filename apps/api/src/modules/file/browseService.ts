@@ -4,6 +4,7 @@ import { ErrorCode } from "@/common/models/errorCodes";
 import { ServiceResponse } from "@/common/models/serviceResponse";
 import { env } from "@/common/utils/envConfig";
 import { logger } from "@/common/utils/logger";
+import { mediaRepository } from "@/modules/media/mediaRepository";
 import { signDownloadToken } from "./downloadToken";
 import { downloadsRoot, resolveRealPath } from "./filePath";
 import { fileRepository } from "./fileRepository";
@@ -15,6 +16,14 @@ export interface BrowseEntry {
 	type: "dir" | "file";
 	sizeBytes: number;
 	modifiedAt: string;
+	/**
+	 * What ffprobe found, when this path has been probed. `direct` plays as-is,
+	 * `remux` needs the /remux route, `incompatible` goes to VLC. Absent means
+	 * not probed yet, and the UI falls back to guessing by extension.
+	 */
+	playback?: "direct" | "remux" | "incompatible" | "not_media";
+	durationSeconds?: number | null;
+
 	/**
 	 * Set when this path is a completed file of a tracked torrent. Shares are
 	 * foreign-keyed to torrent_files, so a path with no row behind it cannot be
@@ -78,6 +87,17 @@ export class BrowseService {
 		for (const e of entries) {
 			const id = fileIds.get(e.path);
 			if (id) e.fileId = id;
+		}
+
+		// Probe verdicts for whatever has been probed. One query for the page,
+		// and silence rather than a guess for anything that has not.
+		const probes = await mediaRepository.playbackFor([...fileIds.values()]);
+		for (const e of entries) {
+			const probe = e.fileId ? probes.get(e.fileId) : undefined;
+			if (probe) {
+				e.playback = probe.playback;
+				e.durationSeconds = probe.durationSeconds;
+			}
 		}
 
 		// Folders first, then names naturally ordered so ep2 precedes ep10.
@@ -169,9 +189,18 @@ export class BrowseService {
 		const token = await signDownloadToken({ filePath: rel, userId });
 		const filename = path.basename(rel);
 
+		// The same token serves both routes: /dl hands the raw bytes to Caddy,
+		// /remux hands them to ffmpeg first. Which one the player uses is decided
+		// by the probe, not by the extension.
+		const base = env.PUBLIC_BASE_URL.replace(/\/$/, "");
+		const encoded = encodeURIComponent(filename);
+		const remuxName = `${filename.replace(/\.[^.]+$/, "")}.mp4`;
+
 		return ServiceResponse.success("Download link created", {
-			path: `/dl/${token}/${encodeURIComponent(filename)}`,
-			url: `${env.PUBLIC_BASE_URL.replace(/\/$/, "")}/dl/${token}/${encodeURIComponent(filename)}`,
+			path: `/dl/${token}/${encoded}`,
+			url: `${base}/dl/${token}/${encoded}`,
+			remuxPath: `/remux/${token}/${encodeURIComponent(remuxName)}`,
+			remuxUrl: `${base}/remux/${token}/${encodeURIComponent(remuxName)}`,
 			filename,
 			sizeBytes: size,
 		});

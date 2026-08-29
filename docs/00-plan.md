@@ -327,15 +327,25 @@ chat, and downloads. Revoking kills it immediately.
 > Known-unplayable containers (mkv, avi, mov, wmv, ts…) skip the optimistic path
 > and go straight to that fallback.
 >
-> Still open here: 8.1 ffprobe (makes the guess exact), 8.3 remux, 8.4 seek via
-> `-ss`, 8.6 player on the share page.
+> Section 8 is complete. Playback is decided by what a file CONTAINS, not by
+> its extension.
 
-- [ ] 8.1 `ffprobe` on completion → `media_probes`, `playback` computed once
+- [x] 8.1 `ffprobe` on completion → `media_probes`, `playback` computed once.
+      Batched on a 2-minute schedule, not one job per file — a finished 40-file
+      torrent would otherwise queue 40 at once. Failures are RECORDED so a file
+      ffprobe cannot read is not retried forever.
 - [x] 8.2 Direct play for MP4/H.264/AAC ✅ (+ audio and images)
-- [ ] 8.3 Remux `-c:v copy -c:a aac -f mp4`, max 2 concurrent
-- [ ] 8.4 Seek via ffmpeg `-ss` restart
+- [x] 8.3 Remux `-c:v copy -c:a aac -f mp4`, max 2 concurrent. Video is never
+      re-encoded; audio only when an MP4 cannot carry it. Two is arithmetic, not
+      caution: two cores, most of them already stolen. Over the limit is refused
+      with a reason, not queued.
+- [x] 8.4 Seek via ffmpeg `-ss` restart. `-ss` goes BEFORE `-i`, so ffmpeg moves
+      the read head to a keyframe instead of decoding and discarding — on a
+      two-hour file that is instant versus a minute of pegged CPU.
 - [x] 8.5 "Open in VLC" + copy-URL for `incompatible` ✅ (extension-based; 8.1 will make it exact)
-- [ ] 8.6 Player on the share page
+- [x] 8.6 Player on the share page. /remux authorises a share id directly, the
+      way /dl does. A playable share now offers Play plus Download instead of
+      downloading on open — those two cannot both happen.
 
 **Exit:** an MKV with AC3 plays in Chrome. HEVC offers VLC and never pegs CPU.
 

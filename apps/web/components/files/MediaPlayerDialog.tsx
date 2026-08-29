@@ -12,6 +12,8 @@ import { useCopy } from "@/lib/useCopy";
 interface Link {
 	path: string;
 	url: string;
+	/** The same token through ffmpeg. Only present for files that need it. */
+	remuxPath?: string;
 }
 
 /**
@@ -28,13 +30,33 @@ export function MediaPlayerDialog({
 	onClose,
 	name,
 	getLink,
+	playback,
+	durationSeconds,
 }: {
 	open: boolean;
 	onClose: () => void;
 	name: string;
 	getLink: () => Promise<Link>;
+	/** ffprobe's verdict. Absent means unprobed — fall back to the extension. */
+	playback?: "direct" | "remux" | "incompatible" | "not_media";
+	durationSeconds?: number | null;
 }) {
-	const media = classify(name);
+	const guess = classify(name);
+
+	// The probe wins wherever it exists. An .mkv the guess calls unplayable may
+	// be one rewrap away, and an .mp4 it calls playable may be HEVC.
+	const media = playback
+		? {
+				...guess,
+				playable: playback === "direct" || playback === "remux",
+				needsExternalPlayer: playback === "incompatible",
+			}
+		: guess;
+
+	const needsRemux = playback === "remux";
+	// Fragmented MP4 carries no index, so the browser cannot byte-range seek it.
+	// Seeking restarts the stream at an offset instead — this is the offset.
+	const [startAt, setStartAt] = useState(0);
 	const { copied, copy } = useCopy();
 	const [link, setLink] = useState<Link | null>(null);
 	const [failed, setFailed] = useState(false);
@@ -95,15 +117,24 @@ export function MediaPlayerDialog({
 				{link && !failed && !media.needsExternalPlayer && (
 					<>
 						{media.kind === "video" && (
-							// biome-ignore lint/a11y/useMediaCaption: .srt is not WebVTT; subtitles need conversion (Phase 8)
-							<video
-								src={link.path}
-								controls
-								autoPlay
-								playsInline
-								onError={() => setFailed(true)}
-								className="max-h-[60vh] w-full rounded-[var(--ct-radius-sm)] bg-black"
-							/>
+							<>
+								{/* biome-ignore lint/a11y/useMediaCaption: .srt is not WebVTT; conversion is not built */}
+								<video
+									key={startAt}
+									src={
+										needsRemux && link.remuxPath ? `${link.remuxPath}${startAt > 0 ? `?t=${startAt}` : ""}` : link.path
+									}
+									controls
+									autoPlay
+									playsInline
+									onError={() => setFailed(true)}
+									className="max-h-[60vh] w-full rounded-[var(--ct-radius-sm)] bg-black"
+								/>
+
+								{needsRemux && (
+									<RemuxSeek durationSeconds={durationSeconds ?? null} startAt={startAt} onSeek={setStartAt} />
+								)}
+							</>
 						)}
 
 						{media.kind === "audio" && (
@@ -145,5 +176,74 @@ export function MediaPlayerDialog({
 				</Button>
 			</div>
 		</Dialog>
+	);
+}
+
+/**
+ * Seeking for a converted stream.
+ *
+ * A fragmented MP4 has no index, so the browser's own scrubber can only move
+ * within what it has already buffered — it cannot jump to minute 40 of a file
+ * that is being produced as it plays. Restarting ffmpeg at an offset is how
+ * that is done, and `key={startAt}` on the <video> forces a fresh element so
+ * the browser actually re-requests rather than resuming its buffer.
+ *
+ * Shown only for remuxed video. Direct playback keeps the native scrubber,
+ * which is better in every way when it works.
+ */
+function RemuxSeek({
+	durationSeconds,
+	startAt,
+	onSeek,
+}: {
+	durationSeconds: number | null;
+	startAt: number;
+	onSeek: (s: number) => void;
+}) {
+	const [pending, setPending] = useState(startAt);
+
+	const fmt = (s: number) => {
+		const h = Math.floor(s / 3600);
+		const m = Math.floor((s % 3600) / 60);
+		const sec = Math.floor(s % 60);
+		return h > 0
+			? `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`
+			: `${m}:${String(sec).padStart(2, "0")}`;
+	};
+
+	if (!durationSeconds || durationSeconds <= 0) {
+		return (
+			<p className="mt-2 text-xs text-fg-subtle">
+				This file is being converted as it plays, so the scrubber only moves within what has loaded.
+			</p>
+		);
+	}
+
+	return (
+		<div className="mt-2 flex flex-col gap-1.5">
+			<div className="flex items-center gap-2">
+				<input
+					type="range"
+					min={0}
+					max={Math.floor(durationSeconds)}
+					value={pending}
+					aria-label="Jump to a time"
+					onChange={(e) => setPending(Number(e.target.value))}
+					onMouseUp={() => onSeek(pending)}
+					onTouchEnd={() => onSeek(pending)}
+					onKeyUp={(e) => {
+						if (e.key === "Enter") onSeek(pending);
+					}}
+					className="h-1 flex-1 cursor-pointer accent-[var(--ct-accent,currentColor)]"
+				/>
+				<span className="tabular shrink-0 text-xs text-fg-subtle">
+					{fmt(pending)} / {fmt(durationSeconds)}
+				</span>
+			</div>
+			<p className="text-[0.6875rem] text-fg-subtle">
+				Converted as it plays, so jumping restarts the stream from that point.
+				{startAt > 0 && ` Currently from ${fmt(startAt)}.`}
+			</p>
+		</div>
 	);
 }

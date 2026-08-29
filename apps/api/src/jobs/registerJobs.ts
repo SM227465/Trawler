@@ -65,6 +65,17 @@ export async function registerJobs(boss: PgBoss) {
 	});
 	await boss.schedule(JOB.UPLOAD_RECONCILE, "* * * * *");
 
+	// ── media probing ──
+	// Every two minutes, a small batch. ffprobe reads headers and exits, so this
+	// is cheap — but a finished 40-file torrent would still queue 40 of them at
+	// once if it were a job per file.
+	await boss.createQueue(JOB.MEDIA_PROBE);
+	const { mediaProbeHandler } = await import("./handlers/mediaProbe");
+	await boss.work(JOB.MEDIA_PROBE, { batchSize: 1 }, async (jobs: Job<object>[]) => {
+		for (const _job of jobs) await mediaProbeHandler();
+	});
+	await boss.schedule(JOB.MEDIA_PROBE, "*/2 * * * *");
+
 	// ── nightly maintenance ──
 	await boss.createQueue(JOB.DB_BACKUP);
 	const { backupHandler } = await import("./handlers/dbBackup");

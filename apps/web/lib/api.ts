@@ -102,6 +102,9 @@ export interface BrowseEntry {
 	modifiedAt: string;
 	/** Present only when the path is a completed file of a tracked torrent. */
 	fileId?: string;
+	/** ffprobe's verdict. Absent means not probed yet — fall back to the guess. */
+	playback?: "direct" | "remux" | "incompatible" | "not_media";
+	durationSeconds?: number | null;
 }
 
 export interface BrowseListing {
@@ -282,6 +285,9 @@ export interface DownloadLink {
 	sizeBytes: number;
 	expiresAt: string;
 	aria2c: string;
+	/** Same token, through ffmpeg. Present when the API offers a remux route. */
+	remuxPath?: string;
+	remuxUrl?: string;
 }
 
 export interface TorrentFile {

@@ -9,6 +9,11 @@ RUN corepack enable
 # dump a server newer than itself, so the distro package is useless here and the
 # PGDG repo is required. Getting this wrong produces a job that fails every
 # night at 03:17 where nobody looks.
+#
+# ffmpeg comes from Debian rather than a static build: ffprobe reads what a file
+# actually contains instead of guessing from its extension, and ffmpeg remuxes a
+# stream a browser refuses. It is a large package for what it does, but the
+# alternative is a second image mounting the same volume to run one binary.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates curl gnupg \
  && install -d /usr/share/postgresql-common/pgdg \
@@ -18,6 +23,7 @@ RUN apt-get update \
 http://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
  && apt-get update \
  && apt-get install -y --no-install-recommends postgresql-client-18 \
+ && apt-get install -y --no-install-recommends ffmpeg \
  && apt-get purge -y curl gnupg && apt-get autoremove -y \
  && rm -rf /var/lib/apt/lists/*
 

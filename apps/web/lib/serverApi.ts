@@ -20,6 +20,9 @@ export interface PublicShare {
 	scope: "file" | "torrent";
 	allowDownload: boolean;
 	allowStream: boolean;
+	/** ffprobe's verdict, withheld while the share is locked. */
+	playback: "direct" | "remux" | "incompatible" | "not_media" | null;
+	durationSeconds: number | null;
 	expiresAt: string | null;
 	bytesServed: number;
 	maxBytes: number | null;

@@ -72,6 +72,16 @@
 		}
 	}
 
+	# ── remux (streamed, generated on the fly) ───────────────────────────────
+	# Same shape as /zip and for the same reason: the output does not exist on
+	# disk, ffmpeg produces it as it is sent. Buffering disabled and no read
+	# timeout — a film takes as long as it takes, and Caddy must not cut it off.
+	handle /remux/* {
+		reverse_proxy api:3000 {
+			flush_interval -1
+		}
+	}
+
 	# ── webdav ───────────────────────────────────────────────────────────────
 	# rclone handles its own Basic auth; Caddy only routes. `handle_path` strips
 	# the /webdav prefix so rclone sees paths rooted at /.

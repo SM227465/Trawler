@@ -7,6 +7,7 @@ import { db } from "@/db/client";
 import { appSettings } from "@/db/schema";
 import { hashPassword, verifyPassword } from "@/modules/auth/authService";
 import { fileRepository } from "@/modules/file/fileRepository";
+import { mediaRepository } from "@/modules/media/mediaRepository";
 import { torrentRepository } from "@/modules/torrent/torrentRepository";
 import { newShareId } from "./shareId";
 import { shareRepository } from "./shareRepository";
@@ -151,6 +152,8 @@ export class ShareService {
 		}
 
 		const locked = share.passwordHash !== null && !unlocked;
+		// Only for file shares — a torrent share is a landing page, not a stream.
+		const probe = !locked && file ? await mediaRepository.byFileId(file.id) : null;
 
 		return ServiceResponse.success("Share", {
 			id: share.id,
@@ -164,6 +167,10 @@ export class ShareService {
 			scope: share.scope,
 			allowDownload: share.allowDownload,
 			allowStream: share.allowStream,
+			// Withheld while locked, like the name and size: what a file IS is
+			// still information about it.
+			playback: locked ? null : (probe?.playback ?? null),
+			durationSeconds: locked ? null : (probe?.durationSeconds ?? null),
 			expiresAt: share.expiresAt?.toISOString() ?? null,
 			bytesServed: share.bytesServed,
 			maxBytes: share.maxBytes,

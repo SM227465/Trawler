@@ -156,20 +156,21 @@ function Row({ entry, onOpen, onDeleted }: { entry: BrowseEntry; onOpen: (p: str
 				    reserved slot its absence dragged the size and time columns 30px
 				    left on every non-playable row. 6 x size-7 + 5 x gap-0.5 = 11.125rem. */}
 				<span className="flex w-[11.125rem] shrink-0 justify-end gap-0.5">
-					{!isDir && (media.playable || media.needsExternalPlayer) && (
-						<button
-							type="button"
-							onClick={() => setPlaying(true)}
-							aria-label={`Play ${entry.name}`}
-							title={media.needsExternalPlayer ? "Preview (may need VLC)" : "Play"}
-							className={cn(
-								"grid size-7 cursor-pointer place-items-center rounded-[var(--ct-radius-sm)]",
-								"text-fg-subtle transition-colors hover:bg-surface-inset hover:text-accent",
-							)}
-						>
-							<Play className="size-3.5" aria-hidden />
-						</button>
-					)}
+					{!isDir &&
+						(entry.playback ? entry.playback !== "not_media" : media.playable || media.needsExternalPlayer) && (
+							<button
+								type="button"
+								onClick={() => setPlaying(true)}
+								aria-label={`Play ${entry.name}`}
+								title={media.needsExternalPlayer ? "Preview (may need VLC)" : "Play"}
+								className={cn(
+									"grid size-7 cursor-pointer place-items-center rounded-[var(--ct-radius-sm)]",
+									"text-fg-subtle transition-colors hover:bg-surface-inset hover:text-accent",
+								)}
+							>
+								<Play className="size-3.5" aria-hidden />
+							</button>
+						)}
 
 					<button
 						type="button"
@@ -286,6 +287,8 @@ function Row({ entry, onOpen, onDeleted }: { entry: BrowseEntry; onOpen: (p: str
 					open={playing}
 					onClose={() => setPlaying(false)}
 					name={entry.name}
+					playback={entry.playback}
+					durationSeconds={entry.durationSeconds}
 					getLink={() => api.browseLink(entry.path)}
 				/>
 			)}

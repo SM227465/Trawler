@@ -1,7 +1,8 @@
-import { CloudDownload, FileWarning } from "lucide-react";
+import { CloudDownload, Download, FileWarning } from "lucide-react";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { AutoDownload } from "@/components/share/AutoDownload";
+import { SharePlayer } from "@/components/share/SharePlayer";
 import { asAttachment } from "@/lib/attachment";
 import { formatBytes } from "@/lib/format";
 import { fetchPublicShare, type ShareDeadReason } from "@/lib/serverApi";
@@ -90,6 +91,10 @@ export default async function SharePage({ params }: Params) {
 
 	const share = result.share;
 
+	// Both conditions matter: the owner may have disabled streaming, and the
+	// probe may say the browser cannot play it at all.
+	const canPlay = share.allowStream && (share.playback === "direct" || share.playback === "remux");
+
 	if (share.locked) {
 		return (
 			<Shell>
@@ -124,8 +129,35 @@ export default async function SharePage({ params }: Params) {
 				)}
 			</dl>
 
+			{/* Playable shares get a player; everything else still starts
+			    downloading the moment the page opens.
+
+			    Those two cannot both happen: auto-downloading behind a player
+			    means the file arrives whether or not the viewer wanted it, and
+			    the player becomes decoration. So a share the browser can play
+			    offers Play plus a Download button, and a share it cannot play
+			    keeps the straight-to-download behaviour it had. */}
+			{canPlay && share.name ? (
+				<SharePlayer
+					shareId={share.id}
+					name={share.name}
+					playback={share.playback}
+					durationSeconds={share.durationSeconds}
+				/>
+			) : null}
+
 			{share.allowDownload ? (
-				<AutoDownload href={asAttachment(`/dl/${share.id}/${encodeURIComponent(share.name ?? "download")}`)} />
+				canPlay ? (
+					<a
+						href={asAttachment(`/dl/${share.id}/${encodeURIComponent(share.name ?? "download")}`)}
+						className="mt-3 inline-flex h-11 w-full items-center justify-center gap-2 rounded-[var(--ct-radius-sm)] bg-accent px-4 text-sm font-medium text-accent-fg transition-colors hover:bg-accent-hover"
+					>
+						<Download className="size-4" aria-hidden />
+						Download
+					</a>
+				) : (
+					<AutoDownload href={asAttachment(`/dl/${share.id}/${encodeURIComponent(share.name ?? "download")}`)} />
+				)
 			) : (
 				<p className="mt-6 text-sm text-fg-muted">Downloading is disabled for this link.</p>
 			)}
