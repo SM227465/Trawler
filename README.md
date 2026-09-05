@@ -1,8 +1,9 @@
-# Trawler
+# Trawler — a self-hosted torrent box and seedbox
 
-A self-hosted torrent box with a real file manager. Add torrents from anywhere,
-watch them download live, browse and stream the results in your browser, mount
-them as a network drive, and hand out revocable links.
+A self-hosted seedbox you run in Docker: qBittorrent underneath, with a real
+file manager on top. Add torrents from anywhere, watch them download live,
+browse and stream the results in your browser, mount them as a network drive,
+and hand out revocable links.
 
 Built to run on a **free-tier VPS** — it fits comfortably in 1 GB of RAM — but it
 runs anywhere Docker does: Oracle Cloud, EC2, DigitalOcean, Azure, GCP, Hetzner,
