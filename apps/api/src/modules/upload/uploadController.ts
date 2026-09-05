@@ -30,6 +30,10 @@ class UploadController {
 		handleServiceResponse(result, res);
 	};
 
+	public retry: RequestHandler = async (req: Request, res: Response) => {
+		handleServiceResponse(await uploadService.retry(req.params.id), res);
+	};
+
 	public cancel: RequestHandler = async (req: Request, res: Response) => {
 		handleServiceResponse(await uploadService.cancel(req.params.id), res);
 	};

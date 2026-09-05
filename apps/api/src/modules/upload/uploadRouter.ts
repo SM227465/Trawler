@@ -35,6 +35,17 @@ uploadRegistry.registerPath({
 uploadRouter.post("/", validateRequest(CreateUploadSchema), uploadController.create);
 
 uploadRegistry.registerPath({
+	method: "post",
+	path: "/api/v1/uploads/{id}/retry",
+	tags: ["Upload"],
+	description:
+		"Re-queue a failed transfer with the same source and destination. Recorded as a new row, so the failure stays in the history.",
+	request: { params: z.object({ id: z.string() }) },
+	responses: createApiResponse(UploadSchema, "Queued"),
+});
+uploadRouter.post("/:id/retry", validateRequest(UploadIdParams), uploadController.retry);
+
+uploadRegistry.registerPath({
 	method: "delete",
 	path: "/api/v1/uploads/finished",
 	tags: ["Upload"],

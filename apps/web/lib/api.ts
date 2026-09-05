@@ -437,6 +437,8 @@ export const api = {
 
 	cancelUpload: (id: string) => apiFetch<Upload>(`/uploads/${id}`, { method: "DELETE" }),
 
+	retryUpload: (id: string) => apiFetch<Upload>(`/uploads/${id}/retry`, { method: "POST" }),
+
 	clearFinishedUploads: () => apiFetch<{ removed: number }>("/uploads/finished", { method: "DELETE" }),
 
 	createRemote: (body: CreateRemoteInput) =>

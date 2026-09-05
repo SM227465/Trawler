@@ -1,5 +1,5 @@
 "use client";
-import { useQueryClient } from "@tanstack/react-query";
+import { type QueryClient, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { api, refreshSession, type Torrent } from "./api";
 import { useCacheOnly } from "./useCacheOnly";
@@ -60,6 +60,23 @@ const toIndexEntry = (t: Torrent): TorrentIndexEntry => ({
 	etaSeconds: t.etaSeconds ?? null,
 	addedAt: t.addedAt as unknown as string,
 });
+
+/**
+ * Insert or replace one entry in the index, newest-first for anything new.
+ *
+ * Both the SSE handler and the fetch that backfills a never-seen torrent write
+ * through here, so a torrent lands in the index exactly once however it arrived.
+ */
+const upsertIndex = (qc: QueryClient, full: Torrent) => {
+	qc.setQueryData<TorrentIndexEntry[]>(TORRENT_INDEX_KEY, (prev) => {
+		const next = prev ? [...prev] : [];
+		const entry = toIndexEntry(full);
+		const i = next.findIndex((e) => e.id === full.id);
+		if (i >= 0) next[i] = entry;
+		else next.unshift(entry);
+		return next;
+	});
+};
 
 /** Stable identity — a fresh [] each render would defeat memoisation downstream. */
 const EMPTY_INDEX: TorrentIndexEntry[] = [];
@@ -124,7 +141,7 @@ export function useTorrentStream(enabled: boolean) {
 				if (!deltas.length) return;
 
 				const fresh: string[] = [];
-				let indexDirty = false;
+				const indexDirty: string[] = [];
 
 				for (const d of deltas) {
 					const existed = qc.getQueryData<Torrent>(torrentKey(d.id)) !== undefined;
@@ -141,29 +158,31 @@ export function useTorrentStream(enabled: boolean) {
 						//
 						// Fetch the whole torrent instead. One GET, only for genuinely
 						// new ids, and the row shows its placeholder until it lands.
-						void qc.fetchQuery({ queryKey: torrentKey(d.id), queryFn: () => api.getTorrent(d.id) });
+						// Index it when it lands, not now. The list renders only ids
+						// that have an index entry, and this fetch has not resolved
+						// yet — so writing the index synchronously below skipped every
+						// new torrent. A downloading one recovered on its next speed
+						// tick; an idle or complete one emits no further deltas, so it
+						// stayed invisible until a page refresh reseeded the list.
+						void qc
+							.fetchQuery({ queryKey: torrentKey(d.id), queryFn: () => api.getTorrent(d.id) })
+							.then((full) => upsertIndex(qc, full))
+							.catch(() => {
+								// Gone between the delta and the fetch. The "removed"
+								// event cleans up the id; nothing to do here.
+							});
 					}
 
 					if (!existed) fresh.push(d.id);
 					// The index backs filtering AND sorting, so it tracks every
 					// sortable field. Rows still own their full data, so a tick
 					// re-renders the list's id array — not the rows themselves.
-					if (!existed || SORTABLE_KEYS.some((k) => d[k] !== undefined)) indexDirty = true;
+					if (existed && SORTABLE_KEYS.some((k) => d[k] !== undefined)) indexDirty.push(d.id);
 				}
 
-				if (indexDirty) {
-					qc.setQueryData<TorrentIndexEntry[]>(TORRENT_INDEX_KEY, (prev) => {
-						const next = prev ? [...prev] : [];
-						for (const d of deltas) {
-							const full = qc.getQueryData<Torrent>(torrentKey(d.id));
-							if (!full) continue;
-							const entry = toIndexEntry(full);
-							const i = next.findIndex((e) => e.id === d.id);
-							if (i >= 0) next[i] = entry;
-							else next.unshift(entry);
-						}
-						return next;
-					});
+				for (const id of indexDirty) {
+					const full = qc.getQueryData<Torrent>(torrentKey(id));
+					if (full) upsertIndex(qc, full);
 				}
 				if (fresh.length) {
 					qc.setQueryData<string[]>(TORRENT_IDS_KEY, (prev) => [

@@ -1,6 +1,5 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
-import { useVirtualizer } from "@tanstack/react-virtual";
 import { ArrowDown, ArrowUp, Inbox } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
 import { api } from "@/lib/api";
@@ -37,7 +36,6 @@ export function TorrentList({
 	// The URL is the source of truth; convert to the 0-based index used below.
 	const { hidden, toggle, reset } = useColumns();
 	const pageIndex = Math.max(0, page - 1);
-	const parentRef = useRef<HTMLDivElement>(null);
 
 	// Seeds the id list once; SSE keeps it current from then on.
 	const { data: allIds = [], isLoading } = useQuery<string[]>({
@@ -90,15 +88,6 @@ export function TorrentList({
 					{ key, dir: key === "name" ? "asc" : "desc" },
 		);
 	};
-
-	const virtualizer = useVirtualizer({
-		count: ids.length,
-		getScrollElement: () => parentRef.current,
-		// Rows are taller on mobile (stacked) than desktop (single line), so the
-		// estimate is a starting point and measureElement corrects it.
-		estimateSize: () => 116,
-		overscan: 6,
-	});
 
 	if (isLoading) {
 		return (
@@ -170,31 +159,24 @@ export function TorrentList({
 					})}
 				</div>
 
+				{/* Plain rendering, deliberately.
+				    This was virtualized, and the list is ALSO paginated at 25/50/100
+				    — so the virtualizer was measuring at most a hundred rows that
+				    were never going to be a performance problem, while introducing
+				    absolute positioning whose arithmetic had to stay in step with
+				    every row's real height. It did not: rows that had not been
+				    measured yet were laid out at the 116px estimate while rendering
+				    at ~56px on desktop, leaving a 60px hole mid-list.
+				    A hundred rows of ordinary DOM costs nothing and cannot drift. */}
 				<div
 					ref={(el) => {
-						parentRef.current = el;
 						scrollToTop.current = el;
 					}}
 					className="max-h-[calc(100dvh-26rem)] overflow-auto"
 				>
-					<div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
-						{virtualizer.getVirtualItems().map((item) => (
-							<div
-								key={ids[item.index]}
-								data-index={item.index}
-								ref={virtualizer.measureElement}
-								style={{
-									position: "absolute",
-									top: 0,
-									left: 0,
-									width: "100%",
-									transform: `translateY(${item.start}px)`,
-								}}
-							>
-								<TorrentRow id={ids[item.index]} hidden={hidden} />
-							</div>
-						))}
-					</div>
+					{ids.map((id) => (
+						<TorrentRow key={id} id={id} hidden={hidden} />
+					))}
 				</div>
 			</div>
 

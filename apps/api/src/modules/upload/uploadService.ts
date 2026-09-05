@@ -198,6 +198,29 @@ class UploadService {
 		);
 	}
 
+	/**
+	 * Re-queues a transfer that failed.
+	 *
+	 * A new row rather than resetting the old one: the failure is part of the
+	 * history, and "this failed, then I retried it" is a more useful record than
+	 * a row that quietly changed its mind. The partial unique index still
+	 * prevents two live transfers of the same path.
+	 */
+	async retry(id: string) {
+		const row = await uploadRepository.byId(id);
+		if (!row) return ServiceResponse.failure("Not found", null, ErrorCode.RESOURCE_NOT_FOUND, "RESOURCE_NOT_FOUND");
+		if (row.status === "queued" || row.status === "running") {
+			return ServiceResponse.success("Already running", row);
+		}
+
+		const queued = await this.queue(row.remoteName, row.srcPath, row.direction);
+		if (queued.success) {
+			const fresh = queued.responseObject as { id?: string } | null;
+			if (fresh?.id) void this.start(fresh.id);
+		}
+		return queued;
+	}
+
 	async cancel(id: string) {
 		const row = await uploadRepository.byId(id);
 		if (!row) return ServiceResponse.failure("Not found", null, ErrorCode.RESOURCE_NOT_FOUND, "RESOURCE_NOT_FOUND");

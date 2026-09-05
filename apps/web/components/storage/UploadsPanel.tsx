@@ -1,6 +1,15 @@
 "use client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, CircleCheck, CircleX, LoaderCircle, Upload as UploadIcon, X } from "lucide-react";
+import {
+	ArrowDown,
+	ArrowUp,
+	CircleCheck,
+	CircleX,
+	LoaderCircle,
+	RotateCw,
+	Upload as UploadIcon,
+	X,
+} from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { api, type Upload } from "@/lib/api";
 import { cn } from "@/lib/cn";
@@ -18,6 +27,11 @@ function Row({ upload }: { upload: Upload }) {
 	const qc = useQueryClient();
 	const cancel = useMutation({
 		mutationFn: () => api.cancelUpload(upload.id),
+		onSuccess: () => qc.invalidateQueries({ queryKey: ["uploads"] }),
+	});
+
+	const retry = useMutation({
+		mutationFn: () => api.retryUpload(upload.id),
 		onSuccess: () => qc.invalidateQueries({ queryKey: ["uploads"] }),
 	});
 
@@ -62,7 +76,27 @@ function Row({ upload }: { upload: Upload }) {
 						<X className="size-3.5" />
 					</Button>
 				)}
+				{(upload.status === "failed" || upload.status === "cancelled") && (
+					<Button
+						size="icon"
+						variant="ghost"
+						onClick={() => retry.mutate()}
+						disabled={retry.isPending}
+						title="Try this transfer again"
+						aria-label={`Retry ${upload.srcPath}`}
+					>
+						<RotateCw className={cn("size-3.5", retry.isPending && "animate-spin")} />
+					</Button>
+				)}
 			</div>
+
+			{/* The reason it failed is the whole point of offering a retry —
+			    without it you are just clicking the same button hopefully. */}
+			{upload.status === "failed" && upload.error && (
+				<p className="mt-1 pl-6 text-xs text-status-errored" title={upload.error}>
+					{upload.error}
+				</p>
+			)}
 
 			{upload.status === "running" && (
 				<div className="mt-1.5 h-1 overflow-hidden rounded-full bg-surface-inset">

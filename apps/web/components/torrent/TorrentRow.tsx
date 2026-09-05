@@ -11,6 +11,7 @@ import {
 	Pin,
 	PinOff,
 	Play,
+	RefreshCw,
 	Trash2,
 } from "lucide-react";
 import Link from "next/link";
@@ -73,7 +74,7 @@ export const TorrentRow = memo(function TorrentRow({ id, hidden }: { id: string;
 	const { data: t } = useQuery<Torrent>({ queryKey: torrentKey(id), queryFn: () => api.getTorrent(id) });
 
 	const act = useMutation({
-		mutationFn: (verb: "pause" | "resume" | "pin" | "unpin") => api.action(id, verb),
+		mutationFn: (verb: "pause" | "resume" | "recheck" | "pin" | "unpin") => api.action(id, verb),
 		onSuccess: (_r, verb) => {
 			if (verb === "pin" || verb === "unpin") {
 				qc.setQueryData<Torrent>(torrentKey(id), (p) => (p ? { ...p, pinned: verb === "pin" } : p));
@@ -258,6 +259,25 @@ export const TorrentRow = memo(function TorrentRow({ id, hidden }: { id: string;
 				>
 					<FolderOpen className="size-3.5" />
 				</Button>
+
+				{/* Recheck: re-verify what is on disk against the torrent.
+				    Shown only when errored, which is when it is the right answer —
+				    a write that failed part-way (a full disk, most recently) leaves
+				    pieces that will never validate, and rechecking discards exactly
+				    those and carries on. The alternative was deleting 1.25 GB to
+				    fix a handful of bad pieces. */}
+				{t.status === "errored" && (
+					<Button
+						size="icon"
+						variant="ghost"
+						title="Re-check the downloaded data and resume"
+						aria-label="Re-check this torrent"
+						disabled={act.isPending}
+						onClick={() => act.mutate("recheck")}
+					>
+						<RefreshCw className={cn("size-3.5", act.isPending && "animate-spin")} />
+					</Button>
+				)}
 
 				<Button
 					size="icon"
