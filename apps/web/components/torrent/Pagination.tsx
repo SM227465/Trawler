@@ -25,7 +25,9 @@ export function Pagination({
 	if (total <= PAGE_SIZES[0] && page === 0) return null;
 
 	return (
-		<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+		// shrink-0: the table above absorbs every pixel of shrinking, so this
+		// keeps its height instead of being squeezed out of the column.
+		<div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 			<p className="tabular text-xs text-fg-muted">
 				Showing {from}–{to} of {total}
 			</p>

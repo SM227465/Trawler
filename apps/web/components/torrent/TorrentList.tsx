@@ -114,11 +114,13 @@ export function TorrentList({
 	}
 
 	return (
-		// Fills the page column rather than sizing itself: min-h-0 is what lets a
-		// flex child shrink below its content and hand the overflow to the scroll
-		// container below, instead of pushing the pagination off-screen.
+		// The column owns the page's remaining height; the table inside does NOT
+		// grow into it. A card that stretched left two torrents floating above a
+		// screenful of empty surface. It sizes to its rows and SHRINKS — min-h-0
+		// with the default flex-shrink — only once they need more room than is
+		// left, which is the point the scroll container takes over.
 		<div className="flex min-h-0 flex-1 flex-col gap-3">
-			<div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[var(--ct-radius)] border border-border bg-surface">
+			<div className="flex min-h-0 flex-col overflow-hidden rounded-[var(--ct-radius)] border border-border bg-surface">
 				{/* Same ROW_GRID as the rows — that is what keeps them aligned. */}
 				<div
 					className={cn("hidden shrink-0 border-b border-border bg-surface-inset px-4 py-2 lg:block", ROW_GRID)}
@@ -169,15 +171,17 @@ export function TorrentList({
 				    at ~56px on desktop, leaving a 60px hole mid-list.
 				    A hundred rows of ordinary DOM costs nothing and cannot drift.
 
-				    The height is now whatever the flex column has left. It used to be
-				    100dvh minus a hardcoded 26rem, which assumed a header, a toolbar
-				    and a pagination bar of fixed heights — none of which are fixed.
-				    On a 768px laptop that guess left room for four rows. */}
+				    The height is whatever is left after the rows have asked for what
+				    they need — no flex-1 here, or a basis of 0 would collapse the
+				    card when the list is short. It used to be 100dvh minus a
+				    hardcoded 26rem, which assumed a header, a toolbar and a
+				    pagination bar of fixed heights — none of which are fixed. On a
+				    768px laptop that guess left room for four rows. */}
 				<div
 					ref={(el) => {
 						scrollToTop.current = el;
 					}}
-					className="min-h-0 flex-1 overflow-auto"
+					className="min-h-0 overflow-auto"
 				>
 					{ids.map((id) => (
 						<TorrentRow key={id} id={id} hidden={hidden} />
