@@ -32,6 +32,10 @@
 	--ct-border: oklch(0.905 0.005 255);
 	--ct-border-strong: oklch(0.82 0.008 255);
 
+	/* The cyan end of a transfer bar; the blue end is the accent, so the bar
+	   belongs to the theme rather than being two hardcoded hexes. */
+	--ct-transfer-from: oklch(0.72 0.14 215);
+
 	/* accent */
 	--ct-accent: oklch(0.56 0.17 250);
 	--ct-accent-hover: oklch(0.5 0.18 250);
@@ -104,6 +108,8 @@
 		--ct-border: oklch(0.295 0.012 258);
 		--ct-border-strong: oklch(0.4 0.015 258);
 
+		--ct-transfer-from: oklch(0.82 0.12 210);
+
 		--ct-accent: oklch(0.7 0.15 250);
 		--ct-accent-hover: oklch(0.77 0.14 250);
 		--ct-accent-fg: oklch(0.16 0.02 258);
@@ -161,6 +167,8 @@
 
 	--ct-border: oklch(0.295 0.012 258);
 	--ct-border-strong: oklch(0.4 0.015 258);
+
+	--ct-transfer-from: oklch(0.82 0.12 210);
 
 	--ct-accent: oklch(0.7 0.15 250);
 	--ct-accent-hover: oklch(0.77 0.14 250);
@@ -374,6 +382,81 @@
 	.ct-dialog[open],
 	.ct-dialog[open]::backdrop {
 		animation: none;
+	}
+}
+
+/* ── transfer bar ─────────────────────────────────────────────────────────
+   A gradient fill with a highlight travelling along it. The movement is the
+   point: a transfer of tens of gigabytes can hold a percentage for minutes,
+   and a bar that has not moved is indistinguishable from one that has stalled.
+   The sweep says "still going" between percentages.
+
+   Both animations are transform-only, so they run on the compositor and cost
+   nothing on a page that already repaints a torrent table every second. */
+.ct-transfer-fill {
+	background-image: linear-gradient(90deg, var(--ct-transfer-from) 6%, var(--ct-accent) 95%);
+}
+
+/* A narrow glow rather than a wide wash: measured off the reference at 12fps,
+   the highlight crosses about a fifth of the fill every 0.4s — one traverse in
+   roughly 1.9s — and stays compact the whole way. Sized as a fraction of the
+   fill so it still reads on a bar that is only a few percent along. */
+.ct-transfer-fill::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background-image: linear-gradient(
+		90deg,
+		transparent 0%,
+		color-mix(in oklab, white 55%, transparent) 6%,
+		transparent 13%
+	);
+	animation: ct-transfer-sweep 1.9s linear infinite;
+}
+
+/* No total yet — a restore, or a source rclone has not sized. A segment
+   crossing the whole track, never a fixed width that would read as progress. */
+.ct-transfer-indeterminate::after {
+	content: "";
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	width: 40%;
+	border-radius: inherit;
+	background-image: linear-gradient(90deg, transparent, var(--ct-accent), transparent);
+	animation: ct-transfer-slide 1.5s ease-in-out infinite;
+}
+
+@keyframes ct-transfer-sweep {
+	from {
+		transform: translateX(-13%);
+	}
+	to {
+		transform: translateX(100%);
+	}
+}
+
+@keyframes ct-transfer-slide {
+	from {
+		transform: translateX(-100%);
+	}
+	to {
+		transform: translateX(250%);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	/* The determinate bar still carries its meaning without the sweep. The
+	   indeterminate one does not — a segment parked at 40% reads as progress —
+	   so it becomes a dim full-width fill instead. */
+	.ct-transfer-fill::after {
+		animation: none;
+		opacity: 0;
+	}
+	.ct-transfer-indeterminate::after {
+		animation: none;
+		width: 100%;
+		opacity: 0.35;
 	}
 }
 

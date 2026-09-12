@@ -90,12 +90,19 @@ class UploadService {
 		// there is nothing local to resolve yet — but the destination still has to
 		// be contained, which resolveDownloadPath checks without requiring the
 		// path to exist.
+		let sizeBytes = 0;
+
 		if (direction === "up") {
 			const resolved = await resolveRealPath(rel);
 			if (!resolved.ok) {
 				logger.warn({ rawPath, reason: resolved.reason }, "upload refused");
 				return ServiceResponse.failure("Path not found", null, ErrorCode.RESOURCE_NOT_FOUND, "RESOURCE_NOT_FOUND");
 			}
+
+			// Measured once, used twice: the fit check below, and the progress bar.
+			// rclone does not report a total until a transfer ends, so without this
+			// the UI can only pulse for the hours a large copy takes.
+			sizeBytes = await sizeOnDisk(resolved.absPath);
 
 			// Refuse a transfer that cannot finish, rather than discovering it an
 			// hour in. A 38 GB upload into a 15 GB Drive fails at the provider
@@ -105,17 +112,14 @@ class UploadService {
 			// Only when the provider actually reports free space: S3 has no such
 			// number, and `about` returning nothing means unknown, not full.
 			const about = await rclone.about(remoteFs(remoteName, meta.bucket, meta.prefix));
-			if (about?.free != null) {
-				const size = await sizeOnDisk(resolved.absPath);
-				if (size > about.free) {
-					logger.info({ remoteName, rel, size, free: about.free }, "upload refused - will not fit");
-					return ServiceResponse.failure(
-						`That is ${human(size)} and ${remoteName} has only ${human(about.free)} free`,
-						{ sizeBytes: size, freeBytes: about.free },
-						ErrorCode.VALIDATION_ERROR,
-						"REMOTE_FULL",
-					);
-				}
+			if (about?.free != null && sizeBytes > about.free) {
+				logger.info({ remoteName, rel, sizeBytes, free: about.free }, "upload refused - will not fit");
+				return ServiceResponse.failure(
+					`That is ${human(sizeBytes)} and ${remoteName} has only ${human(about.free)} free`,
+					{ sizeBytes, freeBytes: about.free },
+					ErrorCode.VALIDATION_ERROR,
+					"REMOTE_FULL",
+				);
 			}
 		} else {
 			const contained = resolveDownloadPath(rel);
@@ -138,6 +142,9 @@ class UploadService {
 				dstFs,
 				direction,
 				status: "queued",
+				// A restore has no local source to measure, so it stays 0 and the bar
+				// stays indeterminate — which is the truth, not a missing feature.
+				bytesTotal: sizeBytes,
 			});
 			return ServiceResponse.success(direction === "up" ? "Upload queued" : "Restore queued", row);
 		} catch (err) {

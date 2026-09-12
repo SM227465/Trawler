@@ -11,6 +11,7 @@ import {
 	X,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { TransferBar } from "@/components/ui/TransferBar";
 import { api, type Upload } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { formatBytes, formatEta, formatSince } from "@/lib/format";
@@ -39,9 +40,10 @@ function Row({ upload }: { upload: Upload }) {
 	const s = STATE[upload.status];
 	const Icon = s.icon;
 	const live = upload.status === "running" || upload.status === "queued";
-	// bytesTotal is only known once rclone has finished, so mid-transfer the
-	// honest thing to show is bytes moved and a speed, not a fake percentage.
-	const pct = upload.bytesTotal > 0 ? Math.min(100, (upload.bytesDone / upload.bytesTotal) * 100) : null;
+	// The source is measured when the transfer is queued, so a percentage is
+	// real. It stays null for a restore, where the size lives at the provider
+	// and nothing local was walked — an indeterminate bar, honestly.
+	const fraction = upload.bytesTotal > 0 ? Math.min(1, upload.bytesDone / upload.bytesTotal) : null;
 
 	return (
 		<li className="border-b border-border px-4 py-2.5 last:border-b-0">
@@ -60,6 +62,7 @@ function Row({ upload }: { upload: Upload }) {
 				<span className={cn("shrink-0 text-xs", s.tone)}>{s.label}</span>
 				<span className="tabular shrink-0 text-xs text-fg-subtle">
 					{formatBytes(upload.bytesDone)}
+					{live && fraction !== null && ` of ${formatBytes(upload.bytesTotal)}`}
 					{upload.status === "running" && (upload.speedBps ?? 0) > 0 && ` · ${formatBytes(upload.speedBps ?? 0)}/s`}
 					{upload.status === "running" && upload.etaSeconds ? ` · ${formatEta(upload.etaSeconds)}` : ""}
 					{!live && upload.finishedAt && ` · ${formatSince(upload.finishedAt)}`}
@@ -99,17 +102,7 @@ function Row({ upload }: { upload: Upload }) {
 				</p>
 			)}
 
-			{upload.status === "running" && (
-				<div className="mt-1.5 h-1 overflow-hidden rounded-full bg-surface-inset">
-					<div
-						className={cn(
-							"h-full rounded-full bg-accent transition-[width] duration-500",
-							pct === null && "w-1/3 animate-pulse",
-						)}
-						style={pct === null ? undefined : { width: `${pct}%` }}
-					/>
-				</div>
-			)}
+			{upload.status === "running" && <TransferBar value={fraction} className="mt-1.5" />}
 
 			{upload.error && (
 				<p className="mt-1 text-xs text-status-errored" title={upload.error}>

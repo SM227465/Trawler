@@ -2,6 +2,7 @@
 import { ArrowUp, CloudUpload, LoaderCircle, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { TransferBar } from "@/components/ui/TransferBar";
 import type { Upload } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { formatBytes, formatEta } from "@/lib/format";
@@ -127,7 +128,14 @@ function Row({ upload }: { upload: Upload }) {
 			</div>
 
 			{upload.status === "running" && (
-				<p className="tabular mt-0.5 pl-5.5 text-[0.6875rem] text-fg-subtle">
+				<TransferBar
+					value={upload.bytesTotal > 0 ? Math.min(1, upload.bytesDone / upload.bytesTotal) : null}
+					className="mt-1.5"
+				/>
+			)}
+
+			{upload.status === "running" && (
+				<p className="tabular mt-1 pl-5.5 text-[0.6875rem] text-fg-subtle">
 					{formatBytes(upload.speedBps ?? 0)}/s
 					{upload.etaSeconds ? ` · ${formatEta(upload.etaSeconds)} left` : ""}
 					{` · ${upload.remoteName}`}
