@@ -1,4 +1,4 @@
-import { stat } from "node:fs/promises";
+import { readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { v7 as uuidv7 } from "uuid";
 import { ErrorCode } from "@/common/models/errorCodes";
@@ -23,6 +23,45 @@ function pgErrorCode(err: unknown): string | undefined {
 
 /** Stats are bucketed per upload so progress is per-transfer, not global. */
 export const groupFor = (id: string) => `upload/${id}`;
+
+const UNITS = ["B", "KB", "MB", "GB", "TB"];
+
+/** Binary units, to match every size the web app prints. */
+function human(bytes: number): string {
+	let v = bytes;
+	let i = 0;
+	while (v >= 1024 && i < UNITS.length - 1) {
+		v /= 1024;
+		i++;
+	}
+	return `${i === 0 ? v.toFixed(0) : v.toFixed(v >= 100 ? 0 : 1)} ${UNITS[i]}`;
+}
+
+/**
+ * What the transfer will actually move.
+ *
+ * Symlinks are skipped rather than followed — rclone does not follow them
+ * either by default, so counting them would inflate the total and refuse
+ * transfers that would have fitted. Files that vanish mid-walk are skipped for
+ * the same reason a torrent can be deleted between queueing and starting.
+ */
+export async function sizeOnDisk(absPath: string): Promise<number> {
+	let st: Awaited<ReturnType<typeof stat>>;
+	try {
+		st = await stat(absPath);
+	} catch {
+		return 0;
+	}
+	if (!st.isDirectory()) return st.size;
+
+	let total = 0;
+	const entries = await readdir(absPath, { withFileTypes: true }).catch(() => []);
+	for (const e of entries) {
+		if (e.isSymbolicLink()) continue;
+		total += await sizeOnDisk(path.join(absPath, e.name));
+	}
+	return total;
+}
 
 class UploadService {
 	/**
@@ -56,6 +95,27 @@ class UploadService {
 			if (!resolved.ok) {
 				logger.warn({ rawPath, reason: resolved.reason }, "upload refused");
 				return ServiceResponse.failure("Path not found", null, ErrorCode.RESOURCE_NOT_FOUND, "RESOURCE_NOT_FOUND");
+			}
+
+			// Refuse a transfer that cannot finish, rather than discovering it an
+			// hour in. A 38 GB upload into a 15 GB Drive fails at the provider
+			// somewhere near the end, having spent the time and the egress, and
+			// leaves a part-uploaded file occupying the account.
+			//
+			// Only when the provider actually reports free space: S3 has no such
+			// number, and `about` returning nothing means unknown, not full.
+			const about = await rclone.about(remoteFs(remoteName, meta.bucket, meta.prefix));
+			if (about?.free != null) {
+				const size = await sizeOnDisk(resolved.absPath);
+				if (size > about.free) {
+					logger.info({ remoteName, rel, size, free: about.free }, "upload refused - will not fit");
+					return ServiceResponse.failure(
+						`That is ${human(size)} and ${remoteName} has only ${human(about.free)} free`,
+						{ sizeBytes: size, freeBytes: about.free },
+						ErrorCode.VALIDATION_ERROR,
+						"REMOTE_FULL",
+					);
+				}
 			}
 		} else {
 			const contained = resolveDownloadPath(rel);

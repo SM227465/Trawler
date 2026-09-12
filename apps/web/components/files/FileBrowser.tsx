@@ -3,6 +3,8 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import {
 	Check,
 	ChevronRight,
+	CloudCheck,
+	CloudOff,
 	Copy,
 	Download,
 	File,
@@ -21,12 +23,13 @@ import { useState } from "react";
 import { UploadToRemote } from "@/components/files/UploadToRemote";
 import { CreateShareDialog } from "@/components/share/CreateShareDialog";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { api, type BrowseEntry } from "@/lib/api";
+import { api, type BrowseEntry, type Upload } from "@/lib/api";
 import { asAttachment } from "@/lib/attachment";
 import { cn } from "@/lib/cn";
 import { formatBytes, formatSince } from "@/lib/format";
 import { classify } from "@/lib/media";
 import { useCopy } from "@/lib/useCopy";
+import { latestByPath, useUploads } from "@/lib/useUploads";
 import { MediaPlayerDialog } from "./MediaPlayerDialog";
 
 const VIDEO = /\.(mp4|mkv|avi|mov|webm|m4v|ts|flv|wmv)$/i;
@@ -86,7 +89,63 @@ function Breadcrumbs({ path, onNavigate, root }: { path: string; onNavigate: (p:
 	);
 }
 
-function Row({ entry, onOpen, onDeleted }: { entry: BrowseEntry; onOpen: (p: string) => void; onDeleted: () => void }) {
+/**
+ * Whether this path is on storage, on its way there, or failed getting there.
+ *
+ * Answers "what have I already transferred?" where the question is actually
+ * asked — in the browser, next to the file — instead of by eye against the
+ * remote's own listing on another page.
+ *
+ * Icon always, words only when there is room: this sits in a row that already
+ * drops two columns on a phone.
+ */
+function TransferBadge({ upload }: { upload?: Upload }) {
+	if (!upload) return <span className="w-0 shrink-0 md:w-24" aria-hidden />;
+
+	const { status, remoteName } = upload;
+	const live = status === "queued" || status === "running";
+	const label = live ? (status === "queued" ? "Queued" : "Sending") : status === "completed" ? remoteName : "Failed";
+	const title =
+		status === "failed"
+			? (upload.error ?? `Transfer to ${remoteName} failed`)
+			: status === "completed"
+				? `On ${remoteName}`
+				: `${label} — ${remoteName}`;
+
+	if (status === "cancelled") return <span className="w-0 shrink-0 md:w-24" aria-hidden />;
+
+	return (
+		<span
+			title={title}
+			className={cn(
+				"flex w-auto shrink-0 items-center justify-end gap-1 text-xs md:w-24",
+				status === "failed" ? "text-status-errored" : status === "completed" ? "text-status-completed" : "text-accent",
+			)}
+		>
+			{live ? (
+				<LoaderCircle className="size-3.5 shrink-0 animate-spin" aria-hidden />
+			) : status === "failed" ? (
+				<CloudOff className="size-3.5 shrink-0" aria-hidden />
+			) : (
+				<CloudCheck className="size-3.5 shrink-0" aria-hidden />
+			)}
+			<span className="hidden truncate md:inline">{label}</span>
+		</span>
+	);
+}
+
+function Row({
+	entry,
+	upload,
+	onOpen,
+	onDeleted,
+}: {
+	entry: BrowseEntry;
+	/** The latest transfer of this path to storage, if there has been one. */
+	upload?: Upload;
+	onOpen: (p: string) => void;
+	onDeleted: () => void;
+}) {
 	const Icon = iconFor(entry);
 	const isDir = entry.type === "dir";
 	const { copied, copy } = useCopy();
@@ -144,6 +203,8 @@ function Row({ entry, onOpen, onDeleted }: { entry: BrowseEntry; onOpen: (p: str
 						{entry.name}
 					</span>
 				)}
+
+				<TransferBadge upload={upload} />
 
 				<span className="tabular hidden w-24 shrink-0 text-right text-xs text-fg-subtle sm:block">
 					{isDir ? "folder" : formatBytes(entry.sizeBytes)}
@@ -303,6 +364,10 @@ function Row({ entry, onOpen, onDeleted }: { entry: BrowseEntry; onOpen: (p: str
 }
 
 export function FileBrowser({ path, onNavigate }: { path: string; onNavigate: (p: string) => void }) {
+	// Same query as the header indicator and the Storage panel, so a transfer
+	// started here is marked here without a second poller.
+	const transfers = latestByPath(useUploads().data);
+
 	const { data, isLoading, isError, refetch } = useQuery({
 		queryKey: ["browse", path],
 		queryFn: () => api.browse(path),
@@ -345,7 +410,13 @@ export function FileBrowser({ path, onNavigate }: { path: string; onNavigate: (p
 						</li>
 					)}
 					{data.entries.map((e) => (
-						<Row key={e.path} entry={e} onOpen={onNavigate} onDeleted={() => refetch()} />
+						<Row
+							key={e.path}
+							entry={e}
+							upload={transfers.get(e.path)}
+							onOpen={onNavigate}
+							onDeleted={() => refetch()}
+						/>
 					))}
 				</ul>
 			)}

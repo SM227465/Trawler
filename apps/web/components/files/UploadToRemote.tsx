@@ -1,9 +1,12 @@
 "use client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, CloudUpload, LoaderCircle } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useToast } from "@/components/ui/Toast";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
+import { UPLOADS_KEY } from "@/lib/useUploads";
 
 /**
  * Copies one path to a configured remote.
@@ -14,14 +17,29 @@ import { cn } from "@/lib/cn";
  */
 export function UploadToRemote({ path, name }: { path: string; name: string }) {
 	const qc = useQueryClient();
+	const router = useRouter();
+	const toast = useToast();
 	const [choosing, setChoosing] = useState(false);
 	const { data } = useQuery({ queryKey: ["remotes"], queryFn: api.remotes, staleTime: 60_000 });
 
+	// A check mark on the button says "accepted" and nothing more, on a page
+	// that then shows no sign the transfer exists. The toast carries where it
+	// went and a way to go and watch it.
 	const send = useMutation({
 		mutationFn: (remote: string) => api.startUpload(remote, path),
-		onSuccess: () => {
+		onSuccess: (_row, remote) => {
 			setChoosing(false);
-			qc.invalidateQueries({ queryKey: ["uploads"] });
+			qc.invalidateQueries({ queryKey: UPLOADS_KEY });
+			toast(`Queued — ${name} → ${remote}`, {
+				action: { label: "View", onClick: () => router.push("/storage") },
+			});
+		},
+		// The server refuses a transfer that cannot fit, and that refusal names
+		// the two numbers. Swallowing it would put the user back where they were:
+		// clicking upload and being told nothing.
+		onError: (err) => {
+			setChoosing(false);
+			toast(err instanceof Error ? err.message : "Could not queue that transfer", { tone: "error" });
 		},
 	});
 

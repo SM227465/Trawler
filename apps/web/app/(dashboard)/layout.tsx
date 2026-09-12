@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { useAuth } from "@/app/providers";
 import { MobileNav } from "@/components/nav/MobileNav";
 import { Sidebar } from "@/components/nav/Sidebar";
+import { TransfersIndicator } from "@/components/storage/TransfersIndicator";
 import { Button } from "@/components/ui/Button";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
@@ -37,6 +38,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 					<h1 className="mr-auto hidden truncate text-sm font-semibold lg:block">Trawler</h1>
 
 					<span className="hidden truncate text-xs text-fg-subtle sm:block">{user.email}</span>
+					{/* Only present while something is moving, so the header stays quiet. */}
+					<TransfersIndicator />
 					<ThemeToggle />
 					<Button size="icon" variant="ghost" onClick={logout} title="Sign out" aria-label="Sign out">
 						<LogOut className="size-4" />

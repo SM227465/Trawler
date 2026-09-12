@@ -199,6 +199,22 @@ export class RcloneClient {
 	}
 
 	/**
+	 * What the provider says about its own space, or null if it will not say.
+	 *
+	 * Not every backend implements `about` — S3 has no notion of a free byte —
+	 * so a null here means "unknown", never "full". Short timeout and no throw:
+	 * this runs before a transfer is queued, and a slow provider must not turn
+	 * into a refusal to transfer.
+	 */
+	async about(fs: string): Promise<RcAbout | null> {
+		try {
+			return await this.rc<RcAbout>("operations/about", { fs }, 10_000);
+		} catch {
+			return null;
+		}
+	}
+
+	/**
 	 * Proves the credentials work by asking the provider for real information.
 	 *
 	 * `about` is the right probe: it is one cheap call that requires successful

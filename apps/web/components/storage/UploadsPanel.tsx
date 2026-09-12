@@ -1,5 +1,5 @@
 "use client";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
 	ArrowDown,
 	ArrowUp,
@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/Button";
 import { api, type Upload } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { formatBytes, formatEta, formatSince } from "@/lib/format";
+import { useUploads } from "@/lib/useUploads";
 
 const STATE = {
 	queued: { label: "Waiting", tone: "text-fg-muted", icon: LoaderCircle, spin: false },
@@ -121,14 +122,9 @@ function Row({ upload }: { upload: Upload }) {
 
 export function UploadsPanel() {
 	const qc = useQueryClient();
-	const { data } = useQuery({
-		queryKey: ["uploads"],
-		queryFn: api.uploads,
-		// Only while something is moving. Progress comes from rclone, so this is
-		// the one place in the app that genuinely needs polling.
-		refetchInterval: (q) =>
-			(q.state.data ?? []).some((u) => u.status === "running" || u.status === "queued") ? 2000 : false,
-	});
+	// Shared with the header indicator and the file browser's badges: one query,
+	// one clock, one answer to what is transferring.
+	const { data } = useUploads();
 
 	const clear = useMutation({
 		mutationFn: () => api.clearFinishedUploads(),
