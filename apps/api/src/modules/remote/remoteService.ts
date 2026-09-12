@@ -225,11 +225,13 @@ class RemoteService {
 			return ServiceResponse.failure("Invalid path", null, ErrorCode.VALIDATION_ERROR, "VALIDATION_ERROR");
 		}
 
+		const parent = rel === "" ? null : rel.split("/").slice(0, -1).join("/");
+
 		try {
 			const entries = await rclone.listPath(remoteFs(name, meta.bucket, meta.prefix), rel);
 			return ServiceResponse.success("Listing", {
 				path: rel,
-				parent: rel === "" ? null : rel.split("/").slice(0, -1).join("/"),
+				parent,
 				entries: entries
 					.map((e) => ({
 						name: e.Name,
@@ -243,6 +245,15 @@ class RemoteService {
 					),
 			});
 		} catch (err) {
+			// A folder that does not exist yet is empty, not broken. Nothing is
+			// created at the provider when a remote is added — rclone makes the
+			// folder on the first copy into it — so browsing a newly connected
+			// remote hit rclone's own "directory not found" and made a working
+			// setup look like a failed one.
+			if (err instanceof RcloneError && /directory not found/i.test(err.message)) {
+				return ServiceResponse.success("Listing", { path: rel, parent, entries: [] });
+			}
+
 			logger.warn({ err, name, rel }, "remote listing failed");
 			return ServiceResponse.failure(
 				err instanceof RcloneError ? err.message : "Could not read that folder",
