@@ -52,3 +52,26 @@ export interface RcListEntry {
 	ModTime: string;
 	IsDir: boolean;
 }
+
+/**
+ * One step of rclone's configuration state machine, as returned by
+ * `config/create` with `nonInteractive` set.
+ *
+ * `Option` is the question rclone wants answered; when it is null and `State`
+ * is empty the remote is fully configured.
+ */
+export interface RcConfigOption {
+	Name: string;
+	Help?: string;
+	/** rclone's own default — what a user pressing Enter would accept. */
+	DefaultStr?: string;
+	ValueStr?: string;
+	Required?: boolean;
+}
+
+export interface RcConfigOut {
+	State: string;
+	Option: RcConfigOption | null;
+	Error: string;
+	Result: string;
+}

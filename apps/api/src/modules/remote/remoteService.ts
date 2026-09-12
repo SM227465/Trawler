@@ -1,7 +1,7 @@
 import { ErrorCode } from "@/common/models/errorCodes";
 import { ServiceResponse } from "@/common/models/serviceResponse";
 import { logger } from "@/common/utils/logger";
-import { RcloneError, rclone, redactConfig } from "@/integrations/rclone/client";
+import { RcloneError, rclone } from "@/integrations/rclone/client";
 import type { OAuthKind, RemoteKind } from "./remoteModel";
 import { remoteRepository } from "./remoteRepository";
 
@@ -109,6 +109,10 @@ class RemoteService {
 		try {
 			await rclone.createRemote(input.name, type, parameters);
 		} catch (err) {
+			// Configuration is a multi-step conversation with rclone, and each step
+			// that succeeds is written to its config — a failure half way leaves a
+			// remote behind that was never finished.
+			await rclone.deleteRemote(input.name).catch(() => undefined);
 			logger.error({ err, name: input.name }, "could not create rclone remote");
 			return ServiceResponse.failure(
 				err instanceof RcloneError ? err.message : "Could not save the remote",
@@ -164,6 +168,9 @@ class RemoteService {
 		try {
 			await rclone.createRemote(input.name, input.kind, parameters);
 		} catch (err) {
+			// Same reason as above: the OAuth flow is several steps, and the ones
+			// that already landed are in rclone's config.
+			await rclone.deleteRemote(input.name).catch(() => undefined);
 			logger.error({ err, name: input.name }, "could not create oauth remote");
 			return ServiceResponse.failure(
 				err instanceof RcloneError ? err.message : "Could not save the remote",

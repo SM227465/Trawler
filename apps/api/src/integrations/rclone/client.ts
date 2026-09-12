@@ -1,6 +1,14 @@
 import { env } from "@/common/utils/envConfig";
 import { logger } from "@/common/utils/logger";
-import type { RcAbout, RcJobStatus, RcListEntry, RcRemote, RcRemoteConfig, RcTransferStats } from "./types";
+import type {
+	RcAbout,
+	RcConfigOut,
+	RcJobStatus,
+	RcListEntry,
+	RcRemote,
+	RcRemoteConfig,
+	RcTransferStats,
+} from "./types";
 
 export class RcloneError extends Error {
 	constructor(
@@ -121,8 +129,67 @@ export class RcloneClient {
 	 * Creates or replaces a remote. `parameters` are provider fields —
 	 * for s3: provider, access_key_id, secret_access_key, endpoint, region.
 	 */
+	/**
+	 * Creates a remote, answering rclone's configuration questions itself.
+	 *
+	 * `nonInteractive` is NOT optional. Without it rclone runs the config flow
+	 * as though a human were at a terminal, and for an OAuth backend that means
+	 * ignoring the token it was just handed, opening a browser and blocking on
+	 * "Waiting for code..." — on a server that has no browser — until the
+	 * request times out. The daemon then logs "oauth authentication was
+	 * cancelled" and the UI reports a provider that did not answer, which
+	 * describes neither the cause nor the fix. rclone#8054: over the rc API the
+	 * answers cannot be passed as plain parameters, only through this loop.
+	 *
+	 * The answer that matters is `config_refresh_token` = false — "Token
+	 * already configured - replace it?". Yes restarts the browser flow; no
+	 * keeps the token from `rclone authorize`. Every other question takes
+	 * rclone's own default, which is what pressing Enter would choose.
+	 *
+	 * S3 asks nothing and finishes on the first call, so this is one path for
+	 * both kinds of remote rather than two.
+	 */
 	async createRemote(name: string, type: string, parameters: Record<string, string>): Promise<void> {
-		await this.rc("config/create", { name, type, parameters, opt: { obscure: true } });
+		// Bounded: a backend that kept asking would otherwise hold the request
+		// open forever. Drive takes three steps, Dropbox and pCloud two, S3 one.
+		const MAX_STEPS = 10;
+		let step: { continue: true; state: string; result: string } | null = null;
+		let lastError = "";
+
+		for (let i = 0; i < MAX_STEPS; i++) {
+			const out: RcConfigOut = await this.rc<RcConfigOut>("config/create", {
+				name,
+				type,
+				parameters,
+				opt: { obscure: true, nonInteractive: true, ...step },
+			});
+
+			if (out.Error) lastError = out.Error;
+
+			if (!out.Option) {
+				// No question and no state left: the remote is written.
+				if (!out.State) return;
+				// A step that failed rather than asked — the drive lookup after
+				// OneDrive's account type, say. Its own message is the useful one.
+				if (out.Error) throw new RcloneError(out.Error);
+				step = { continue: true, state: out.State, result: "" };
+				continue;
+			}
+
+			const q = out.Option;
+			let answer: string;
+			if (q.Name === "config_refresh_token") {
+				answer = "false";
+			} else {
+				answer = q.DefaultStr ?? q.ValueStr ?? "";
+				if (!answer && q.Required) {
+					throw new RcloneError(`rclone needs an answer for "${q.Name}" that this form cannot give it`);
+				}
+			}
+			step = { continue: true, state: out.State, result: answer };
+		}
+
+		throw new RcloneError(lastError || "rclone did not finish configuring the remote");
 	}
 
 	/** Renames are not supported by rc; replace is create-over-the-same-name. */
