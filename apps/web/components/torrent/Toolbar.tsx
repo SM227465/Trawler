@@ -2,6 +2,7 @@
 import { ArrowDownUp, Search, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import type { TorrentIndexEntry } from "@/lib/useTorrentStream";
+import { ColumnMenu } from "./ColumnMenu";
 import { SORT_LABELS, type SortKey, type SortState } from "./sort";
 
 export const FILTERS = [
@@ -22,6 +23,9 @@ export function Toolbar({
 	index,
 	sort,
 	onSort,
+	hidden,
+	onToggleColumn,
+	onResetColumns,
 }: {
 	query: string;
 	onQuery: (v: string) => void;
@@ -30,6 +34,9 @@ export function Toolbar({
 	index: TorrentIndexEntry[];
 	sort: SortState;
 	onSort: (s: SortState) => void;
+	hidden: Set<string>;
+	onToggleColumn: (col: string) => void;
+	onResetColumns: () => void;
 }) {
 	const count = (v: FilterValue) => (v === "all" ? index.length : index.filter((e) => e.status === v).length);
 
@@ -122,6 +129,14 @@ export function Toolbar({
 						</button>
 					);
 				})}
+			</div>
+
+			{/* Columns had a row to itself above the table, which spent a row of list
+			    height on one button. It is a view control like the rest of this bar.
+			    The wrapper is display:none below lg rather than an empty box, so the
+			    flex gap does not leave a hole on mobile where the menu is not shown. */}
+			<div className="hidden lg:ml-auto lg:block">
+				<ColumnMenu hidden={hidden} onToggle={onToggleColumn} onReset={onResetColumns} />
 			</div>
 		</div>
 	);

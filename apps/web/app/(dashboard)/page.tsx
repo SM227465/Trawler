@@ -6,6 +6,7 @@ import { AddTorrentDialog } from "@/components/torrent/AddTorrentDialog";
 import { DEFAULT_SORT, type SortDir, type SortKey } from "@/components/torrent/sort";
 import { type FilterValue, Toolbar } from "@/components/torrent/Toolbar";
 import { TorrentList } from "@/components/torrent/TorrentList";
+import { useColumns } from "@/components/torrent/useColumns";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { useDebounced } from "@/lib/useDebounced";
@@ -29,9 +30,14 @@ function TransfersView() {
 
 	const debouncedQuery = useDebounced(url.q, 200);
 	const index = useTorrentIndex();
+	// Held here because two children need the same set: the toolbar owns the
+	// menu, the list owns the grid it describes.
+	const { hidden, toggle, reset } = useColumns();
 
 	return (
-		<div className="flex flex-col gap-4 sm:gap-5">
+		// h-full, not min-h-dvh: the shell already owns the viewport, and the list
+		// below claims whatever this column has left over.
+		<div className="flex h-full flex-col gap-4 sm:gap-5">
 			<div className="flex flex-wrap items-start gap-3">
 				<PageHeader title="Transfers" />
 
@@ -60,9 +66,13 @@ function TransfersView() {
 				index={index}
 				sort={{ key: url.sort as SortKey, dir: url.dir as SortDir }}
 				onSort={(s) => setUrl({ sort: s.key, dir: s.dir })}
+				hidden={hidden}
+				onToggleColumn={toggle}
+				onResetColumns={reset}
 			/>
 
 			<TorrentList
+				hidden={hidden}
 				query={debouncedQuery}
 				filter={url.status as FilterValue}
 				sort={{ key: url.sort as SortKey, dir: url.dir as SortDir }}

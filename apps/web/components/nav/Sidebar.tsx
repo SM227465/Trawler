@@ -51,12 +51,15 @@ export function Sidebar() {
 		<nav
 			aria-label="Sections"
 			className={cn(
-				"hidden lg:block lg:shrink-0 lg:transition-[width] lg:duration-200",
+				// Scrolls itself. The shell is a fixed height now, so a rail taller
+				// than the viewport would otherwise be clipped with no way to reach
+				// the rest of it.
+				"hidden lg:block lg:h-full lg:shrink-0 lg:overflow-y-auto lg:transition-[width] lg:duration-200",
 				collapsed ? "lg:w-14" : "lg:w-52",
 				!ready && "lg:transition-none",
 			)}
 		>
-			<div className="lg:sticky lg:top-20">
+			<div>
 				{/* Rail header — desktop only; on mobile the links are the whole nav. */}
 				<div className={cn("mb-1 hidden lg:flex", collapsed ? "justify-center" : "justify-end")}>
 					<button

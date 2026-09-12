@@ -5,15 +5,14 @@ import { useEffect, useMemo, useRef } from "react";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { TORRENT_IDS_KEY, useTorrentIndex } from "@/lib/useTorrentStream";
-import { ColumnMenu } from "./ColumnMenu";
 import { COLUMNS, gridTemplate, ROW_GRID } from "./grid";
 import { Pagination } from "./Pagination";
 import { COLUMN_SORT, compareEntries, type SortState } from "./sort";
 import type { FilterValue } from "./Toolbar";
 import { TorrentRow } from "./TorrentRow";
-import { useColumns } from "./useColumns";
 
 export function TorrentList({
+	hidden,
 	query,
 	filter,
 	sort,
@@ -23,6 +22,8 @@ export function TorrentList({
 	onPage,
 	onPageSize,
 }: {
+	/** Owned by the page: the toolbar's menu writes it, this reads it. */
+	hidden: Set<string>;
 	query: string;
 	filter: FilterValue;
 	sort: SortState;
@@ -34,7 +35,6 @@ export function TorrentList({
 	onPageSize: (n: number) => void;
 }) {
 	// The URL is the source of truth; convert to the 0-based index used below.
-	const { hidden, toggle, reset } = useColumns();
 	const pageIndex = Math.max(0, page - 1);
 
 	// Seeds the id list once; SSE keeps it current from then on.
@@ -114,14 +114,14 @@ export function TorrentList({
 	}
 
 	return (
-		<div className="flex flex-col gap-3">
-			<div className="flex justify-end">
-				<ColumnMenu hidden={hidden} onToggle={toggle} onReset={reset} />
-			</div>
-			<div className="overflow-hidden rounded-[var(--ct-radius)] border border-border bg-surface">
+		// Fills the page column rather than sizing itself: min-h-0 is what lets a
+		// flex child shrink below its content and hand the overflow to the scroll
+		// container below, instead of pushing the pagination off-screen.
+		<div className="flex min-h-0 flex-1 flex-col gap-3">
+			<div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[var(--ct-radius)] border border-border bg-surface">
 				{/* Same ROW_GRID as the rows — that is what keeps them aligned. */}
 				<div
-					className={cn("hidden border-b border-border bg-surface-inset px-4 py-2 lg:block", ROW_GRID)}
+					className={cn("hidden shrink-0 border-b border-border bg-surface-inset px-4 py-2 lg:block", ROW_GRID)}
 					style={{ "--ct-cols": gridTemplate(hidden) } as React.CSSProperties}
 				>
 					{COLUMNS.map((h, i) => {
@@ -167,12 +167,17 @@ export function TorrentList({
 				    every row's real height. It did not: rows that had not been
 				    measured yet were laid out at the 116px estimate while rendering
 				    at ~56px on desktop, leaving a 60px hole mid-list.
-				    A hundred rows of ordinary DOM costs nothing and cannot drift. */}
+				    A hundred rows of ordinary DOM costs nothing and cannot drift.
+
+				    The height is now whatever the flex column has left. It used to be
+				    100dvh minus a hardcoded 26rem, which assumed a header, a toolbar
+				    and a pagination bar of fixed heights — none of which are fixed.
+				    On a 768px laptop that guess left room for four rows. */}
 				<div
 					ref={(el) => {
 						scrollToTop.current = el;
 					}}
-					className="max-h-[calc(100dvh-26rem)] overflow-auto"
+					className="min-h-0 flex-1 overflow-auto"
 				>
 					{ids.map((id) => (
 						<TorrentRow key={id} id={id} hidden={hidden} />

@@ -22,8 +22,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 	if (!user) return null;
 
 	return (
-		<div className="min-h-dvh">
-			<header className="sticky top-0 z-10 border-b border-border bg-surface/90 backdrop-blur-sm">
+		// A shell with a definite height, not a scrolling document. A list that
+		// should fill the screen needs an ancestor chain of known heights to fill;
+		// with the page itself scrolling there is none, which is why the list used
+		// to guess its own height from a viewport minus a hardcoded offset.
+		<div className="flex h-dvh flex-col">
+			<header className="shrink-0 border-b border-border bg-surface/90 backdrop-blur-sm">
 				<div className="mx-auto flex max-w-[1600px] items-center gap-3 px-3 py-3 sm:px-6">
 					<MobileNav />
 
@@ -40,9 +44,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 				</div>
 			</header>
 
-			<div className="mx-auto flex max-w-[1600px] flex-col gap-4 px-3 py-4 sm:px-6 sm:py-6 lg:flex-row lg:gap-8">
+			<div className="mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col gap-4 px-3 py-4 sm:px-6 sm:py-6 lg:flex-row lg:gap-8">
 				<Sidebar />
-				<main className="min-w-0 flex-1">{children}</main>
+				{/* Scrolling happens HERE, so the header and rail stay put. A page that
+				    wants the viewport takes h-full and scrolls its own body instead. */}
+				<main className="min-h-0 min-w-0 flex-1 overflow-y-auto">{children}</main>
 			</div>
 		</div>
 	);
