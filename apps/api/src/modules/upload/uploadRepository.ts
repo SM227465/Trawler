@@ -23,10 +23,7 @@ export const uploadRepository = {
 
 	/** How many transfers rclone is actually running right now. */
 	async countRunning(): Promise<number> {
-		const [row] = await db
-			.select({ n: sql<number>`count(*)::int` })
-			.from(uploads)
-			.where(eq(uploads.status, "running"));
+		const [row] = await db.select({ n: sql<number>`count(*)::int` }).from(uploads).where(eq(uploads.status, "running"));
 		return row?.n ?? 0;
 	},
 
