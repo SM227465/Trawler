@@ -6,6 +6,7 @@ import { ServiceResponse } from "@/common/models/serviceResponse";
 import { env } from "@/common/utils/envConfig";
 import { logger } from "@/common/utils/logger";
 import { rclone } from "@/integrations/rclone/client";
+import { egressRepository } from "@/modules/egress/egressRepository";
 import { resolveDownloadPath, resolveRealPath } from "@/modules/file/filePath";
 import { remoteRepository } from "@/modules/remote/remoteRepository";
 import { remoteFs } from "@/modules/remote/remoteService";
@@ -23,6 +24,26 @@ function pgErrorCode(err: unknown): string | undefined {
 
 /** Stats are bucketed per upload so progress is per-transfer, not global. */
 export const groupFor = (id: string) => `upload/${id}`;
+
+/**
+ * What to add to the month's egress for a transfer that has reached `bytes`.
+ *
+ * A watermark, not a total: `bytesDone` is what has already been banked, so
+ * each tick charges only the movement since the last one. Banking the total at
+ * the end instead meant an in-flight copy was invisible to the guard for
+ * however many hours it ran, and a transfer that failed or was cancelled was
+ * never counted at all — while Oracle counted every byte that left the NIC.
+ *
+ * Never negative: rclone forgets a group when it restarts and the stats come
+ * back as zero, which is a lost counter rather than returned bytes.
+ *
+ * Only uploads. A restore is inbound traffic, which is not metered — counting
+ * it would inflate the number that decides whether this box costs money.
+ */
+export function egressDelta(row: { bytesDone: number; direction: string }, bytes: number): number {
+	if (row.direction !== "up") return 0;
+	return Math.max(0, bytes - row.bytesDone);
+}
 
 const UNITS = ["B", "KB", "MB", "GB", "TB"];
 
@@ -296,8 +317,22 @@ class UploadService {
 		}
 
 		if (row.rcloneJobId !== null) await rclone.stopJob(row.rcloneJobId).catch(() => undefined);
-		const [updated] = await uploadRepository.update(id, { status: "cancelled", finishedAt: new Date() });
-		logger.info({ uploadId: id }, "upload cancelled - partial data at the remote is left alone");
+
+		// Whatever was sent before the stop is spent. Reconcile will not see this
+		// row again — it is terminal the moment it is written — so the last
+		// minute's bytes are banked here or not at all.
+		const stats = await rclone.groupStats(groupFor(id)).catch(() => null);
+		const bytes = Math.max(row.bytesDone, stats?.bytes ?? 0);
+		const delta = egressDelta(row, bytes);
+
+		const [updated] = await uploadRepository.update(id, {
+			status: "cancelled",
+			bytesDone: bytes,
+			finishedAt: new Date(),
+		});
+		if (delta > 0) await egressRepository.bankRemoteUpload(delta);
+
+		logger.info({ uploadId: id, bytes, delta }, "upload cancelled - partial data at the remote is left alone");
 		return ServiceResponse.success("Cancelled", updated);
 	}
 
