@@ -31,7 +31,7 @@ export function UploadToRemote({ path, name }: { path: string; name: string }) {
 			setChoosing(false);
 			qc.invalidateQueries({ queryKey: UPLOADS_KEY });
 			toast(`Queued — ${name} → ${remote}`, {
-				action: { label: "View", onClick: () => router.push("/storage") },
+				action: { label: "View", onClick: () => router.push("/cloud") },
 			});
 		},
 		// The server refuses a transfer that cannot fit, and that refusal names

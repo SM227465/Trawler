@@ -94,11 +94,11 @@ export function TransfersIndicator() {
 						))}
 					</ul>
 					<Link
-						href="/storage"
+						href="/cloud"
 						onClick={() => setOpen(false)}
 						className="block border-t border-border px-3 py-2 text-center text-xs text-accent hover:underline"
 					>
-						Open Storage
+						Open Cloud
 					</Link>
 				</div>
 			)}

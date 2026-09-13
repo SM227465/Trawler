@@ -45,6 +45,15 @@ export function egressDelta(row: { bytesDone: number; direction: string }, bytes
 	return Math.max(0, bytes - row.bytesDone);
 }
 
+/**
+ * How many transfers may run at once.
+ *
+ * Two, because rclone itself is configured with --transfers=2 and this box has
+ * 954 MB of RAM: the limit that matters is the upstream link and the buffers,
+ * neither of which gets bigger by starting more copies.
+ */
+const MAX_RUNNING = 2;
+
 const UNITS = ["B", "KB", "MB", "GB", "TB"];
 
 /** Binary units, to match every size the web app prints. */
@@ -188,6 +197,28 @@ class UploadService {
 	}
 
 	/**
+	 * Starts as many queued transfers as there is room for.
+	 *
+	 * Every click used to start a copy immediately, so five clicks were five
+	 * concurrent rclone jobs, each running its own --transfers=2, sharing one
+	 * upstream on a 954 MB box. They do not finish sooner that way — they finish
+	 * later, and the box swaps while they do. Two at a time, oldest first, and
+	 * `queued` finally means what it says.
+	 *
+	 * claim() is what makes this safe to call from anywhere: the status check is
+	 * in its WHERE clause, so two pumps racing cannot start the same row twice.
+	 * The worst a race can do is overshoot the limit by one for a few seconds.
+	 */
+	async pump(): Promise<void> {
+		const slots = MAX_RUNNING - (await uploadRepository.countRunning());
+		if (slots <= 0) return;
+
+		for (const row of await uploadRepository.queued(slots)) {
+			await this.start(row.id);
+		}
+	}
+
+	/**
 	 * Starts the rclone transfer for a queued row.
 	 *
 	 * Called by the job handler. Returns immediately — rclone runs the copy
@@ -302,10 +333,9 @@ class UploadService {
 		}
 
 		const queued = await this.queue(row.remoteName, row.srcPath, row.direction);
-		if (queued.success) {
-			const fresh = queued.responseObject as { id?: string } | null;
-			if (fresh?.id) void this.start(fresh.id);
-		}
+		// Joins the back of the queue like anything else, rather than starting on
+		// top of whatever is already running.
+		if (queued.success) void this.pump();
 		return queued;
 	}
 
@@ -333,7 +363,14 @@ class UploadService {
 		if (delta > 0) await egressRepository.bankRemoteUpload(delta);
 
 		logger.info({ uploadId: id, bytes, delta }, "upload cancelled - partial data at the remote is left alone");
+		// A slot just came free.
+		void this.pump();
 		return ServiceResponse.success("Cancelled", updated);
+	}
+
+	/** Finished transfers, paged and filterable — what the Cloud page reads. */
+	async history(opts: { status?: "completed" | "failed" | "cancelled"; limit: number; offset: number }) {
+		return ServiceResponse.success("History", await uploadRepository.history(opts));
 	}
 
 	async clearFinished() {

@@ -1,0 +1,118 @@
+"use client";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { ArrowDown, ArrowUp, CircleCheck, CircleX, LoaderCircle, RotateCw, X } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { TransferBar } from "@/components/ui/TransferBar";
+import { api, type Upload } from "@/lib/api";
+import { cn } from "@/lib/cn";
+import { formatBytes, formatEta, formatSince } from "@/lib/format";
+import { UPLOADS_KEY } from "@/lib/useUploads";
+
+/**
+ * One transfer, in any state.
+ *
+ * Shared by the active queue and the history table rather than written twice:
+ * the difference between "moving" and "failed three days ago" is the row's own
+ * data, not a different component.
+ */
+const STATE = {
+	queued: { label: "Waiting", tone: "text-fg-muted", icon: LoaderCircle, spin: false },
+	running: { label: "Moving", tone: "text-accent", icon: LoaderCircle, spin: true },
+	completed: { label: "Done", tone: "text-status-completed", icon: CircleCheck, spin: false },
+	failed: { label: "Failed", tone: "text-status-errored", icon: CircleX, spin: false },
+	cancelled: { label: "Cancelled", tone: "text-fg-subtle", icon: CircleX, spin: false },
+} as const;
+
+export function TransferRow({ upload }: { upload: Upload }) {
+	const qc = useQueryClient();
+	const cancel = useMutation({
+		mutationFn: () => api.cancelUpload(upload.id),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: UPLOADS_KEY });
+			qc.invalidateQueries({ queryKey: ["upload-history"] });
+		},
+	});
+
+	const retry = useMutation({
+		mutationFn: () => api.retryUpload(upload.id),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: UPLOADS_KEY });
+			qc.invalidateQueries({ queryKey: ["upload-history"] });
+		},
+	});
+
+	const s = STATE[upload.status];
+	const Icon = s.icon;
+	const live = upload.status === "running" || upload.status === "queued";
+	// The source is measured when the transfer is queued, so a percentage is
+	// real. It stays null for a restore, where the size lives at the provider
+	// and nothing local was walked — an indeterminate bar, honestly.
+	const fraction = upload.bytesTotal > 0 ? Math.min(1, upload.bytesDone / upload.bytesTotal) : null;
+
+	return (
+		<li className="border-b border-border px-4 py-2.5 last:border-b-0">
+			<div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+				<Icon className={cn("size-3.5 shrink-0", s.tone, s.spin && "animate-spin")} aria-hidden />
+				{/* Direction is the difference between "my file went away" and "my
+				    file came back" — worth more than a label saying "transfer". */}
+				{upload.direction === "down" ? (
+					<ArrowDown className="size-3 shrink-0 text-fg-subtle" aria-label="Restoring" />
+				) : (
+					<ArrowUp className="size-3 shrink-0 text-fg-subtle" aria-label="Uploading" />
+				)}
+				<span className="min-w-0 flex-1 truncate text-sm text-fg" title={upload.srcPath}>
+					{upload.srcPath}
+				</span>
+				<span className={cn("shrink-0 text-xs", s.tone)}>{s.label}</span>
+				<span className="tabular shrink-0 text-xs text-fg-subtle">
+					{formatBytes(upload.bytesDone)}
+					{live && fraction !== null && ` of ${formatBytes(upload.bytesTotal)}`}
+					{upload.status === "running" && (upload.speedBps ?? 0) > 0 && ` · ${formatBytes(upload.speedBps ?? 0)}/s`}
+					{upload.status === "running" && upload.etaSeconds ? ` · ${formatEta(upload.etaSeconds)}` : ""}
+					{!live && upload.finishedAt && ` · ${formatSince(upload.finishedAt)}`}
+				</span>
+				{live && (
+					<Button
+						size="icon"
+						variant="ghost"
+						onClick={() => cancel.mutate()}
+						disabled={cancel.isPending}
+						title="Stop this upload"
+						aria-label={`Stop uploading ${upload.srcPath}`}
+						className="hover:text-danger"
+					>
+						<X className="size-3.5" />
+					</Button>
+				)}
+				{(upload.status === "failed" || upload.status === "cancelled") && (
+					<Button
+						size="icon"
+						variant="ghost"
+						onClick={() => retry.mutate()}
+						disabled={retry.isPending}
+						title="Try this transfer again"
+						aria-label={`Retry ${upload.srcPath}`}
+					>
+						<RotateCw className={cn("size-3.5", retry.isPending && "animate-spin")} />
+					</Button>
+				)}
+			</div>
+
+			{/* The reason it failed is the whole point of offering a retry —
+			    without it you are just clicking the same button hopefully. */}
+			{upload.status === "failed" && upload.error && (
+				<p className="mt-1 pl-6 text-xs text-status-errored" title={upload.error}>
+					{upload.error}
+				</p>
+			)}
+
+			{upload.status === "running" && <TransferBar value={fraction} className="mt-1.5" />}
+
+			{upload.error && (
+				<p className="mt-1 text-xs text-status-errored" title={upload.error}>
+					{upload.error}
+				</p>
+			)}
+		</li>
+	);
+}

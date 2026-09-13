@@ -24,6 +24,18 @@ uploadRegistry.registerPath({
 uploadRouter.get("/", uploadController.list);
 
 uploadRegistry.registerPath({
+	method: "get",
+	path: "/api/v1/uploads/history",
+	tags: ["Upload"],
+	description:
+		"Finished transfers, newest first, paged and filterable by status. Separate from the live list so the poller stays small and history is not capped at whatever the poller happens to fetch.",
+	responses: createApiResponse(z.object({ items: z.array(UploadSchema), total: z.number() }), "History"),
+});
+// Before /:id would ever match it — "history" is not an id, but the route order
+// is what guarantees that rather than the uuid validator.
+uploadRouter.get("/history", uploadController.history);
+
+uploadRegistry.registerPath({
 	method: "post",
 	path: "/api/v1/uploads",
 	tags: ["Upload"],

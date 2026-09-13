@@ -22,12 +22,10 @@ export async function uploadReconcileHandler() {
 	let finished = 0;
 
 	for (const row of active) {
-		// Queued but never started — the worker died between queueing and start,
-		// or the process restarted. Start it now rather than leaving it stuck.
-		if (row.status === "queued") {
-			await uploadService.start(row.id);
-			continue;
-		}
+		// Queued rows are the pump's business, not this loop's — starting one here
+		// would walk straight past the concurrency limit. The pump call at the end
+		// picks them up, including any the api missed.
+		if (row.status === "queued") continue;
 
 		if (row.rcloneJobId === null) continue;
 
@@ -83,6 +81,11 @@ export async function uploadReconcileHandler() {
 			finished++;
 		}
 	}
+
+	// Whatever just finished has freed a slot, and a queue with nothing pushing
+	// it is a queue that stops. This is also the safety net for a row the api
+	// queued and never pumped, because it restarted in between.
+	await uploadService.pump();
 
 	return { checked: active.length, finished };
 }

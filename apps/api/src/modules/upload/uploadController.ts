@@ -13,13 +13,16 @@ class UploadController {
 		const result = await uploadService.queue(req.body.remote, req.body.path, direction);
 		if (result.success) {
 			const row = result.responseObject as { id?: string } | null;
-			// Started here rather than queued through pg-boss. Only the worker runs
-			// boss, so the api cannot send to it — and it does not need to: start()
+			// Pumped here rather than queued through pg-boss. Only the worker runs
+			// boss, so the api cannot send to it — and it does not need to: pump()
 			// needs rclone and the database, both of which this process has, and
 			// rclone does the transfer asynchronously anyway. Fire-and-forget so
 			// the response does not wait on the provider's first byte; the
-			// reconciler starts anything this misses.
-			if (row?.id) void uploadService.start(row.id);
+			// reconciler pumps again every minute for anything this misses.
+			//
+			// pump(), not start(): the row may have to wait its turn, and deciding
+			// that in one place is what keeps the concurrency limit true.
+			void uploadService.pump();
 			audit.recordFromRequest(req, {
 				action: "storage.upload",
 				targetType: "upload",
@@ -28,6 +31,18 @@ class UploadController {
 			});
 		}
 		handleServiceResponse(result, res);
+	};
+
+	public history: RequestHandler = async (req: Request, res: Response) => {
+		const status = req.query.status as "completed" | "failed" | "cancelled" | undefined;
+		handleServiceResponse(
+			await uploadService.history({
+				status,
+				limit: Number(req.query.limit ?? 25),
+				offset: Number(req.query.offset ?? 0),
+			}),
+			res,
+		);
 	};
 
 	public retry: RequestHandler = async (req: Request, res: Response) => {

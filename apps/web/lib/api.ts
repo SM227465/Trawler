@@ -423,6 +423,12 @@ export const api = {
 
 	uploads: () => apiFetch<Upload[]>("/uploads"),
 
+	uploadHistory: (opts: { status?: string; limit: number; offset: number }) => {
+		const q = new URLSearchParams({ limit: String(opts.limit), offset: String(opts.offset) });
+		if (opts.status) q.set("status", opts.status);
+		return apiFetch<{ items: Upload[]; total: number }>(`/uploads/history?${q}`);
+	},
+
 	browseRemote: (name: string, path: string) =>
 		apiFetch<RemoteListing>(`/remotes/${encodeURIComponent(name)}/browse?path=${encodeURIComponent(path)}`),
 

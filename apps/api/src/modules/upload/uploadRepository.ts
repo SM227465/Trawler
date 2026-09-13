@@ -21,6 +21,50 @@ export const uploadRepository = {
 			.limit(Math.min(Math.max(limit, 1), 200));
 	},
 
+	/** How many transfers rclone is actually running right now. */
+	async countRunning(): Promise<number> {
+		const [row] = await db
+			.select({ n: sql<number>`count(*)::int` })
+			.from(uploads)
+			.where(eq(uploads.status, "running"));
+		return row?.n ?? 0;
+	},
+
+	/** The next transfers to start, oldest first — a queue, not a free-for-all. */
+	queued(limit: number): Promise<UploadRow[]> {
+		return db
+			.select()
+			.from(uploads)
+			.where(eq(uploads.status, "queued"))
+			.orderBy(uploads.createdAt)
+			.limit(Math.max(0, limit));
+	},
+
+	/**
+	 * Finished transfers, newest first — the record of what happened.
+	 *
+	 * Paged rather than a fixed 50: history is the point of keeping these rows,
+	 * and a page that can only show the last fifty is not a history.
+	 */
+	async history(opts: { status?: "completed" | "failed" | "cancelled"; limit: number; offset: number }) {
+		const terminal = opts.status
+			? eq(uploads.status, opts.status)
+			: inArray(uploads.status, ["completed", "failed", "cancelled"]);
+
+		const [items, [count]] = await Promise.all([
+			db
+				.select()
+				.from(uploads)
+				.where(terminal)
+				.orderBy(desc(uploads.createdAt))
+				.limit(Math.min(Math.max(opts.limit, 1), 200))
+				.offset(Math.max(0, opts.offset)),
+			db.select({ n: sql<number>`count(*)::int` }).from(uploads).where(terminal),
+		]);
+
+		return { items, total: count?.n ?? 0 };
+	},
+
 	/** Everything still in flight, for progress polling and reconciliation. */
 	active(): Promise<UploadRow[]> {
 		return db

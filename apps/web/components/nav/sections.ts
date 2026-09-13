@@ -1,4 +1,13 @@
-import { Activity, ArrowDownUp, FolderTree, HardDrive, ScrollText, Share2, SlidersHorizontal } from "lucide-react";
+import {
+	Activity,
+	ArrowDownUp,
+	Cloud,
+	FolderTree,
+	HardDrive,
+	ScrollText,
+	Share2,
+	SlidersHorizontal,
+} from "lucide-react";
 
 /**
  * One section per concern. The dashboard previously stacked transfers, storage
@@ -6,6 +15,10 @@ import { Activity, ArrowDownUp, FolderTree, HardDrive, ScrollText, Share2, Slide
  */
 export const SECTIONS = [
 	{ href: "/", label: "Transfers", icon: ArrowDownUp, hint: "Active and completed torrents" },
+	// Cloud is everything OFF this box: the connections and what is moving to
+	// them. Storage is the box itself. Splitting them that way is what stopped
+	// Storage being half a page about somewhere else.
+	{ href: "/cloud", label: "Cloud", icon: Cloud, hint: "External storage and transfers to it" },
 	{ href: "/storage", label: "Storage", icon: HardDrive, hint: "Disk usage and cleanup" },
 	{ href: "/files", label: "File access", icon: FolderTree, hint: "Mount your downloads over WebDAV" },
 	{ href: "/shares", label: "Shares", icon: Share2, hint: "Links you have handed out" },

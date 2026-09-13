@@ -1,148 +1,47 @@
 "use client";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-	ArrowDown,
-	ArrowUp,
-	CircleCheck,
-	CircleX,
-	LoaderCircle,
-	RotateCw,
-	Upload as UploadIcon,
-	X,
-} from "lucide-react";
-import { Button } from "@/components/ui/Button";
-import { TransferBar } from "@/components/ui/TransferBar";
-import { api, type Upload } from "@/lib/api";
-import { cn } from "@/lib/cn";
-import { formatBytes, formatEta, formatSince } from "@/lib/format";
+import { Upload as UploadIcon } from "lucide-react";
 import { useUploads } from "@/lib/useUploads";
+import { TransferRow } from "./TransferRow";
 
-const STATE = {
-	queued: { label: "Waiting", tone: "text-fg-muted", icon: LoaderCircle, spin: false },
-	running: { label: "Moving", tone: "text-accent", icon: LoaderCircle, spin: true },
-	completed: { label: "Done", tone: "text-status-completed", icon: CircleCheck, spin: false },
-	failed: { label: "Failed", tone: "text-status-errored", icon: CircleX, spin: false },
-	cancelled: { label: "Cancelled", tone: "text-fg-subtle", icon: CircleX, spin: false },
-} as const;
-
-function Row({ upload }: { upload: Upload }) {
-	const qc = useQueryClient();
-	const cancel = useMutation({
-		mutationFn: () => api.cancelUpload(upload.id),
-		onSuccess: () => qc.invalidateQueries({ queryKey: ["uploads"] }),
-	});
-
-	const retry = useMutation({
-		mutationFn: () => api.retryUpload(upload.id),
-		onSuccess: () => qc.invalidateQueries({ queryKey: ["uploads"] }),
-	});
-
-	const s = STATE[upload.status];
-	const Icon = s.icon;
-	const live = upload.status === "running" || upload.status === "queued";
-	// The source is measured when the transfer is queued, so a percentage is
-	// real. It stays null for a restore, where the size lives at the provider
-	// and nothing local was walked — an indeterminate bar, honestly.
-	const fraction = upload.bytesTotal > 0 ? Math.min(1, upload.bytesDone / upload.bytesTotal) : null;
-
-	return (
-		<li className="border-b border-border px-4 py-2.5 last:border-b-0">
-			<div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-				<Icon className={cn("size-3.5 shrink-0", s.tone, s.spin && "animate-spin")} aria-hidden />
-				{/* Direction is the difference between "my file went away" and "my
-				    file came back" — worth more than a label saying "transfer". */}
-				{upload.direction === "down" ? (
-					<ArrowDown className="size-3 shrink-0 text-fg-subtle" aria-label="Restoring" />
-				) : (
-					<ArrowUp className="size-3 shrink-0 text-fg-subtle" aria-label="Uploading" />
-				)}
-				<span className="min-w-0 flex-1 truncate text-sm text-fg" title={upload.srcPath}>
-					{upload.srcPath}
-				</span>
-				<span className={cn("shrink-0 text-xs", s.tone)}>{s.label}</span>
-				<span className="tabular shrink-0 text-xs text-fg-subtle">
-					{formatBytes(upload.bytesDone)}
-					{live && fraction !== null && ` of ${formatBytes(upload.bytesTotal)}`}
-					{upload.status === "running" && (upload.speedBps ?? 0) > 0 && ` · ${formatBytes(upload.speedBps ?? 0)}/s`}
-					{upload.status === "running" && upload.etaSeconds ? ` · ${formatEta(upload.etaSeconds)}` : ""}
-					{!live && upload.finishedAt && ` · ${formatSince(upload.finishedAt)}`}
-				</span>
-				{live && (
-					<Button
-						size="icon"
-						variant="ghost"
-						onClick={() => cancel.mutate()}
-						disabled={cancel.isPending}
-						title="Stop this upload"
-						aria-label={`Stop uploading ${upload.srcPath}`}
-						className="hover:text-danger"
-					>
-						<X className="size-3.5" />
-					</Button>
-				)}
-				{(upload.status === "failed" || upload.status === "cancelled") && (
-					<Button
-						size="icon"
-						variant="ghost"
-						onClick={() => retry.mutate()}
-						disabled={retry.isPending}
-						title="Try this transfer again"
-						aria-label={`Retry ${upload.srcPath}`}
-					>
-						<RotateCw className={cn("size-3.5", retry.isPending && "animate-spin")} />
-					</Button>
-				)}
-			</div>
-
-			{/* The reason it failed is the whole point of offering a retry —
-			    without it you are just clicking the same button hopefully. */}
-			{upload.status === "failed" && upload.error && (
-				<p className="mt-1 pl-6 text-xs text-status-errored" title={upload.error}>
-					{upload.error}
-				</p>
-			)}
-
-			{upload.status === "running" && <TransferBar value={fraction} className="mt-1.5" />}
-
-			{upload.error && (
-				<p className="mt-1 text-xs text-status-errored" title={upload.error}>
-					{upload.error}
-				</p>
-			)}
-		</li>
-	);
-}
-
+/**
+ * What is moving right now, and what is waiting its turn.
+ *
+ * Only live transfers: finished ones are history, and history is a table you
+ * page through rather than a list that grows under the thing you are watching.
+ *
+ * Two run at a time — the server's limit, not a display choice — so the queue
+ * below them is real and its order is the order they will start in.
+ */
 export function UploadsPanel() {
-	const qc = useQueryClient();
 	// Shared with the header indicator and the file browser's badges: one query,
 	// one clock, one answer to what is transferring.
 	const { data } = useUploads();
 
-	const clear = useMutation({
-		mutationFn: () => api.clearFinishedUploads(),
-		onSuccess: () => qc.invalidateQueries({ queryKey: ["uploads"] }),
-	});
+	// Running first, then the queue in the order the server will start it —
+	// oldest first. The API returns newest-first, which for a queue would show
+	// exactly the wrong order and make the next one to start look like the last.
+	const live = (data ?? [])
+		.filter((u) => u.status === "running" || u.status === "queued")
+		.sort((a, b) =>
+			a.status === b.status ? Date.parse(a.createdAt) - Date.parse(b.createdAt) : a.status === "running" ? -1 : 1,
+		);
+	if (live.length === 0) return null;
 
-	if (!data || data.length === 0) return null;
-	const finished = data.filter((u) => u.status !== "running" && u.status !== "queued").length;
+	const running = live.filter((u) => u.status === "running").length;
+	const waiting = live.length - running;
 
 	return (
 		<section className="rounded-[var(--ct-radius)] border border-border bg-surface">
 			<div className="flex items-center gap-2 border-b border-border px-4 py-3">
 				<UploadIcon className="size-4 shrink-0 text-fg-subtle" aria-hidden />
-				<h2 className="text-sm font-medium text-fg">Transfers to storage</h2>
-				{finished > 0 && (
-					<span className="ml-auto">
-						<Button size="sm" variant="ghost" onClick={() => clear.mutate()} disabled={clear.isPending}>
-							Clear finished
-						</Button>
-					</span>
-				)}
+				<h2 className="text-sm font-medium text-fg">In progress</h2>
+				<span className="ml-auto text-xs text-fg-subtle">
+					{running} running{waiting > 0 && ` · ${waiting} waiting`}
+				</span>
 			</div>
 			<ul>
-				{data.map((u) => (
-					<Row key={u.id} upload={u} />
+				{live.map((u) => (
+					<TransferRow key={u.id} upload={u} />
 				))}
 			</ul>
 		</section>
