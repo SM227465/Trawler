@@ -71,13 +71,23 @@ jobs:
     environment: production
 
     steps:
-      - name: Deploy over SSH
+      # SLOW HALF, and deliberately its own step: nothing is stopped here, so a
+      # timeout leaves the running stack exactly as it was. This used to share a
+      # step with `up -d` under ssh-action's DEFAULT 10 MINUTE command_timeout,
+      # and on a 954 MB box already pushing a 33 GB upload the pull ate the
+      # budget. The kill landed between "api Recreated" and "web Recreate",
+      # leaving four containers created, none started, and the site 502 until
+      # someone started them by hand.
+      - name: Fetch the new images
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: ${{ secrets.DEPLOY_PORT || 22 }}
+          # Pulling two multi-arch images onto a small, busy box is minutes, not
+          # seconds. The default would rather kill it than wait.
+          command_timeout: 30m
           # No `script_stop`: ssh-action v1 dropped it and warns on unknown
           # inputs. The script's own `set -euo pipefail` is what aborts on error.
           script: |
@@ -94,6 +104,22 @@ jobs:
 
             export IMAGE_TAG=sha-${{ github.sha }}
             docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
+
+      # FAST HALF: every byte is already on the box, so this is the container
+      # swap and nothing else — the window where the site is down is as short as
+      # this server can make it.
+      - name: Start the new containers
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          command_timeout: 15m
+          script: |
+            set -euo pipefail
+            cd ${{ secrets.DEPLOY_PATH }}
+            export IMAGE_TAG=sha-${{ github.sha }}
 
             # `up -d` runs the one-shot `migrate` service first and gates api and
             # worker on it completing successfully, so a failed migration aborts
@@ -127,3 +153,23 @@ jobs:
           done
           echo "::error::health check never returned 200 — check the server"
           exit 1
+
+      # A deploy that dies mid-swap leaves containers created but not started,
+      # and the box stays down until a human runs exactly this. `up -d` is
+      # idempotent and the images are already local, so it is seconds — and a
+      # no-op if the failure was something else entirely.
+      - name: Bring the stack back up if the deploy died half way
+        if: failure()
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          command_timeout: 15m
+          script: |
+            set -euo pipefail
+            cd ${{ secrets.DEPLOY_PATH }}
+            export IMAGE_TAG=sha-${{ github.sha }}
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
