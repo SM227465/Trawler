@@ -79,6 +79,7 @@ jobs:
       # leaving four containers created, none started, and the site 502 until
       # someone started them by hand.
       - name: Fetch the new images
+        id: fetch
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.DEPLOY_HOST }}
@@ -103,7 +104,30 @@ jobs:
               -u ${{ github.actor }} --password-stdin
 
             export IMAGE_TAG=sha-${{ github.sha }}
-            docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
+
+            # ONLY the images CI just built. Pulling the whole file dragged in
+            # postgres, caddy, qbittorrent and rclone at :latest on every deploy:
+            # slow, and a deploy of a UI change could restart the database
+            # because an unrelated upstream tag had moved. It also meant a
+            # transient TLS timeout fetching qBittorrent from ghcr.io failed a
+            # deploy that had nothing to do with qBittorrent — which is exactly
+            # what happened. Those images are already on the box and are
+            # upgraded deliberately, not as a side effect.
+            #
+            # Retried, because a registry that times out once usually does not
+            # time out three times, and the alternative is a red deploy over a
+            # blip on someone else's network.
+            for attempt in 1 2 3; do
+              if docker compose -f docker-compose.yml -f docker-compose.prod.yml pull api web worker migrate; then
+                break
+              fi
+              if [ "$attempt" = 3 ]; then
+                echo "::error::could not pull the new images after 3 attempts"
+                exit 1
+              fi
+              echo "pull failed — retrying in 15s"
+              sleep 15
+            done
 
       # FAST HALF: every byte is already on the box, so this is the container
       # swap and nothing else — the window where the site is down is as short as
@@ -158,8 +182,13 @@ jobs:
       # and the box stays down until a human runs exactly this. `up -d` is
       # idempotent and the images are already local, so it is seconds — and a
       # no-op if the failure was something else entirely.
+      #
+      # ONLY when the fetch succeeded. Run after a failed fetch it does the
+      # opposite of recovery: it swaps containers onto images that were never
+      # pulled, turning a failure that changed nothing into a site that is down.
+      # That is not hypothetical — it is how this condition came to be here.
       - name: Bring the stack back up if the deploy died half way
-        if: failure()
+        if: failure() && steps.fetch.outcome == 'success'
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.DEPLOY_HOST }}
