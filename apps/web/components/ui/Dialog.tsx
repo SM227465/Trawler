@@ -24,6 +24,9 @@ export function Dialog({
 	labelledBy?: string;
 }) {
 	const ref = useRef<HTMLDialogElement>(null);
+	// Set while we re-open the dialog ourselves, so the `close` event that comes
+	// with it is not mistaken for the user closing the dialog.
+	const reasserting = useRef(false);
 
 	useEffect(() => {
 		const el = ref.current;
@@ -32,12 +35,71 @@ export function Dialog({
 		else if (!open && el.open) el.close();
 	}, [open]);
 
+	/**
+	 * Puts the dialog back in the top layer if it falls out of it.
+	 *
+	 * Chrome on Android makes a playing <video> fullscreen when the phone is
+	 * rotated. Leaving fullscreen can drop the dialog that contained it out of
+	 * the top layer while its `open` attribute stays set: still open by every
+	 * test the effect above makes, no longer painted by anything. The film
+	 * simply vanished mid-scene, and nothing brought it back.
+	 *
+	 * `:modal` is the only honest test for "is actually the top-layer modal",
+	 * and close()+showModal() is the only way back — showModal() on an already
+	 * open dialog throws. Neither touches the <video> element, so playback
+	 * continues across the repair.
+	 *
+	 * A no-op in the normal case, which is most of the time this runs.
+	 */
+	useEffect(() => {
+		if (!open) return;
+		const el = ref.current;
+		if (!el) return;
+
+		const reassert = () => {
+			// Fullscreen owns the screen while it lasts; repair on the way out.
+			if (document.fullscreenElement || !el.open) return;
+			try {
+				if (el.matches(":modal")) return;
+			} catch {
+				return; // no :modal support — no reliable test, so no blind repair
+			}
+
+			reasserting.current = true;
+			el.close();
+			el.showModal();
+			// The close event is queued, not synchronous, so the flag cannot be
+			// cleared on the next line. Cleared by the handler that swallows it,
+			// with this as the backstop if it never arrives.
+			setTimeout(() => {
+				reasserting.current = false;
+			}, 500);
+		};
+
+		document.addEventListener("fullscreenchange", reassert);
+		// Rotation without fullscreen, and any other viewport change. Guarded by
+		// the :modal test above, so it costs a selector match.
+		window.addEventListener("resize", reassert);
+		return () => {
+			document.removeEventListener("fullscreenchange", reassert);
+			window.removeEventListener("resize", reassert);
+		};
+	}, [open]);
+
 	return (
 		// biome-ignore lint/a11y/useKeyWithClickEvents: backdrop click; native <dialog> already closes on Escape
 		<dialog
 			ref={ref}
 			aria-labelledby={labelledBy}
-			onClose={onClose}
+			onClose={() => {
+				// Our own repair above closes and immediately reopens. That close is
+				// not the user's, and acting on it would shut the dialog for real.
+				if (reasserting.current) {
+					reasserting.current = false;
+					return;
+				}
+				onClose();
+			}}
 			// Clicking the backdrop closes. The dialog element itself fills the
 			// viewport, so we compare the target to distinguish backdrop from panel.
 			// The keyboard equivalent is not missing — the native <dialog> closes on
