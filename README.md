@@ -9,6 +9,10 @@ Built to run on a **free-tier VPS** — it fits comfortably in 1 GB of RAM — b
 runs anywhere Docker does: Oracle Cloud, EC2, DigitalOcean, Azure, GCP, Hetzner,
 or a spare machine in a cupboard.
 
+![Adding a torrent, watching it download, playing it in the browser, and copying it to Google Drive](docs/demo.gif)
+
+<sub>Demo footage: *Big Buck Bunny* © [Blender Foundation](https://peach.blender.org/), [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/).</sub>
+
 ---
 
 ## What it does
