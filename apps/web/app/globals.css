@@ -471,7 +471,9 @@
 		display: grid;
 		grid-template-columns: var(--ct-cols);
 		align-items: center;
-		column-gap: 0.75rem;
+		/* Seven gaps across the row, so a quarter rem here is nearly two rems of
+		   name. The columns are aligned by the grid, not by the air between. */
+		column-gap: 0.5rem;
 	}
 }
 

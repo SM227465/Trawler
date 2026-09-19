@@ -10,8 +10,10 @@ export const COLUMNS = ["Name", "Size", "Seeds", "Peers", "Down", "Up", "ETA", "
 /**
  * Track width per column, in the same order. Name flexes; the rest are fixed.
  *
- * The actions track must fit its buttons or the whole row overflows: five
- * `size="icon"` buttons are 5 x 2rem plus four 0.25rem gaps = 11rem exactly.
+ * The actions track must fit its buttons or the whole row overflows. The most
+ * any row shows is five — files, recheck, pause, copy, delete — at 2rem each
+ * with 0.125rem between them: 10.5rem. Recheck only appears on an errored row,
+ * so the usual four leave a little slack rather than the row jumping about.
  * It was 8rem, so every row overflowed by 48px on a 1366px laptop. That showed
  * up twice — a horizontal scrollbar, and a progress fill that stopped short of
  * the right edge, because `width: 100%` resolves against the visible box and
@@ -24,13 +26,16 @@ export const COLUMNS = ["Name", "Size", "Seeds", "Peers", "Down", "Up", "ETA", "
  */
 const WIDTH: Record<string, string> = {
 	Name: "minmax(10rem,1fr)",
-	Size: "5rem",
-	Seeds: "5rem",
-	Peers: "5rem",
+	// "6.07 GB" and "0 (103)" both fit 4.5rem at this size; the half rem each
+	// was carrying went to the name, which is the only column anyone reads.
+	Size: "4.5rem",
+	Seeds: "4.5rem",
+	Peers: "4.5rem",
+	// Speeds keep theirs: "1.23 MB/s" with its arrow is genuinely that wide.
 	Down: "5.5rem",
 	Up: "5.5rem",
 	ETA: "4.5rem",
-	"": "11rem", // actions — 5 x size-8 + 4 x gap-1
+	"": "10.5rem", // actions — 5 x size-8 + 4 x gap-0.5
 };
 
 /**

@@ -9,7 +9,6 @@ import {
 	LoaderCircle,
 	Pause,
 	Pin,
-	PinOff,
 	Play,
 	RefreshCw,
 	Trash2,
@@ -248,8 +247,12 @@ export const TorrentRow = memo(function TorrentRow({ id, hidden }: { id: string;
 				{show("ETA") && <Cell label="ETA">{done ? "—" : formatEta(t.etaSeconds)}</Cell>}
 			</div>
 
-			{/* actions */}
-			<div className="flex items-center gap-1 lg:justify-end">
+			{/* actions
+			    Pinning lives on the torrent's own page now. It is a rare, deliberate
+			    act — protect this from cleanup — and it was costing every row a
+			    button's width on a 1366px laptop, where the name is the column that
+			    actually needs it. The pin still SHOWS here, beside the name. */}
+			<div className="flex items-center gap-0.5 lg:justify-end">
 				<Button
 					size="icon"
 					variant="ghost"
@@ -298,19 +301,6 @@ export const TorrentRow = memo(function TorrentRow({ id, hidden }: { id: string;
 					onClick={() => copy(buildMagnet(t.infoHash, t.name))}
 				>
 					{copied ? <Check className="size-3.5 text-status-completed" /> : <Link2 className="size-3.5" />}
-				</Button>
-
-				<Button
-					size="icon"
-					variant="ghost"
-					aria-pressed={t.pinned}
-					title={t.pinned ? "Pinned — protected from cleanup. Click to unpin." : "Pin to protect from cleanup"}
-					aria-label={t.pinned ? "Unpin" : "Pin"}
-					disabled={act.isPending}
-					onClick={() => act.mutate(t.pinned ? "unpin" : "pin")}
-					className={cn(t.pinned && "text-accent hover:text-accent")}
-				>
-					{t.pinned ? <PinOff className="size-3.5" /> : <Pin className="size-3.5" />}
 				</Button>
 
 				<Button
