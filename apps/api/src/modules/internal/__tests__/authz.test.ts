@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractToken } from "../authzService";
+import { countsAsNewDownload, extractToken } from "../authzService";
 
 /**
  * extractToken is the parser standing between a raw URL and token verification.
@@ -42,5 +42,35 @@ describe("extractToken", () => {
 		const token = extractToken("/dl/..%2F..%2Fetc%2Fpasswd/x");
 		expect(token).not.toBeNull();
 		expect(token).toBe("../../etc/passwd"); // decoded, then rejected by verify
+	});
+});
+
+/**
+ * One person downloading one file makes several requests. This decides which of
+ * them is "the" download — get it wrong and a share is billed several times over
+ * and the owner's activity feed shows strangers where there is only one.
+ */
+describe("countsAsNewDownload", () => {
+	it("counts a plain GET", () => {
+		expect(countsAsNewDownload({ method: "GET" })).toBe(true);
+	});
+
+	it("counts a GET that asks for the whole file by range", () => {
+		expect(countsAsNewDownload({ method: "GET", range: "bytes=0-" })).toBe(true);
+	});
+
+	it("does not count a HEAD, which transfers nothing", () => {
+		expect(countsAsNewDownload({ method: "HEAD" })).toBe(false);
+		expect(countsAsNewDownload({ method: "head", range: "bytes=0-" })).toBe(false);
+	});
+
+	it("does not count a resumed or parallel segment", () => {
+		expect(countsAsNewDownload({ method: "GET", range: "bytes=500-" })).toBe(false);
+		expect(countsAsNewDownload({ method: "GET", range: "bytes=1048576-2097151" })).toBe(false);
+	});
+
+	it("defaults a missing method to GET", () => {
+		expect(countsAsNewDownload({})).toBe(true);
+		expect(countsAsNewDownload({ range: null })).toBe(true);
 	});
 });

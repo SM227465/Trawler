@@ -142,3 +142,22 @@ async function authorizeShare(id: string): Promise<AuthzDecision | null> {
 		shareId: share.id,
 	};
 }
+
+/**
+ * Whether a /dl request is a NEW transfer, for accounting and the access log.
+ *
+ * One download by one person is several HTTP requests, and only some of them
+ * mean "a copy of this file is going out":
+ *
+ * - HEAD is a size probe. Caddy sends no body for it, so charging the full file
+ *   and writing a "Downloaded 6.66 GB" row was fiction — and download managers
+ *   and link-preview crawlers HEAD before every fetch.
+ * - A Range that does not start at zero is a parallel segment or a resume. The
+ *   same download, already counted when its first request arrived.
+ */
+export function countsAsNewDownload(opts: { method?: string; range?: string | null }): boolean {
+	if ((opts.method ?? "GET").toUpperCase() === "HEAD") return false;
+	const range = opts.range;
+	if (range && !/^bytes=0-/.test(range)) return false;
+	return true;
+}

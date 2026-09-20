@@ -1,7 +1,7 @@
 import express, { type Request, type Response, type Router } from "express";
 import { logger } from "@/common/utils/logger";
 import { shareRepository } from "@/modules/share/shareRepository";
-import { authorizeDownload } from "./authzService";
+import { authorizeDownload, countsAsNewDownload } from "./authzService";
 
 /**
  * NOT mounted under /api/v1 and NOT proxied by Caddy — the Caddyfile routes
@@ -58,25 +58,41 @@ internalRouter.get("/authz", async (req: Request, res: Response) => {
 	// against the share and exhausted its own quota, while the access log filled
 	// with a dozen identical "Downloaded 5.14 GB" rows for one person.
 	//
-	// A request that resumes or continues a transfer carries a Range that does
-	// not start at zero. Those are the same download, so they are authorised and
-	// then ignored for accounting.
-	const range = req.header("Range");
-	const isContinuation = Boolean(range) && !/^bytes=0-/.test(range ?? "");
+	// countsAsNewDownload drops the requests that are provably part of an
+	// already-counted transfer: HEAD probes and ranges that resume mid-file. What
+	// it cannot see is the sequential repeat — the same client starting at byte
+	// zero twice within seconds — so that is caught by asking the log itself.
+	const isNew = countsAsNewDownload({ method: req.header("X-Forwarded-Method"), range: req.header("Range") });
 
-	if (decision.shareId && !isContinuation) {
+	if (decision.shareId && isNew) {
+		const shareId = decision.shareId;
+		const ip = clientIp(req);
+		const bytes = decision.sizeBytes;
+
+		// Not awaited: Caddy is waiting on this response, and neither the count nor
+		// the log row changes the answer it gets.
 		void shareRepository
-			.recordServed(decision.shareId, decision.sizeBytes)
-			.catch((err) => logger.error({ err, shareId: decision.shareId }, "share accounting failed"));
+			.downloadedRecently(shareId, ip)
+			.catch((err) => {
+				logger.error({ err, shareId }, "share download dedupe check failed - counting it");
+				return false;
+			})
+			.then((duplicate) => {
+				if (duplicate) return;
 
-		shareRepository.logAccessSafe({
-			shareId: decision.shareId,
-			kind: "download",
-			status: 200,
-			ip: clientIp(req),
-			userAgent: userAgent(req),
-			bytes: decision.sizeBytes,
-		});
+				void shareRepository
+					.recordServed(shareId, bytes)
+					.catch((err) => logger.error({ err, shareId }, "share accounting failed"));
+
+				shareRepository.logAccessSafe({
+					shareId,
+					kind: "download",
+					status: 200,
+					ip,
+					userAgent: userAgent(req),
+					bytes,
+				});
+			});
 	}
 
 	// Caddy copies this header back onto the request, then rewrites the URI to

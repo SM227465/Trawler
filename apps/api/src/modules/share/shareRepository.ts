@@ -108,6 +108,41 @@ export class ShareRepository {
 		);
 	}
 
+	/**
+	 * Has this address already been credited with a download of this share in the
+	 * last `withinSeconds`?
+	 *
+	 * The Range guard upstream catches the parallel segments of one download, but
+	 * not the requests that arrive one after another: a manager probing with
+	 * `bytes=0-0` and then fetching for real, a browser retrying a stalled start,
+	 * a client that follows the link twice. Those all start at byte zero and are
+	 * indistinguishable from a second download except by how close together they
+	 * are — hence a window, deliberately short, so that genuinely downloading the
+	 * same file again an hour later still shows up as its own row.
+	 *
+	 * Callers treat a failure here as "not a duplicate": over-counting is the safe
+	 * direction for a limit whose job is to cap exposure.
+	 */
+	async downloadedRecently(shareId: string, ip: string | null, withinSeconds = 60): Promise<boolean> {
+		// Nothing to match on, so nothing can be called a repeat of it.
+		if (!ip) return false;
+
+		const [row] = await db
+			.select({ id: shareAccessLog.id })
+			.from(shareAccessLog)
+			.where(
+				and(
+					eq(shareAccessLog.shareId, shareId),
+					eq(shareAccessLog.kind, "download"),
+					eq(shareAccessLog.ip, ip),
+					sql`${shareAccessLog.at} > now() - make_interval(secs => ${withinSeconds})`,
+				),
+			)
+			.limit(1);
+
+		return Boolean(row);
+	}
+
 	/** Recent accesses for one share, newest first. */
 	accessLog(shareId: string, limit = 100) {
 		return db
