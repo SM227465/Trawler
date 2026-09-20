@@ -5,6 +5,7 @@ import { Dialog } from "@/components/ui/Dialog";
 import { api, type ShareAccessEntry } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { formatBytes, formatSince } from "@/lib/format";
+import { describeClient } from "@/lib/userAgent";
 
 const KIND: Record<ShareAccessEntry["kind"], { label: string; tone: string }> = {
 	view: { label: "Opened", tone: "text-fg-muted" },
@@ -67,18 +68,39 @@ export function ShareAccessDialog({ open, onClose, shareId }: { open: boolean; o
 							<p className="px-3 py-6 text-center text-sm text-fg-muted">Nobody has opened this link yet.</p>
 						) : (
 							<ul>
-								{data.entries.map((e) => (
-									<li key={e.id} className="flex items-baseline gap-3 border-b border-border px-3 py-2 last:border-b-0">
-										<span className={cn("shrink-0 text-xs font-medium", KIND[e.kind].tone)}>{KIND[e.kind].label}</span>
-										<span className="tabular min-w-0 flex-1 truncate text-xs text-fg-subtle" title={e.userAgent ?? ""}>
-											{e.ip ?? "unknown"}
-											{e.bytes > 0 && ` · ${formatBytes(e.bytes)}`}
-										</span>
-										<span className="shrink-0 text-xs text-fg-subtle" title={new Date(e.at).toLocaleString()}>
-											{formatSince(e.at)}
-										</span>
-									</li>
-								))}
+								{data.entries.map((e) => {
+									const client = describeClient(e.userAgent);
+									return (
+										<li
+											key={e.id}
+											className="flex items-baseline gap-3 border-b border-border px-3 py-2 last:border-b-0"
+										>
+											<span className={cn("shrink-0 text-xs font-medium", KIND[e.kind].tone)}>
+												{KIND[e.kind].label}
+											</span>
+											<span className="min-w-0 flex-1">
+												<span className="tabular block truncate text-xs text-fg-subtle">
+													{e.ip ?? "unknown"}
+													{e.bytes > 0 && ` · ${formatBytes(e.bytes)}`}
+												</span>
+												{/* Second line, not a tooltip: this is the detail view,
+												    and a tooltip is unreachable on a phone. */}
+												<span
+													className={cn(
+														"block truncate text-[0.6875rem]",
+														client.bot ? "text-status-paused" : "text-fg-subtle",
+													)}
+													title={e.userAgent ?? "no user agent"}
+												>
+													{client.label}
+												</span>
+											</span>
+											<span className="shrink-0 text-xs text-fg-subtle" title={new Date(e.at).toLocaleString()}>
+												{formatSince(e.at)}
+											</span>
+										</li>
+									);
+								})}
 							</ul>
 						)}
 					</div>

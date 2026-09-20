@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { api, type ShareAccessFeedEntry } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { formatBytes, formatSince } from "@/lib/format";
+import { describeClient } from "@/lib/userAgent";
 
 const KIND = {
 	view: { label: "Opened a link", icon: Eye, tone: "bg-surface-inset text-fg-subtle", text: "text-fg" },
@@ -87,6 +88,7 @@ export function ShareAccessFeed() {
 					{entries.map((e) => {
 						const k = KIND[e.kind];
 						const Icon = k.icon;
+						const client = describeClient(e.userAgent);
 						return (
 							<li key={e.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5">
 								<span className={cn("grid size-7 shrink-0 place-items-center rounded-full", k.tone)}>
@@ -102,6 +104,17 @@ export function ShareAccessFeed() {
 									title={e.userAgent ?? "unknown client"}
 								>
 									{e.ip ?? "unknown"}
+								</span>
+
+								{/* And the client is what tells you whether two rows from one
+								    address are two downloads or one download restarted by a
+								    download manager — and whether a "visitor" is a person at
+								    all or a chat app fetching a link preview. */}
+								<span
+									className={cn("shrink-0 text-xs", client.bot ? "text-status-paused" : "text-fg-muted")}
+									title={e.userAgent ?? "no user agent"}
+								>
+									{client.label}
 								</span>
 
 								<span
