@@ -10,6 +10,8 @@ import {
 	File,
 	FileAudio,
 	FileImage,
+	FileText,
+	FileType,
 	FileVideo,
 	Folder,
 	HardDrive,
@@ -27,7 +29,7 @@ import { api, type BrowseEntry, type Upload } from "@/lib/api";
 import { asAttachment } from "@/lib/attachment";
 import { cn } from "@/lib/cn";
 import { formatBytes, formatSince } from "@/lib/format";
-import { classify } from "@/lib/media";
+import { classify, isDocument, resolve } from "@/lib/media";
 import { useCopy } from "@/lib/useCopy";
 import { latestByPath, useUploads } from "@/lib/useUploads";
 import { MediaPlayerDialog } from "./MediaPlayerDialog";
@@ -43,6 +45,9 @@ function iconFor(entry: BrowseEntry) {
 	if (AUDIO.test(entry.name)) return FileAudio;
 	if (IMAGE.test(entry.name)) return FileImage;
 	if (SUBS.test(entry.name)) return Subtitles;
+	const { kind } = classify(entry.name);
+	if (kind === "pdf") return FileType;
+	if (kind === "text") return FileText;
 	return File;
 }
 
@@ -153,7 +158,7 @@ function Row({
 	const [playing, setPlaying] = useState(false);
 	const [confirming, setConfirming] = useState(false);
 	const [sharing, setSharing] = useState(false);
-	const media = classify(entry.name);
+	const media = resolve(entry.name, entry.playback);
 
 	// One request serves both actions. Folders mint a zip link and files a direct
 	// one; only the two fields both shapes share are used here, so narrow to
@@ -217,21 +222,26 @@ function Row({
 				    reserved slot its absence dragged the size and time columns 30px
 				    left on every non-playable row. 6 x size-7 + 5 x gap-0.5 = 11.125rem. */}
 				<span className="flex w-[11.125rem] shrink-0 justify-end gap-0.5">
-					{!isDir &&
-						(entry.playback ? entry.playback !== "not_media" : media.playable || media.needsExternalPlayer) && (
-							<button
-								type="button"
-								onClick={() => setPlaying(true)}
-								aria-label={`Play ${entry.name}`}
-								title={media.needsExternalPlayer ? "Preview (may need VLC)" : "Play"}
-								className={cn(
-									"grid size-7 cursor-pointer place-items-center rounded-[var(--ct-radius-sm)]",
-									"text-fg-subtle transition-colors hover:bg-surface-inset hover:text-accent",
-								)}
-							>
+					{!isDir && (media.viewable || media.needsExternalPlayer) && (
+						<button
+							type="button"
+							onClick={() => setPlaying(true)}
+							aria-label={`${isDocument(media.kind) ? "View" : "Play"} ${entry.name}`}
+							title={
+								isDocument(media.kind) ? "Read it here" : media.needsExternalPlayer ? "Preview (may need VLC)" : "Play"
+							}
+							className={cn(
+								"grid size-7 cursor-pointer place-items-center rounded-[var(--ct-radius-sm)]",
+								"text-fg-subtle transition-colors hover:bg-surface-inset hover:text-accent",
+							)}
+						>
+							{isDocument(media.kind) ? (
+								<FileText className="size-3.5" aria-hidden />
+							) : (
 								<Play className="size-3.5" aria-hidden />
-							</button>
-						)}
+							)}
+						</button>
+					)}
 
 					<button
 						type="button"

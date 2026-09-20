@@ -1,12 +1,13 @@
 "use client";
-import { useMutation } from "@tanstack/react-query";
-import { Check, Copy, Download, LoaderCircle, MonitorPlay } from "lucide-react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Check, Copy, Download, ExternalLink, FileWarning, LoaderCircle, MonitorPlay } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { asAttachment } from "@/lib/attachment";
 import { cn } from "@/lib/cn";
-import { classify } from "@/lib/media";
+import { formatBytes } from "@/lib/format";
+import { type Playback, resolve } from "@/lib/media";
 import { useCopy } from "@/lib/useCopy";
 
 interface Link {
@@ -17,9 +18,12 @@ interface Link {
 }
 
 /**
- * Plays a file in place. Seeking works because Caddy serves the file with Range
- * support (verified in Phase 0) — a player without Range can only stream from
- * the beginning.
+ * Opens a file in place: a player for media, a reader for a document.
+ *
+ * Seeking works because Caddy serves the file with Range support (verified in
+ * Phase 0) — a player without Range can only stream from the beginning. The
+ * text reader uses the same Range support to read the first page of a file
+ * instead of all of it.
  *
  * The container extension is only a guess, so `onError` is treated as a normal
  * outcome, not a crash: an .mp4 holding HEVC will load and then fail, and the
@@ -38,21 +42,10 @@ export function MediaPlayerDialog({
 	name: string;
 	getLink: () => Promise<Link>;
 	/** ffprobe's verdict. Absent means unprobed — fall back to the extension. */
-	playback?: "direct" | "remux" | "incompatible" | "not_media";
+	playback?: Playback;
 	durationSeconds?: number | null;
 }) {
-	const guess = classify(name);
-
-	// The probe wins wherever it exists. An .mkv the guess calls unplayable may
-	// be one rewrap away, and an .mp4 it calls playable may be HEVC.
-	const media = playback
-		? {
-				...guess,
-				playable: playback === "direct" || playback === "remux",
-				needsExternalPlayer: playback === "incompatible",
-			}
-		: guess;
-
+	const media = resolve(name, playback);
 	const needsRemux = playback === "remux";
 	// Fragmented MP4 carries no index, so the browser cannot byte-range seek it.
 	// Seeking restarts the stream at an offset instead — this is the offset.
@@ -160,6 +153,32 @@ export function MediaPlayerDialog({
 								className="mx-auto max-h-[60vh] rounded-[var(--ct-radius-sm)] object-contain"
 							/>
 						)}
+
+						{media.kind === "text" && <TextView path={link.path} />}
+
+						{media.kind === "pdf" && (
+							<>
+								<div className="mb-2 flex justify-end">
+									{/* Phones are the reason this is here: iOS renders a PDF in
+									    an iframe as a blank box or a single page, and the
+									    browser's own viewer handles it properly. */}
+									<Button
+										size="sm"
+										variant="ghost"
+										onClick={() => window.open(link.path, "_blank", "noopener")}
+										title="Open in the browser's own PDF viewer"
+									>
+										<ExternalLink className="size-3.5" aria-hidden />
+										Open in a tab
+									</Button>
+								</div>
+								<iframe
+									src={link.path}
+									title={name}
+									className="h-[65vh] w-full rounded-[var(--ct-radius-sm)] border border-border bg-surface-inset"
+								/>
+							</>
+						)}
 					</>
 				)}
 			</div>
@@ -244,6 +263,125 @@ function RemuxSeek({
 				Converted as it plays, so jumping restarts the stream from that point.
 				{startAt > 0 && ` Currently from ${fmt(startAt)}.`}
 			</p>
+		</div>
+	);
+}
+
+/**
+ * Reads the first page of a file instead of downloading the whole thing.
+ *
+ * The point is the small file you would otherwise have to save, open in an
+ * editor and delete again — a .txt of links, an .nfo, a subtitle, a log. A
+ * Range request caps what is pulled at PREVIEW_BYTES, so pressing View on a
+ * 4 GB log costs a quarter of a megabyte and says it was cut short.
+ */
+const PREVIEW_BYTES = 256 * 1024;
+
+type TextHead = { ok: true; text: string; truncated: boolean } | { ok: false; reason: "binary" | "too-large" };
+
+/**
+ * A BOM settles the encoding, and is checked FIRST: UTF-16 text is half NUL
+ * bytes and would otherwise be written off as binary by the scan below.
+ */
+function decode(bytes: Uint8Array): { text: string; binary: boolean } {
+	if (bytes[0] === 0xff && bytes[1] === 0xfe)
+		return { text: new TextDecoder("utf-16le").decode(bytes.subarray(2)), binary: false };
+	if (bytes[0] === 0xfe && bytes[1] === 0xff)
+		return { text: new TextDecoder("utf-16be").decode(bytes.subarray(2)), binary: false };
+
+	// No BOM. A NUL early on means this is not text, whatever the extension
+	// claimed — .sub is a subtitle format in one world and MicroDVD binary in
+	// another, and a renamed file can be anything at all.
+	if (bytes.subarray(0, 4096).includes(0)) return { text: "", binary: true };
+
+	return { text: new TextDecoder().decode(bytes), binary: false };
+}
+
+async function fetchTextHead(path: string): Promise<TextHead> {
+	const res = await fetch(path, { headers: { Range: `bytes=0-${PREVIEW_BYTES - 1}` } });
+	if (!res.ok) throw new Error(`Could not read the file (HTTP ${res.status})`);
+
+	// Caddy honours Range and answers 206. If anything in front of it ever stops
+	// doing that, this must not pull a whole film into the tab: headers arrive
+	// before the body, so cancelling here means the bytes are never fetched.
+	const size = Number(res.headers.get("Content-Length") ?? 0);
+	if (res.status !== 206 && size > PREVIEW_BYTES) {
+		await res.body?.cancel();
+		return { ok: false, reason: "too-large" };
+	}
+
+	const bytes = new Uint8Array(await res.arrayBuffer());
+	const { text, binary } = decode(bytes);
+	if (binary) return { ok: false, reason: "binary" };
+
+	// 206 means the file had more to give. Cutting at a fixed byte count can
+	// split a character in half, which decodes to a lone replacement mark.
+	const truncated = res.status === 206 && bytes.length >= PREVIEW_BYTES;
+	return { ok: true, text: truncated ? text.replace(/�+$/, "") : text, truncated };
+}
+
+function TextView({ path }: { path: string }) {
+	const { copied, copy } = useCopy();
+	const { data, isPending, isError, error } = useQuery({
+		queryKey: ["file-text", path],
+		queryFn: () => fetchTextHead(path),
+		staleTime: Number.POSITIVE_INFINITY,
+		retry: false,
+	});
+
+	if (isPending) {
+		return (
+			<div className="grid h-40 place-items-center">
+				<LoaderCircle className="size-5 animate-spin text-fg-subtle" aria-hidden />
+			</div>
+		);
+	}
+
+	if (isError) {
+		return <Unreadable message={error instanceof Error ? error.message : "Could not read the file."} />;
+	}
+
+	if (!data.ok) {
+		return (
+			<Unreadable
+				message={
+					data.reason === "binary"
+						? "This is not text — its first bytes are binary. Download it and open it in something that knows the format."
+						: "This one is too large to show here. Download it instead."
+				}
+			/>
+		);
+	}
+
+	const lines = data.text ? data.text.split("\n").length : 0;
+
+	return (
+		<>
+			<div className="mb-2 flex items-center justify-between gap-2">
+				<p className="text-xs text-fg-subtle">
+					{data.truncated ? `First ${formatBytes(PREVIEW_BYTES)} — the file continues` : `${lines} lines`}
+				</p>
+				<Button size="sm" variant="ghost" onClick={() => copy(data.text)} title="Copy the text shown">
+					{copied ? <Check className="size-3.5 text-status-completed" /> : <Copy className="size-3.5" />}
+					{copied ? "Copied" : "Copy text"}
+				</Button>
+			</div>
+
+			{/* Rendered as characters, never as markup. These are /dl/ URLs on the
+			    app's own origin, so an .html or .svg shown as a document would run
+			    its script with the session's cookies. */}
+			<pre className="max-h-[60vh] overflow-auto whitespace-pre-wrap break-words rounded-[var(--ct-radius-sm)] border border-border bg-surface-inset p-3 font-mono text-xs leading-relaxed text-fg">
+				{data.text || "This file is empty."}
+			</pre>
+		</>
+	);
+}
+
+function Unreadable({ message }: { message: string }) {
+	return (
+		<div className="rounded-[var(--ct-radius-sm)] border border-border bg-surface-inset p-4 text-center">
+			<FileWarning className="mx-auto size-7 text-fg-subtle" aria-hidden />
+			<p className="mt-2 text-sm text-fg-muted">{message}</p>
 		</div>
 	);
 }

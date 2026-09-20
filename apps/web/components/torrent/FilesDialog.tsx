@@ -1,6 +1,6 @@
 "use client";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Check, Copy, Download, LoaderCircle, Play, Share2, Terminal } from "lucide-react";
+import { Check, Copy, Download, FileText, LoaderCircle, Play, Share2, Terminal } from "lucide-react";
 import { useState } from "react";
 import { MediaPlayerDialog } from "@/components/files/MediaPlayerDialog";
 import { CreateShareDialog } from "@/components/share/CreateShareDialog";
@@ -11,7 +11,7 @@ import { api, type DownloadLink, type TorrentFile } from "@/lib/api";
 import { asAttachment } from "@/lib/attachment";
 import { cn } from "@/lib/cn";
 import { formatBytes, formatPercent } from "@/lib/format";
-import { classify } from "@/lib/media";
+import { classify, isDocument } from "@/lib/media";
 import { useCopy } from "@/lib/useCopy";
 
 const basename = (p: string) => p.split("/").pop() ?? p;
@@ -61,10 +61,19 @@ function FileRow({ file }: { file: TorrentFile }) {
 			</div>
 
 			<div className="mt-2 flex flex-wrap gap-2">
-				{(media.playable || media.needsExternalPlayer) && (
-					<Button size="sm" variant="subtle" onClick={() => setPlaying(true)} title="Play in the browser">
-						<Play className="size-3.5" aria-hidden />
-						Play
+				{(media.viewable || media.needsExternalPlayer) && (
+					<Button
+						size="sm"
+						variant="subtle"
+						onClick={() => setPlaying(true)}
+						title={isDocument(media.kind) ? "Read it here" : "Play in the browser"}
+					>
+						{isDocument(media.kind) ? (
+							<FileText className="size-3.5" aria-hidden />
+						) : (
+							<Play className="size-3.5" aria-hidden />
+						)}
+						{isDocument(media.kind) ? "View" : "Play"}
 					</Button>
 				)}
 
