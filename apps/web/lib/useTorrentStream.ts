@@ -38,6 +38,7 @@ export interface TorrentIndexEntry {
 	name: string;
 	status: string;
 	sizeBytes: number;
+	selectedBytes: number | null;
 	progress: number;
 	dlSpeedBps: number;
 	upSpeedBps: number;
@@ -52,6 +53,7 @@ const toIndexEntry = (t: Torrent): TorrentIndexEntry => ({
 	name: t.name,
 	status: t.status as string,
 	sizeBytes: t.sizeBytes,
+	selectedBytes: t.selectedBytes ?? null,
 	progress: t.progress,
 	dlSpeedBps: t.dlSpeedBps,
 	upSpeedBps: t.upSpeedBps,
@@ -93,6 +95,7 @@ const SORTABLE_KEYS = [
 	"name",
 	"status",
 	"sizeBytes",
+	"selectedBytes",
 	"progress",
 	"dlSpeedBps",
 	"upSpeedBps",

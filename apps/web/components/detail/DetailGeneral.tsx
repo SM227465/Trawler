@@ -1,6 +1,7 @@
 "use client";
 import type { Torrent } from "@/lib/api";
 import { formatBytes, formatEta, formatSince, formatSpeed } from "@/lib/format";
+import { isPartialSelection, wantedBytes } from "@/lib/torrentSize";
 import type { TorrentProperties } from "@/lib/useTorrentDetail";
 
 const dash = "—";
@@ -78,6 +79,9 @@ export function DetailGeneral({ torrent, props }: { torrent: Torrent; props: Tor
 				title="Information"
 				rows={[
 					["Total size", formatBytes(torrent.sizeBytes)],
+					...(isPartialSelection(torrent)
+						? [["Selected", `${formatBytes(wantedBytes(torrent))} — the rest is skipped`] as [string, string]]
+						: []),
 					[
 						"Pieces",
 						props.pieces_num

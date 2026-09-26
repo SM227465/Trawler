@@ -19,6 +19,7 @@ type TorrentDto = {
 	infoHash: string;
 	name: string;
 	sizeBytes: number;
+	selectedBytes: number;
 	status: string;
 	qbtState: string;
 	progress: number;
@@ -43,13 +44,16 @@ type TorrentDto = {
 	lastActivityAtMs: number | null;
 };
 
-type WriteMark = { at: number; progressPct: number; status: string };
+type WriteMark = { at: number; progressPct: number; status: string; selectedBytes: number };
 
 const toDto = (id: string, hash: string, t: QbtTorrent): TorrentDto => ({
 	id,
 	infoHash: hash,
 	name: t.name ?? hash,
 	sizeBytes: t.total_size ?? t.size ?? 0,
+	// qBittorrent's `size` is the files selected for download; `total_size` is
+	// all of them. They differ only once a file is set to skip.
+	selectedBytes: t.size ?? t.total_size ?? 0,
 	status: mapState(t.state),
 	qbtState: t.state ?? "unknown",
 	progress: t.progress ?? 0,
@@ -268,6 +272,7 @@ class QbtPoller {
 					addedBy: this.ownerId,
 					status: mapState(t.state),
 					sizeBytes: t.total_size ?? t.size ?? 0,
+					selectedBytes: t.size ?? null,
 				})
 				.onConflictDoNothing()
 				.returning();
@@ -289,6 +294,9 @@ class QbtPoller {
 		if (!mark) return true;
 		if (mark.status !== dto.status) return true;
 		if (mark.progressPct !== pct) return true;
+		// Changes only when a file is skipped or un-skipped — rare, and a page
+		// load must not show the old selection for up to 30 seconds after one.
+		if (mark.selectedBytes !== dto.selectedBytes) return true;
 		return Date.now() - mark.at >= WRITE_MAX_AGE_MS;
 	}
 
@@ -301,6 +309,7 @@ class QbtPoller {
 				.set({
 					name: dto.name,
 					sizeBytes: dto.sizeBytes,
+					selectedBytes: dto.selectedBytes,
 					status: dto.status as never,
 					qbtState: dto.qbtState,
 					progress: dto.progress,
@@ -342,6 +351,7 @@ class QbtPoller {
 				at: Date.now(),
 				progressPct: Math.floor(dto.progress * 100),
 				status: dto.status,
+				selectedBytes: dto.selectedBytes,
 			});
 
 			if (completed) void this.syncFiles(id, dto.infoHash);

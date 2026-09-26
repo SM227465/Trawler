@@ -96,6 +96,11 @@ export const torrents = pgTable(
 		name: text("name").notNull(),
 		magnet: text("magnet"), // redacted in logs
 		sizeBytes: bigint("size_bytes", { mode: "number" }).notNull().default(0),
+		// What is actually being fetched: every file not set to "skip". qBittorrent
+		// measures progress and ETA against THIS, not sizeBytes, so a season pack
+		// with one episode selected reads "100%" once that episode lands — beside
+		// a size that still counts all twenty. Null until the poller first sees it.
+		selectedBytes: bigint("selected_bytes", { mode: "number" }),
 		status: torrentStatus("status").notNull().default("queued"),
 		progress: real("progress").notNull().default(0), // 0..1
 		dlSpeedBps: bigint("dl_speed_bps", { mode: "number" }).notNull().default(0),

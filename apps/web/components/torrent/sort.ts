@@ -1,3 +1,4 @@
+import { wantedBytes } from "@/lib/torrentSize";
 import type { TorrentIndexEntry } from "@/lib/useTorrentStream";
 
 export type SortKey =
@@ -49,6 +50,8 @@ export function compareEntries(a: TorrentIndexEntry, b: TorrentIndexEntry, { key
 
 	if (key === "name") return sign * collator.compare(a.name, b.name);
 	if (key === "addedAt") return sign * (Date.parse(a.addedAt) - Date.parse(b.addedAt));
+	// By the size the column shows — what is being fetched, not the whole torrent.
+	if (key === "sizeBytes") return sign * (wantedBytes(a) - wantedBytes(b));
 
 	if (key === "etaSeconds") {
 		// null is qBittorrent's "unknown" (∞). Always sort it last, whichever

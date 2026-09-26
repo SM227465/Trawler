@@ -5,6 +5,8 @@ import type { components } from "./api-schema";
 export type Torrent = components["schemas"]["Torrent"] & {
 	/** Present on every row; declared here until `pnpm gen:api` is re-run. */
 	lastAccessedAt?: string | null;
+	/** Bytes in files not set to skip. Null until the poller first sees the torrent. */
+	selectedBytes?: number | null;
 };
 export type PublicUser = components["schemas"]["PublicUser"];
 

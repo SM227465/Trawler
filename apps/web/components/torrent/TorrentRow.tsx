@@ -22,6 +22,7 @@ import { StatusChip } from "@/components/ui/StatusChip";
 import { api, type Torrent } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { formatBytes, formatEta, formatPercent, formatSince, formatSpeed, formatSwarm } from "@/lib/format";
+import { isPartialSelection, wantedBytes } from "@/lib/torrentSize";
 import { buildMagnet, useCopy } from "@/lib/useCopy";
 import { TORRENT_IDS_KEY, torrentKey } from "@/lib/useTorrentStream";
 import { FilesDialog } from "./FilesDialog";
@@ -222,7 +223,27 @@ export const TorrentRow = memo(function TorrentRow({ id, hidden }: { id: string;
 			    grid-cols-3 keeps Size/Seeds/Peers aligned with Down/Up/ETA on the
 			    row beneath — which content-sized columns would not. */}
 			<div className="grid w-fit grid-cols-3 gap-x-5 gap-y-2 sm:w-auto sm:grid-cols-6 lg:contents">
-				{show("Size") && <Cell label="Size">{t.sizeBytes > 0 ? formatBytes(t.sizeBytes) : "—"}</Cell>}
+				{show("Size") && (
+					<Cell label="Size">
+						{/* The size being FETCHED, as qBittorrent's own column shows it:
+						    progress and ETA beside it are measured against this, not
+						    against every file in the torrent. The total is a hover away,
+						    and spelled out on the torrent's own page. */}
+						{wantedBytes(t) > 0 || isPartialSelection(t) ? (
+							<span
+								title={
+									isPartialSelection(t)
+										? `${formatBytes(wantedBytes(t))} selected of ${formatBytes(t.sizeBytes)} — some files are skipped`
+										: undefined
+								}
+							>
+								{formatBytes(wantedBytes(t))}
+							</span>
+						) : (
+							"—"
+						)}
+					</Cell>
+				)}
 				{show("Seeds") && <Cell label="Seeds">{formatSwarm(t.seedsConnected, t.seedsTotal)}</Cell>}
 				{show("Peers") && <Cell label="Peers">{formatSwarm(t.peersConnected, t.peersTotal)}</Cell>}
 
@@ -332,7 +353,7 @@ export const TorrentRow = memo(function TorrentRow({ id, hidden }: { id: string;
 					label="Also delete the downloaded files"
 					hint={
 						deleteFiles
-							? `Frees ${formatBytes(t.sizeBytes)} on disk. This cannot be undone.`
+							? `Frees ${t.progress >= 1 ? "" : "up to "}${formatBytes(wantedBytes(t))} on disk. This cannot be undone.`
 							: "Files stay on disk; only the entry is removed."
 					}
 					checked={deleteFiles}

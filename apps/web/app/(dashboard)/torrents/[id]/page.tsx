@@ -16,6 +16,7 @@ import { type TabItem, TabPanel, Tabs } from "@/components/ui/Tabs";
 import { api, type Torrent } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { formatBytes, formatPercent } from "@/lib/format";
+import { isPartialSelection, wantedBytes } from "@/lib/torrentSize";
 import { useSpeedHistory } from "@/lib/useSpeedHistory";
 import { useTorrentDetail } from "@/lib/useTorrentDetail";
 import { torrentKey } from "@/lib/useTorrentStream";
@@ -95,7 +96,11 @@ function DetailView() {
 					<h2 className="min-w-0 break-words text-base font-semibold text-fg">{torrent.name}</h2>
 					<StatusChip status={torrent.status} detail={torrent.qbtState} />
 					<span className="tabular text-xs text-fg-subtle">
-						{formatPercent(torrent.progress)} of {formatBytes(torrent.sizeBytes)}
+						{/* The percentage is qBittorrent's, measured against the files
+						    being fetched — so it is stated against that size, with the
+						    torrent's full size alongside when some files are skipped. */}
+						{formatPercent(torrent.progress)} of {formatBytes(wantedBytes(torrent))}
+						{isPartialSelection(torrent) && ` · ${formatBytes(torrent.sizeBytes)} in the torrent`}
 					</span>
 					<Button
 						size="sm"

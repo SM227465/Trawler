@@ -10,6 +10,8 @@ export const TorrentSchema = z.object({
 	infoHash: z.string(),
 	name: z.string(),
 	sizeBytes: z.number(),
+	/** Bytes in files not set to skip — what progress and ETA are measured against. */
+	selectedBytes: z.number().nullable(),
 	status: TorrentStatusEnum,
 	qbtState: z.string().nullable(),
 	progress: z.number(),
