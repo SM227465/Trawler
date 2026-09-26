@@ -200,6 +200,69 @@ export class TorrentService {
 		return ServiceResponse.success("OK", await torrentRepository.filesFor(id));
 	}
 
+	/**
+	 * One priority for many files, in one qBittorrent call.
+	 *
+	 * Same order as the single-file version, for the same reason: qBittorrent
+	 * first, then the rows. The poller rewrites those rows from qBittorrent every
+	 * ten seconds, so a change that only reached the database would quietly undo
+	 * itself.
+	 */
+	async setFilePriorities(id: string, fileIds: string[], priority: number) {
+		const row = await torrentRepository.findById(id);
+		if (!row) return notFound();
+		if (row.status === "evicted") {
+			return ServiceResponse.failure(
+				"This torrent has been cleaned up, so there is nothing left to download",
+				null,
+				ErrorCode.RESOURCE_NOT_FOUND,
+				"RESOURCE_NOT_FOUND",
+			);
+		}
+
+		const wanted = new Set(fileIds);
+		const files = (await torrentRepository.filesFor(id)).filter((f) => wanted.has(f.id));
+		// All or nothing. Applying the ids that happen to match and ignoring the
+		// rest would report success for a change that was only partly made.
+		if (files.length !== wanted.size) {
+			return ServiceResponse.failure(
+				"Some of those files are not part of this torrent",
+				null,
+				ErrorCode.VALIDATION_ERROR,
+				"VALIDATION_ERROR",
+			);
+		}
+
+		try {
+			await qbt.setFilePriority(
+				row.infoHash,
+				files.map((f) => f.qbtIndex),
+				priority,
+			);
+		} catch (err) {
+			if (!(err instanceof QbittorrentError)) throw err;
+			logger.warn(
+				{ err: err.message, torrentId: id, status: err.status },
+				"qBittorrent refused a file priority change",
+			);
+			return err.status === 404
+				? ServiceResponse.failure(
+						"qBittorrent no longer has this torrent",
+						null,
+						ErrorCode.RESOURCE_NOT_FOUND,
+						"RESOURCE_NOT_FOUND",
+					)
+				: unavailable(err);
+		}
+
+		const updated = await torrentRepository.setFilePriorities(
+			id,
+			files.map((f) => f.id),
+			priority,
+		);
+		return ServiceResponse.success("Priorities updated", updated);
+	}
+
 	private async act(id: string, fn: (hash: string) => Promise<void>, message: string) {
 		const row = await torrentRepository.findById(id);
 		if (!row) return notFound();

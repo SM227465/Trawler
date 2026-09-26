@@ -76,6 +76,11 @@ class TorrentController {
 		handleServiceResponse(await torrentService.files(req.params.id as string), res);
 	};
 
+	public setFilePriorities: RequestHandler = async (req, res) => {
+		const { fileIds, priority } = req.body as { fileIds: string[]; priority: number };
+		handleServiceResponse(await torrentService.setFilePriorities(req.params.id as string, fileIds, priority), res);
+	};
+
 	public pause: RequestHandler = async (req, res) => {
 		handleServiceResponse(await torrentService.pause(req.params.id as string), res);
 	};

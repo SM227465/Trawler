@@ -12,6 +12,7 @@ import {
 	BatchResultSchema,
 	DeleteTorrentSchema,
 	ListTorrentsSchema,
+	SetFilePrioritiesSchema,
 	TorrentIdSchema,
 	TorrentSchema,
 } from "./torrentModel";
@@ -108,6 +109,19 @@ torrentRegistry.registerPath({
 	responses: createApiResponse(z.array(z.object({}).passthrough()), "Success"),
 });
 torrentRouter.get("/:id/files", validateRequest(TorrentIdSchema), torrentController.files);
+
+torrentRegistry.registerPath({
+	method: "patch",
+	path: "/api/v1/torrents/{id}/files",
+	tags: ["Torrent"],
+	description: "Set one priority on many files of this torrent — 0 skip, 1 normal, 6 high, 7 maximum.",
+	request: {
+		params: SetFilePrioritiesSchema.shape.params,
+		body: { content: { "application/json": { schema: SetFilePrioritiesSchema.shape.body } } },
+	},
+	responses: createApiResponse(z.array(z.object({}).passthrough()), "Updated"),
+});
+torrentRouter.patch("/:id/files", validateRequest(SetFilePrioritiesSchema), torrentController.setFilePriorities);
 
 // Actions — POST, because CRUD verbs do not fit. Doc 03 §A5.
 for (const [path, handler] of [

@@ -26,14 +26,15 @@ export const DownloadLinkSchema = z.object({
 
 export const FileIdParams = z.object({ params: z.object({ id: z.string().uuid() }) });
 
+/** qBittorrent's levels: 0 skip, 1 normal, 6 high, 7 maximum. Nothing else is accepted by it. */
+export const FilePrioritySchema = z
+	.number()
+	.int()
+	.refine((n) => [0, 1, 6, 7].includes(n), "priority must be 0, 1, 6 or 7");
+
 export const UpdateFileSchema = z.object({
 	params: z.object({ id: z.string().uuid() }),
-	body: z.object({
-		priority: z
-			.number()
-			.int()
-			.refine((n) => [0, 1, 6, 7].includes(n), "priority must be 0, 1, 6 or 7"),
-	}),
+	body: z.object({ priority: FilePrioritySchema }),
 });
 
 export type DownloadLink = z.infer<typeof DownloadLinkSchema>;

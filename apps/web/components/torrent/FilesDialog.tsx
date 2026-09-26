@@ -6,13 +6,14 @@ import { MediaPlayerDialog } from "@/components/files/MediaPlayerDialog";
 import { CreateShareDialog } from "@/components/share/CreateShareDialog";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
-import { ProgressBar } from "@/components/ui/ProgressBar";
 import { api, type DownloadLink, type TorrentFile } from "@/lib/api";
 import { asAttachment } from "@/lib/attachment";
 import { cn } from "@/lib/cn";
-import { formatBytes, formatPercent } from "@/lib/format";
+import { formatBytes } from "@/lib/format";
 import { classify, isDocument } from "@/lib/media";
 import { useCopy } from "@/lib/useCopy";
+import { FileProgress } from "./FileProgress";
+import { FileSelection } from "./FileSelection";
 
 const basename = (p: string) => p.split("/").pop() ?? p;
 
@@ -41,12 +42,7 @@ function FileRow({ file }: { file: TorrentFile }) {
 					</span>
 					<span className="tabular shrink-0 text-xs text-fg-subtle">{formatBytes(file.sizeBytes)}</span>
 				</div>
-				<div className="mt-2 flex items-center gap-2">
-					<ProgressBar value={file.progress} status="downloading" className="flex-1" />
-					<span className="tabular w-11 shrink-0 text-right text-[0.6875rem] text-fg-subtle">
-						{formatPercent(file.progress)}
-					</span>
-				</div>
+				<FileProgress file={file} />
 			</li>
 		);
 	}
@@ -167,6 +163,13 @@ export function FilesDialog({
 
 	return (
 		<Dialog open={open} onClose={onClose} title="Files" description={torrentName}>
+			{/* Outside the scroller, so the bulk actions stay put while the list moves. */}
+			{files && files.length > 0 && (
+				<div className="mt-4">
+					<FileSelection torrentId={torrentId} files={files} />
+				</div>
+			)}
+
 			<div className={cn("mt-4 max-h-[50vh] overflow-y-auto", isLoading && "min-h-24")}>
 				{isLoading && (
 					<div className="grid h-24 place-items-center">

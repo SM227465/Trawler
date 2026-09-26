@@ -419,6 +419,17 @@ export const api = {
 
 	fileLink: (fileId: string) => apiFetch<DownloadLink>(`/files/${fileId}/link`),
 
+	/** qBittorrent's levels: 0 skip, 1 normal, 6 high, 7 maximum. */
+	setFilePriority: (fileId: string, priority: 0 | 1 | 6 | 7) =>
+		apiFetch<TorrentFile>(`/files/${fileId}`, { method: "PATCH", body: JSON.stringify({ priority }) }),
+
+	/** One priority for many files of one torrent, in a single qBittorrent call. */
+	setFilePriorities: (torrentId: string, fileIds: string[], priority: 0 | 1 | 6 | 7) =>
+		apiFetch<TorrentFile[]>(`/torrents/${torrentId}/files`, {
+			method: "PATCH",
+			body: JSON.stringify({ fileIds, priority }),
+		}),
+
 	storage: () => apiFetch<StorageStatus>("/storage"),
 
 	remotes: () => apiFetch<RemoteList>("/remotes"),

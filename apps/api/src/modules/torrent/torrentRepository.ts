@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, sql } from "drizzle-orm";
 import { v7 as uuidv7 } from "uuid";
 import { db } from "@/db/client";
 import { torrentFiles, torrents } from "@/db/schema";
@@ -60,6 +60,15 @@ export class TorrentRepository {
 
 	filesFor(torrentId: string) {
 		return db.query.torrentFiles.findMany({ where: eq(torrentFiles.torrentId, torrentId) });
+	}
+
+	/** Scoped to the torrent, so a file id from another torrent cannot be touched through this one. */
+	setFilePriorities(torrentId: string, fileIds: string[], priority: number) {
+		return db
+			.update(torrentFiles)
+			.set({ priority })
+			.where(and(eq(torrentFiles.torrentId, torrentId), inArray(torrentFiles.id, fileIds)))
+			.returning();
 	}
 
 	async replaceFiles(torrentId: string, rows: Omit<typeof torrentFiles.$inferInsert, "id" | "torrentId">[]) {

@@ -1,5 +1,6 @@
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { z } from "zod";
+import { FilePrioritySchema } from "@/modules/file/fileModel";
 
 extendZodWithOpenApi(z);
 
@@ -71,6 +72,19 @@ export const AddTorrentSchema = z.object({
 
 export const TorrentIdSchema = z.object({
 	params: z.object({ id: z.string().uuid("must be a torrent uuid") }),
+});
+
+/**
+ * Many files of one torrent, one priority. qBittorrent takes a list of file
+ * indexes per call, so "skip all twenty episodes but one" is one request to it
+ * rather than nineteen.
+ */
+export const SetFilePrioritiesSchema = z.object({
+	params: TorrentIdSchema.shape.params,
+	body: z.object({
+		fileIds: z.array(z.string().uuid()).min(1).max(10_000),
+		priority: FilePrioritySchema,
+	}),
 });
 
 export const ListTorrentsSchema = z.object({

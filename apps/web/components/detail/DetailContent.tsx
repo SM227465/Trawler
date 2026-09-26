@@ -4,11 +4,12 @@ import { Check, Copy, Download, FileText, LoaderCircle, Play, Share2, Terminal }
 import { useState } from "react";
 import { MediaPlayerDialog } from "@/components/files/MediaPlayerDialog";
 import { CreateShareDialog } from "@/components/share/CreateShareDialog";
+import { FileProgress } from "@/components/torrent/FileProgress";
+import { FileSelection } from "@/components/torrent/FileSelection";
 import { Button } from "@/components/ui/Button";
-import { ProgressBar } from "@/components/ui/ProgressBar";
 import { api, type DownloadLink, type TorrentFile } from "@/lib/api";
 import { asAttachment } from "@/lib/attachment";
-import { formatBytes, formatPercent } from "@/lib/format";
+import { formatBytes } from "@/lib/format";
 import { classify, isDocument } from "@/lib/media";
 import { useCopy } from "@/lib/useCopy";
 
@@ -38,14 +39,7 @@ function FileRow({ file }: { file: TorrentFile }) {
 				<span className="tabular shrink-0 text-xs text-fg-subtle">{formatBytes(file.sizeBytes)}</span>
 			</div>
 
-			{!file.isComplete && (
-				<div className="mt-2 flex items-center gap-2">
-					<ProgressBar value={file.progress} status="downloading" className="flex-1" />
-					<span className="tabular w-11 text-right text-[0.6875rem] text-fg-subtle">
-						{formatPercent(file.progress)}
-					</span>
-				</div>
-			)}
+			{!file.isComplete && <FileProgress file={file} />}
 
 			{file.isComplete && (
 				<div className="mt-2 flex flex-wrap gap-2">
@@ -130,12 +124,15 @@ export function DetailContent({ torrentId }: { torrentId: string }) {
 	}
 
 	return (
-		<ul className="overflow-hidden rounded-[var(--ct-radius)] border border-border bg-surface">
-			{[...files]
-				.sort((a, b) => b.sizeBytes - a.sizeBytes)
-				.map((f) => (
-					<FileRow key={f.id} file={f} />
-				))}
-		</ul>
+		<div className="flex flex-col gap-3">
+			<FileSelection torrentId={torrentId} files={files} />
+			<ul className="overflow-hidden rounded-[var(--ct-radius)] border border-border bg-surface">
+				{[...files]
+					.sort((a, b) => b.sizeBytes - a.sizeBytes)
+					.map((f) => (
+						<FileRow key={f.id} file={f} />
+					))}
+			</ul>
+		</div>
 	);
 }
