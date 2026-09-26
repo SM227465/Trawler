@@ -14,6 +14,7 @@ export class FileRepository {
 				file: torrentFiles,
 				torrentName: torrents.name,
 				torrentStatus: torrents.status,
+				infoHash: torrents.infoHash,
 			})
 			.from(torrentFiles)
 			.innerJoin(torrents, eq(torrentFiles.torrentId, torrents.id))

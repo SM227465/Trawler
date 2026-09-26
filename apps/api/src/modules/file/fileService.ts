@@ -3,6 +3,7 @@ import { ErrorCode } from "@/common/models/errorCodes";
 import { ServiceResponse } from "@/common/models/serviceResponse";
 import { env } from "@/common/utils/envConfig";
 import { logger } from "@/common/utils/logger";
+import { QbittorrentError, qbt } from "@/integrations/qbittorrent/client";
 import { signDownloadToken } from "./downloadToken";
 import type { DownloadLink } from "./fileModel";
 import { resolveDownloadPath } from "./filePath";
@@ -68,12 +69,55 @@ export class FileService {
 		return ServiceResponse.success("Files retrieved", rows);
 	}
 
+	/**
+	 * qBittorrent first, then the row — never the other way round.
+	 *
+	 * This used to write only the database. The poller re-reads every file from
+	 * qBittorrent every 10 seconds and overwrites this column, so the request
+	 * returned 200 with the new priority, the download did not change at all,
+	 * and the value quietly reverted within ten seconds. qBittorrent is the
+	 * source of truth; the row is a cache of it.
+	 */
 	async setPriority(fileId: string, priority: number) {
-		const [updated] = await fileRepository.setPriority(fileId, priority);
-		if (!updated) {
+		const row = await fileRepository.findWithTorrent(fileId);
+		if (!row) {
 			return ServiceResponse.failure("File not found", null, ErrorCode.RESOURCE_NOT_FOUND, "RESOURCE_NOT_FOUND");
 		}
-		return ServiceResponse.success("Priority updated", updated);
+		if (row.torrentStatus === "evicted") {
+			return ServiceResponse.failure(
+				"This torrent has been cleaned up, so there is nothing left to download",
+				null,
+				ErrorCode.RESOURCE_NOT_FOUND,
+				"RESOURCE_NOT_FOUND",
+			);
+		}
+
+		try {
+			await qbt.setFilePriority(row.infoHash, [row.file.qbtIndex], priority);
+		} catch (err) {
+			if (!(err instanceof QbittorrentError)) throw err;
+			logger.warn({ err: err.message, fileId, status: err.status }, "qBittorrent refused a file priority change");
+
+			// 404: removed from qBittorrent behind our back. Anything else — down,
+			// or a 409 for metadata that has not arrived — means the change did
+			// not happen, and saying so beats pretending it did.
+			return err.status === 404
+				? ServiceResponse.failure(
+						"qBittorrent no longer has this torrent",
+						null,
+						ErrorCode.RESOURCE_NOT_FOUND,
+						"RESOURCE_NOT_FOUND",
+					)
+				: ServiceResponse.failure(
+						"qBittorrent did not accept the change",
+						null,
+						ErrorCode.QBITTORRENT_UNAVAILABLE,
+						"QBITTORRENT_UNAVAILABLE",
+					);
+		}
+
+		const [updated] = await fileRepository.setPriority(fileId, priority);
+		return ServiceResponse.success("Priority updated", updated ?? { ...row.file, priority });
 	}
 }
 
