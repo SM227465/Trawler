@@ -6,6 +6,7 @@ export type SortKey =
 	| "sizeBytes"
 	| "seedsConnected"
 	| "peersConnected"
+	| "availability"
 	| "dlSpeedBps"
 	| "upSpeedBps"
 	| "etaSeconds"
@@ -25,23 +26,12 @@ export const SORT_LABELS: Record<SortKey, string> = {
 	sizeBytes: "Size",
 	seedsConnected: "Seeds",
 	peersConnected: "Peers",
+	availability: "Availability",
 	dlSpeedBps: "Down",
 	upSpeedBps: "Up",
 	etaSeconds: "ETA",
 	addedAt: "Date added",
 };
-
-/** Which sort key each visible column maps to. `null` = not sortable. */
-export const COLUMN_SORT: Array<SortKey | null> = [
-	"name",
-	"sizeBytes",
-	"seedsConnected",
-	"peersConnected",
-	"dlSpeedBps",
-	"upSpeedBps",
-	"etaSeconds",
-	null,
-];
 
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
 
@@ -53,11 +43,12 @@ export function compareEntries(a: TorrentIndexEntry, b: TorrentIndexEntry, { key
 	// By the size the column shows — what is being fetched, not the whole torrent.
 	if (key === "sizeBytes") return sign * (wantedBytes(a) - wantedBytes(b));
 
-	if (key === "etaSeconds") {
-		// null is qBittorrent's "unknown" (∞). Always sort it last, whichever
-		// direction — an unknown ETA is never the most interesting row.
-		const av = a.etaSeconds;
-		const bv = b.etaSeconds;
+	if (key === "etaSeconds" || key === "availability") {
+		// null is "unknown" or "means nothing here" — ETA's ∞, availability on
+		// anything not downloading. Always last, whichever direction: it is never
+		// the most interesting row.
+		const av = a[key];
+		const bv = b[key];
 		if (av === null && bv === null) return 0;
 		if (av === null) return 1;
 		if (bv === null) return -1;

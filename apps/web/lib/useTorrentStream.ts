@@ -2,6 +2,7 @@
 import { type QueryClient, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { api, refreshSession, type Torrent } from "./api";
+import { availabilityOf } from "./swarm";
 import { useCacheOnly } from "./useCacheOnly";
 
 export interface QbtStats {
@@ -44,6 +45,8 @@ export interface TorrentIndexEntry {
 	upSpeedBps: number;
 	seedsConnected: number;
 	peersConnected: number;
+	/** Null where it means nothing — see availabilityOf. */
+	availability: number | null;
 	etaSeconds: number | null;
 	addedAt: string;
 }
@@ -59,6 +62,7 @@ const toIndexEntry = (t: Torrent): TorrentIndexEntry => ({
 	upSpeedBps: t.upSpeedBps,
 	seedsConnected: t.seedsConnected,
 	peersConnected: t.peersConnected,
+	availability: availabilityOf(t),
 	etaSeconds: t.etaSeconds ?? null,
 	addedAt: t.addedAt as unknown as string,
 });
@@ -102,6 +106,10 @@ const SORTABLE_KEYS = [
 	"seedsConnected",
 	"peersConnected",
 	"etaSeconds",
+	// Both feed the availability sort: qbtState decides whether the number
+	// means anything (not while metadata resolves).
+	"availability",
+	"qbtState",
 ] as const;
 export const STATS_KEY = ["qbt-stats"] as const;
 

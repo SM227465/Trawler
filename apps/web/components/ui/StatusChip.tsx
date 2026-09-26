@@ -1,3 +1,4 @@
+import { LoaderCircle } from "lucide-react";
 import type { TorrentStatus } from "@/lib/api";
 import { cn } from "@/lib/cn";
 
@@ -23,7 +24,17 @@ const LABELS: Record<string, string> = {
 	evicted: "Evicted",
 };
 
+/** qBittorrent's states for a magnet that has not resolved yet. */
+const FETCHING_METADATA = new Set(["metaDL", "forcedMetaDL"]);
+
+/**
+ * A magnet still resolving maps to "downloading", but nothing is downloading
+ * yet: no name, no size, no files. The chip says "Metadata" and spins, which
+ * replaced a separate "fetching metadata" note that used to follow it.
+ */
 export function StatusChip({ status, detail }: { status: TorrentStatus | string; detail?: string | null }) {
+	const fetchingMetadata = status === "downloading" && detail != null && FETCHING_METADATA.has(detail);
+
 	return (
 		<span
 			className={cn(
@@ -31,10 +42,18 @@ export function StatusChip({ status, detail }: { status: TorrentStatus | string;
 				"text-xs font-medium whitespace-nowrap",
 				STYLES[status] ?? STYLES.queued,
 			)}
-			title={detail ?? undefined}
+			title={
+				fetchingMetadata
+					? "Fetching metadata from peers — the name, size and file list arrive once it is done"
+					: (detail ?? undefined)
+			}
 		>
-			<span className="size-1.5 rounded-full bg-current" aria-hidden />
-			{LABELS[status] ?? status}
+			{fetchingMetadata ? (
+				<LoaderCircle className="size-3 animate-spin" aria-hidden />
+			) : (
+				<span className="size-1.5 rounded-full bg-current" aria-hidden />
+			)}
+			{fetchingMetadata ? "Metadata" : (LABELS[status] ?? status)}
 		</span>
 	);
 }

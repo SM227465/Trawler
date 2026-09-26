@@ -6,12 +6,12 @@ import {
 	Check,
 	FolderOpen,
 	Link2,
-	LoaderCircle,
 	Pause,
 	Pin,
 	Play,
 	RefreshCw,
 	Trash2,
+	TriangleAlert,
 } from "lucide-react";
 import Link from "next/link";
 import { memo, useState } from "react";
@@ -21,7 +21,8 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { api, type Torrent } from "@/lib/api";
 import { cn } from "@/lib/cn";
-import { formatBytes, formatEta, formatPercent, formatSince, formatSpeed, formatSwarm } from "@/lib/format";
+import { formatAge, formatBytes, formatEta, formatPercent, formatSpeed, formatSwarm } from "@/lib/format";
+import { availabilityOf, isIncompleteSwarm } from "@/lib/swarm";
 import { isPartialSelection, wantedBytes } from "@/lib/torrentSize";
 import { buildMagnet, useCopy } from "@/lib/useCopy";
 import { TORRENT_IDS_KEY, torrentKey } from "@/lib/useTorrentStream";
@@ -114,10 +115,8 @@ export const TorrentRow = memo(function TorrentRow({ id, hidden }: { id: string;
 	}
 
 	// Magnet metadata not resolved yet: no name, no size, no files.
-	const metaPending = t.qbtState === "metaDL" || (!t.name && t.sizeBytes === 0);
-	// No complete copy in the swarm. THE reason a torrent sticks at 97%, and the
-	// thing everyone assumes is a client bug.
-	const incompleteSwarm = t.status === "downloading" && t.availability > 0 && t.availability < 1;
+	const metaPending = t.qbtState === "metaDL" || t.qbtState === "forcedMetaDL" || (!t.name && t.sizeBytes === 0);
+	const availability = availabilityOf(t);
 
 	const show = (col: string) => !hidden.has(col);
 
@@ -157,63 +156,45 @@ export const TorrentRow = memo(function TorrentRow({ id, hidden }: { id: string;
 				style={{ width: `${Math.min(100, Math.max(0, t.progress * 100))}%` }}
 			/>
 
-			{/* name */}
-			{/* Wraps on mobile so the name gets a full-width line of its own. It
-			    used to share one 360px row with the status chip, the percentage and
-			    up to two badges, which left the name about half the width — long
-			    release names were cut before the title even started. Widening the
-			    container beats truncating cleverly: any rule that strips a
-			    "www.tracker.org - " prefix eventually eats a name that really began
-			    that way. lg:flex-nowrap puts it all back on one row on desktop. */}
-			<div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 lg:flex-nowrap">
-				<span className="flex w-full min-w-0 items-center gap-2 lg:w-auto lg:flex-1">
-					{t.pinned && <Pin className="size-3 shrink-0 text-accent" aria-label="Pinned" />}
-					<Link
-						href={`/torrents/${id}`}
-						className="truncate text-sm font-medium text-fg hover:underline"
-						title={t.name}
-					>
-						{/* doc 04 §5.4: while a magnet resolves, qBittorrent has no name
-						    yet. The infohash beats an empty row that reads as a bug. */}
-						{metaPending ? <span className="font-mono text-xs">{t.infoHash.slice(0, 16)}…</span> : t.name}
-					</Link>
-				</span>
-				<StatusChip status={t.status} detail={t.qbtState} />
-
-				{metaPending && (
-					<span className="inline-flex shrink-0 items-center gap-1 text-[0.6875rem] text-fg-subtle">
-						<LoaderCircle className="size-3 animate-spin" aria-hidden />
-						fetching metadata
-					</span>
-				)}
-
-				{incompleteSwarm && (
-					<span
-						className="shrink-0 rounded-full bg-status-paused-soft px-1.5 py-0.5 text-[0.6875rem] text-status-paused"
-						title={`Availability ${t.availability.toFixed(2)} — no complete copy is reachable, so this cannot finish until a seed appears. Not a fault in Trawler.`}
-					>
-						no full copy
-					</span>
-				)}
-
-				{t.status === "errored" && t.errorMessage && (
-					<span className="min-w-0 shrink truncate text-[0.6875rem] text-status-errored" title={t.errorMessage}>
-						{t.errorMessage}
-					</span>
-				)}
-				{done ? (
-					// ETA is meaningless once complete; how long it has sat idle is
-					// what decides cleanup order, so show that instead.
-					<span
-						className="shrink-0 text-[0.6875rem] text-fg-subtle"
-						title="Time since this torrent was last downloaded from — cleanup removes the least recently used first"
-					>
-						idle {formatSince(t.lastAccessedAt ?? t.completedAt)}
-					</span>
-				) : (
-					<span className="tabular shrink-0 text-[0.6875rem] text-fg-subtle">{formatPercent(t.progress)}</span>
-				)}
+			{/* name — alone in its cell. Status, progress and availability each
+			    have a column of their own; they used to follow the name inside
+			    this cell, and every one of them came out of its width. */}
+			<div className="flex min-w-0 items-center gap-2">
+				{t.pinned && <Pin className="size-3 shrink-0 text-accent" aria-label="Pinned" />}
+				<Link href={`/torrents/${id}`} className="truncate text-sm font-medium text-fg hover:underline" title={t.name}>
+					{/* doc 04 §5.4: while a magnet resolves, qBittorrent has no name
+					    yet. The infohash beats an empty row that reads as a bug. */}
+					{metaPending ? <span className="font-mono text-xs">{t.infoHash.slice(0, 16)}…</span> : t.name}
+				</Link>
 			</div>
+
+			{/* status — the chip, and the one note that goes with it. On a phone
+			    -mt-2 keeps it tucked under the name, where it sat when the two
+			    shared a cell; the card's gap-3 would otherwise open up between. */}
+			{show("Status") && (
+				<div className="-mt-2 flex min-w-0 items-center gap-2 lg:mt-0">
+					<StatusChip status={t.status} detail={t.qbtState} />
+					{t.status === "errored" && t.errorMessage ? (
+						// doc 04 §5.4: qBittorrent's own message is the only thing that
+						// says WHY. Cut to the column here, whole on hover.
+						<span className="min-w-0 truncate text-[0.6875rem] text-status-errored" title={t.errorMessage}>
+							{t.errorMessage}
+						</span>
+					) : done ? (
+						// ETA is meaningless once complete; how long it has sat idle is
+						// what decides cleanup order, so show that instead.
+						<span
+							className="shrink-0 text-[0.6875rem] text-fg-subtle"
+							title="Time since this torrent was last downloaded from — cleanup removes the least recently used first"
+						>
+							idle {formatAge(t.lastAccessedAt ?? t.completedAt)}
+						</span>
+					) : metaPending ? null : (
+						// Hidden while metadata resolves: it can only ever read 0.0%.
+						<span className="tabular shrink-0 text-[0.6875rem] text-fg-subtle">{formatPercent(t.progress)}</span>
+					)}
+				</div>
+			)}
 
 			{/* metrics — 3-up grid on mobile, aligned columns on lg */}
 			{/* w-fit, not full width: three equal columns stretched across a 360px
@@ -246,6 +227,44 @@ export const TorrentRow = memo(function TorrentRow({ id, hidden }: { id: string;
 				)}
 				{show("Seeds") && <Cell label="Seeds">{formatSwarm(t.seedsConnected, t.seedsTotal)}</Cell>}
 				{show("Peers") && <Cell label="Peers">{formatSwarm(t.peersConnected, t.peersTotal)}</Cell>}
+
+				{/* After Peers on desktop, where the swarm columns sit together. Last
+				    on a phone, so Size/Seeds/Peers still line up over Down/Up/ETA —
+				    and only when there is a number: a card is not a grid, and a row
+				    of its own reading "—" on every finished torrent is just height.
+				    The desktop row keeps the cell regardless; the track needs it. */}
+				{show("Availability") && (
+					<Cell
+						label="Availability"
+						className={cn("order-last lg:order-none", availability === null && "hidden lg:block")}
+					>
+						{availability === null ? (
+							"—"
+						) : isIncompleteSwarm(availability) ? (
+							<span
+								className="inline-flex items-center gap-1 text-status-paused"
+								title={`No full copy — ${availability.toFixed(2)}. No connected peer has every piece between them, so this cannot finish until a seed appears. Not a fault in Trawler.`}
+							>
+								<TriangleAlert className="size-3 shrink-0" aria-hidden />
+								{availability.toFixed(2)}
+								<span className="sr-only">
+									{" "}
+									— no full copy among connected peers, so this cannot finish until a seed appears
+								</span>
+							</span>
+						) : (
+							<span
+								title={
+									availability === 0
+										? "No peers connected yet"
+										: `${availability.toFixed(2)} complete copies among the connected peers`
+								}
+							>
+								{availability.toFixed(2)}
+							</span>
+						)}
+					</Cell>
+				)}
 
 				{show("Down") && (
 					<Cell label="Down">

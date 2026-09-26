@@ -5,9 +5,9 @@ import { useEffect, useMemo, useRef } from "react";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { TORRENT_IDS_KEY, useTorrentIndex } from "@/lib/useTorrentStream";
-import { COLUMNS, gridTemplate, ROW_GRID } from "./grid";
+import { COLUMN_SORT, gridTemplate, HEADER_LABEL, ROW_GRID, visibleColumns } from "./grid";
 import { Pagination } from "./Pagination";
-import { COLUMN_SORT, compareEntries, type SortState } from "./sort";
+import { compareEntries, type SortKey, type SortState } from "./sort";
 import type { FilterValue } from "./Toolbar";
 import { TorrentRow } from "./TorrentRow";
 
@@ -80,7 +80,7 @@ export function TorrentList({
 		scrollToTop.current?.scrollTo({ top: 0 });
 	};
 
-	const toggleSort = (key: NonNullable<(typeof COLUMN_SORT)[number]>) => {
+	const toggleSort = (key: SortKey) => {
 		onSort(
 			sort.key === key
 				? { key, dir: sort.dir === "asc" ? "desc" : "asc" }
@@ -126,23 +126,33 @@ export function TorrentList({
 					className={cn("hidden shrink-0 border-b border-border bg-surface-inset px-4 py-2 lg:block", ROW_GRID)}
 					style={{ "--ct-cols": gridTemplate(hidden) } as React.CSSProperties}
 				>
-					{COLUMNS.map((h, i) => {
-						const key = COLUMN_SORT[i];
+					{/* The VISIBLE columns only. This mapped over every column while the
+					    grid template left hidden ones out, so hiding any column shifted
+					    every label after it one track to the right. */}
+					{visibleColumns(hidden).map((col) => {
+						const key = COLUMN_SORT[col];
+						const h = HEADER_LABEL[col] ?? col;
 						const active = key !== null && sort.key === key;
 						const base = "text-[0.625rem] font-medium uppercase tracking-wide";
 
-						if (!key) return <span key="actions" className={cn(base, "text-fg-subtle")} />;
+						if (!key) {
+							return (
+								<span key={col || "actions"} className={cn(base, "text-fg-subtle")}>
+									{h}
+								</span>
+							);
+						}
 
 						return (
 							<button
-								key={h}
+								key={col}
 								type="button"
 								onClick={() => toggleSort(key)}
 								// NOT aria-sort: that attribute is only valid on a columnheader,
 								// and this header row is a CSS grid of buttons, not a real table.
 								// Claiming it here is an invalid ARIA state; the label carries the
 								// same information honestly.
-								aria-label={active ? `${h}, sorted ${sort.dir}ending. Click to reverse.` : `Sort by ${h}`}
+								aria-label={active ? `${col}, sorted ${sort.dir}ending. Click to reverse.` : `Sort by ${col}`}
 								className={cn(
 									base,
 									"inline-flex items-center gap-1 text-left transition-colors cursor-pointer",

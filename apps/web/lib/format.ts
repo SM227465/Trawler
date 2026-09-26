@@ -93,6 +93,22 @@ export function formatSince(iso: string | null | undefined): string {
 	return rtf.format(-days, "day");
 }
 
+/**
+ * "51m", "12h", "3d" — an age for a column that has no room for "ago". Always
+ * the single largest unit: in a list, the order of magnitude is the point.
+ */
+export function formatAge(iso: string | null | undefined): string {
+	if (!iso) return "—";
+	const ms = Date.now() - Date.parse(iso);
+	if (!Number.isFinite(ms)) return "—";
+	const mins = Math.floor(ms / 60_000);
+	if (mins < 1) return "<1m";
+	if (mins < 60) return `${mins}m`;
+	const hours = Math.floor(mins / 60);
+	if (hours < 24) return `${hours}h`;
+	return `${Math.floor(hours / 24)}d`;
+}
+
 /** Hours since a timestamp, for comparing against the eviction TTL. */
 export function hoursSince(iso: string | null | undefined): number | null {
 	if (!iso) return null;
