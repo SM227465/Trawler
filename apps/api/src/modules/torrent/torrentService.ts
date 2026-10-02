@@ -2,6 +2,7 @@ import { ErrorCode } from "@/common/models/errorCodes";
 import { ServiceResponse } from "@/common/models/serviceResponse";
 import { logger } from "@/common/utils/logger";
 import { QbittorrentError, qbt } from "@/integrations/qbittorrent/client";
+import { mediaRepository } from "@/modules/media/mediaRepository";
 import { qbtPoller } from "@/realtime/qbtPoller";
 import { parseTorrentFile } from "./torrentBencode";
 import { torrentRepository } from "./torrentRepository";
@@ -197,7 +198,19 @@ export class TorrentService {
 	async files(id: string) {
 		const row = await torrentRepository.findById(id);
 		if (!row) return notFound();
-		return ServiceResponse.success("OK", await torrentRepository.filesFor(id));
+
+		// The ffprobe verdict for each file, as the file browser has always had.
+		// Without it the player could only guess from the extension, and an
+		// .mkv guesses "unplayable" — wrong for every one that holds H.264.
+		const files = await torrentRepository.filesFor(id);
+		const probes = await mediaRepository.playbackFor(files.map((f) => f.id));
+		return ServiceResponse.success(
+			"OK",
+			files.map((f) => {
+				const probe = probes.get(f.id);
+				return probe ? { ...f, playback: probe.playback, durationSeconds: probe.durationSeconds } : f;
+			}),
+		);
 	}
 
 	/**

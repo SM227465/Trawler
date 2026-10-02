@@ -10,7 +10,7 @@ import { api, type DownloadLink, type TorrentFile } from "@/lib/api";
 import { asAttachment } from "@/lib/attachment";
 import { cn } from "@/lib/cn";
 import { formatBytes } from "@/lib/format";
-import { classify, isDocument } from "@/lib/media";
+import { isDocument, resolve } from "@/lib/media";
 import { useCopy } from "@/lib/useCopy";
 import { FileProgress } from "./FileProgress";
 import { FileSelection } from "./FileSelection";
@@ -24,7 +24,9 @@ function FileRow({ file }: { file: TorrentFile }) {
 	const [shown, setShown] = useState<DownloadLink | null>(null);
 	const [shareOpen, setShareOpen] = useState(false);
 	const [playing, setPlaying] = useState(false);
-	const media = classify(basename(file.path));
+	// The probe wins where there is one: an .mkv holding H.264 is one rewrap
+	// from playing, and the extension alone says it is hopeless.
+	const media = resolve(basename(file.path), file.playback);
 
 	// One request serves all three actions: the token is the same either way.
 	const withLink = async (use: (l: DownloadLink) => void) => {
@@ -126,10 +128,12 @@ function FileRow({ file }: { file: TorrentFile }) {
 				open={playing}
 				onClose={() => setPlaying(false)}
 				name={basename(file.path)}
+				playback={file.playback}
+				durationSeconds={file.durationSeconds}
 				getLink={async () => {
 					const l = shown ?? (await link.mutateAsync());
 					setShown(l);
-					return { path: l.url, url: l.absoluteUrl };
+					return { path: l.url, url: l.absoluteUrl, remuxPath: l.remuxPath };
 				}}
 			/>
 

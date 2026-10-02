@@ -302,6 +302,9 @@ export interface TorrentFile {
 	priority: number;
 	isComplete: boolean;
 	contentType: string | null;
+	/** ffprobe's verdict, once the file is complete and probed. Absent means not yet. */
+	playback?: "direct" | "remux" | "incompatible" | "not_media";
+	durationSeconds?: number | null;
 }
 
 const BASE = "/api/v1";

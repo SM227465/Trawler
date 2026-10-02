@@ -22,6 +22,10 @@ export const DownloadLinkSchema = z.object({
 	sizeBytes: z.number(),
 	expiresAt: z.string(),
 	aria2c: z.string().openapi({ description: "Ready-to-paste 16-connection download command." }),
+	remuxPath: z
+		.string()
+		.openapi({ description: "The same token through ffmpeg: a playable MP4 of a file the browser refuses." }),
+	remuxUrl: z.string(),
 });
 
 export const FileIdParams = z.object({ params: z.object({ id: z.string().uuid() }) });

@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { api, type DownloadLink, type TorrentFile } from "@/lib/api";
 import { asAttachment } from "@/lib/attachment";
 import { formatBytes } from "@/lib/format";
-import { classify, isDocument } from "@/lib/media";
+import { isDocument, resolve } from "@/lib/media";
 import { useCopy } from "@/lib/useCopy";
 
 const basename = (p: string) => p.split("/").pop() ?? p;
@@ -22,7 +22,9 @@ function FileRow({ file }: { file: TorrentFile }) {
 	const [shown, setShown] = useState<DownloadLink | null>(null);
 	const [share, setShare] = useState(false);
 	const [play, setPlay] = useState(false);
-	const media = classify(basename(file.path));
+	// The probe wins where there is one: an .mkv holding H.264 is one rewrap
+	// from playing, and the extension alone says it is hopeless.
+	const media = resolve(basename(file.path), file.playback);
 
 	const withLink = async (use: (l: DownloadLink) => void) => {
 		const l = shown ?? (await link.mutateAsync());
@@ -90,10 +92,12 @@ function FileRow({ file }: { file: TorrentFile }) {
 				open={play}
 				onClose={() => setPlay(false)}
 				name={basename(file.path)}
+				playback={file.playback}
+				durationSeconds={file.durationSeconds}
 				getLink={async () => {
 					const l = shown ?? (await link.mutateAsync());
 					setShown(l);
-					return { path: l.url, url: l.absoluteUrl };
+					return { path: l.url, url: l.absoluteUrl, remuxPath: l.remuxPath };
 				}}
 			/>
 			<CreateShareDialog

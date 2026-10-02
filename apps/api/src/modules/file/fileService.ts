@@ -48,6 +48,13 @@ export class FileService {
 		const url = `/dl/${token}/${encodeURIComponent(filename)}`;
 		const absoluteUrl = `${env.PUBLIC_BASE_URL.replace(/\/$/, "")}${url}`;
 
+		// The same token works on /remux, which hands the bytes to ffmpeg first.
+		// The browse links always carried this; torrent file links never did, so
+		// every MKV opened from the files dialog or a torrent's page went
+		// straight to "your browser cannot play this one" — including the H.264
+		// ones the file browser plays fine.
+		const remuxPath = `/remux/${token}/${encodeURIComponent(`${filename.replace(/\.[^.]+$/, "")}.mp4`)}`;
+
 		await fileRepository.touchTorrent(file.torrentId);
 
 		const link: DownloadLink = {
@@ -59,6 +66,8 @@ export class FileService {
 			// -x16 -s16: 16 parallel connections. A single browser TCP stream
 			// badly underperforms on long-haul links (doc 01 §5.4).
 			aria2c: `aria2c -x16 -s16 -o ${shellQuote(filename)} ${shellQuote(absoluteUrl)}`,
+			remuxPath,
+			remuxUrl: `${env.PUBLIC_BASE_URL.replace(/\/$/, "")}${remuxPath}`,
 		};
 
 		return ServiceResponse.success("Download link created", link);
