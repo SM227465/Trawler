@@ -40,7 +40,8 @@ const WIDTH: Record<Column, string> = {
 	Size: "4.5rem",
 	Seeds: "4.5rem",
 	Peers: "4.5rem",
-	// "⚠ 0.62" or "123.45", ~44px. The header says "Avail." to fit.
+	// "⚠ 99%" is the widest, ~43px — "100%" never carries the warning. The
+	// header says "Avail." to fit.
 	Availability: "3.25rem",
 	// Speeds keep theirs: "1.23 MB/s" with its arrow is genuinely that wide.
 	Down: "5.5rem",

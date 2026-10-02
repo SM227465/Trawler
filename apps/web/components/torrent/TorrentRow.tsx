@@ -22,7 +22,7 @@ import { StatusChip } from "@/components/ui/StatusChip";
 import { api, type Torrent } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { formatAge, formatBytes, formatEta, formatPercent, formatSpeed, formatSwarm } from "@/lib/format";
-import { availabilityOf, isIncompleteSwarm } from "@/lib/swarm";
+import { availabilityOf, formatAvailability, isIncompleteSwarm } from "@/lib/swarm";
 import { isPartialSelection, wantedBytes } from "@/lib/torrentSize";
 import { buildMagnet, useCopy } from "@/lib/useCopy";
 import { TORRENT_IDS_KEY, torrentKey } from "@/lib/useTorrentStream";
@@ -243,24 +243,25 @@ export const TorrentRow = memo(function TorrentRow({ id, hidden }: { id: string;
 						) : isIncompleteSwarm(availability) ? (
 							<span
 								className="inline-flex items-center gap-1 text-status-paused"
-								title={`No full copy — ${availability.toFixed(2)}. No connected peer has every piece between them, so this cannot finish until a seed appears. Not a fault in Trawler.`}
+								title={`Only ${formatAvailability(availability)} of the file is available — from the connected peers and what is already on disk. The rest has no source, so this cannot finish until a peer that has it connects. Not a fault in Trawler.`}
 							>
 								<TriangleAlert className="size-3 shrink-0" aria-hidden />
-								{availability.toFixed(2)}
+								{formatAvailability(availability)}
 								<span className="sr-only">
 									{" "}
-									— no full copy among connected peers, so this cannot finish until a seed appears
+									of the file available — the rest has no source, so this cannot finish until a peer that has it
+									connects
 								</span>
 							</span>
 						) : (
 							<span
 								title={
 									availability === 0
-										? "No peers connected yet"
-										: `${availability.toFixed(2)} complete copies among the connected peers`
+										? "Nothing available yet — no peers connected"
+										: `The whole file is available — ${availability.toFixed(2)} copies among the connected peers`
 								}
 							>
-								{availability.toFixed(2)}
+								{formatAvailability(availability)}
 							</span>
 						)}
 					</Cell>

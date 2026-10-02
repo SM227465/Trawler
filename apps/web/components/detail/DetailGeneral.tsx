@@ -1,6 +1,7 @@
 "use client";
 import type { Torrent } from "@/lib/api";
 import { formatBytes, formatEta, formatSince, formatSpeed } from "@/lib/format";
+import { formatAvailability } from "@/lib/swarm";
 import { isPartialSelection, wantedBytes } from "@/lib/torrentSize";
 import type { TorrentProperties } from "@/lib/useTorrentDetail";
 
@@ -69,7 +70,16 @@ export function DetailGeneral({ torrent, props }: { torrent: Torrent; props: Tor
 					["Share ratio", torrent.ratio.toFixed(2)],
 					// qBittorrent reports availability < 1 when no complete copy is
 					// reachable — the honest answer to "why is this stuck".
-					["Availability", torrent.availability > 0 ? torrent.availability.toFixed(2) : dash],
+					[
+						"Availability",
+						torrent.availability > 0 ? (
+							<span key="avail" title={`${torrent.availability.toFixed(2)} copies among the connected peers`}>
+								{formatAvailability(torrent.availability)}
+							</span>
+						) : (
+							dash
+						),
+					],
 					["Reannounce in", secs(props.reannounce)],
 					["Last activity", torrent.lastActivityAt ? formatSince(torrent.lastActivityAt) : dash],
 				]}
