@@ -10,6 +10,12 @@ import { formatBytes } from "@/lib/format";
 import { type Playback, resolve } from "@/lib/media";
 import { useCopy } from "@/lib/useCopy";
 
+/**
+ * Content that grows into a dialog the user has resized. Only while a size is
+ * set: at the default size every viewer keeps exactly the layout it had.
+ */
+const FILL = "group-data-[sized]/dialog:min-h-0 group-data-[sized]/dialog:flex-1";
+
 interface Link {
 	path: string;
 	url: string;
@@ -95,8 +101,8 @@ export function MediaPlayerDialog({
 	);
 
 	return (
-		<Dialog open={open} onClose={onClose} title={name} labelledBy="player-title">
-			<div className="mt-4">
+		<Dialog open={open} onClose={onClose} title={name} labelledBy="player-title" resizeKey="media-player">
+			<div className={cn("mt-4", FILL, "group-data-[sized]/dialog:flex group-data-[sized]/dialog:flex-col")}>
 				{load.isPending && (
 					<div className="grid h-40 place-items-center">
 						<LoaderCircle className="size-5 animate-spin text-fg-subtle" aria-hidden />
@@ -121,7 +127,11 @@ export function MediaPlayerDialog({
 									autoPlay
 									playsInline
 									onError={() => setFailed(true)}
-									className="max-h-[60vh] w-full rounded-[var(--ct-radius-sm)] bg-black"
+									className={cn(
+										"max-h-[60vh] w-full rounded-[var(--ct-radius-sm)] bg-black object-contain",
+										FILL,
+										"group-data-[sized]/dialog:max-h-none",
+									)}
 								/>
 
 								{needsRemux && (
@@ -150,7 +160,11 @@ export function MediaPlayerDialog({
 								src={link.path}
 								alt={name}
 								onError={() => setFailed(true)}
-								className="mx-auto max-h-[60vh] rounded-[var(--ct-radius-sm)] object-contain"
+								className={cn(
+									"mx-auto max-h-[60vh] rounded-[var(--ct-radius-sm)] object-contain",
+									FILL,
+									"group-data-[sized]/dialog:max-h-none group-data-[sized]/dialog:w-full",
+								)}
 							/>
 						)}
 
@@ -175,7 +189,11 @@ export function MediaPlayerDialog({
 								<iframe
 									src={link.path}
 									title={name}
-									className="h-[65vh] w-full rounded-[var(--ct-radius-sm)] border border-border bg-surface-inset"
+									className={cn(
+										"h-[65vh] w-full rounded-[var(--ct-radius-sm)] border border-border bg-surface-inset",
+										FILL,
+										"group-data-[sized]/dialog:h-auto",
+									)}
 								/>
 							</>
 						)}
@@ -370,7 +388,13 @@ function TextView({ path }: { path: string }) {
 			{/* Rendered as characters, never as markup. These are /dl/ URLs on the
 			    app's own origin, so an .html or .svg shown as a document would run
 			    its script with the session's cookies. */}
-			<pre className="max-h-[60vh] overflow-auto whitespace-pre-wrap break-words rounded-[var(--ct-radius-sm)] border border-border bg-surface-inset p-3 font-mono text-xs leading-relaxed text-fg">
+			<pre
+				className={cn(
+					"max-h-[60vh] overflow-auto whitespace-pre-wrap break-words rounded-[var(--ct-radius-sm)] border border-border bg-surface-inset p-3 font-mono text-xs leading-relaxed text-fg",
+					FILL,
+					"group-data-[sized]/dialog:max-h-none",
+				)}
+			>
 				{data.text || "This file is empty."}
 			</pre>
 		</>
