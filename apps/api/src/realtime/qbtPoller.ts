@@ -45,6 +45,8 @@ type TorrentDto = {
 };
 
 type WriteMark = { at: number; progressPct: number; status: string; selectedBytes: number };
+/** The torrent as the last file sync saw it. */
+type FileSyncMark = { at: number; progress: number; selectedBytes: number };
 
 const toDto = (id: string, hash: string, t: QbtTorrent): TorrentDto => ({
 	id,
@@ -123,7 +125,9 @@ class QbtPoller {
 	/** infohash → our uuid */
 	private ids = new Map<string, string>();
 	private writes = new Map<string, WriteMark>();
-	private fileSyncs = new Map<string, number>();
+	private fileSyncs = new Map<string, FileSyncMark>();
+	/** Infohashes with a file sync in flight. */
+	private fileSyncing = new Set<string>();
 	private lastServerState: QbtServerState = {};
 	private degraded = false;
 
@@ -222,11 +226,7 @@ class QbtPoller {
 
 				// Per-file progress is what powers "download the finished episode
 				// while the rest of the season is still going".
-				const lastFileSync = this.fileSyncs.get(hash) ?? 0;
-				if (dto.sizeBytes > 0 && now - lastFileSync >= FILE_SYNC_MS) {
-					this.fileSyncs.set(hash, now);
-					void this.syncFiles(id, hash);
-				}
+				this.maybeSyncFiles(id, dto, now);
 			}
 
 			if (deltas.length) sseHub.broadcast(GLOBAL_CHANNEL, "torrents", deltas);
@@ -353,12 +353,30 @@ class QbtPoller {
 				status: dto.status,
 				selectedBytes: dto.selectedBytes,
 			});
-
-			if (completed) void this.syncFiles(id, dto.infoHash);
 		}
 	}
 
+	/**
+	 * A torrent's files can only change when the torrent does: bytes arrive and
+	 * its progress moves, or a file is skipped and its selected size moves.
+	 * Stalled, paused and finished torrents are left alone — re-syncing all of
+	 * them every 10 s is what kept a 2-core box pinned. Completion needs no
+	 * special case: the last bytes move progress like any others.
+	 */
+	private maybeSyncFiles(torrentId: string, dto: TorrentDto, now: number) {
+		const hash = dto.infoHash;
+		if (dto.sizeBytes <= 0 || this.fileSyncing.has(hash)) return;
+		const mark = this.fileSyncs.get(hash);
+		if (mark) {
+			if (mark.progress === dto.progress && mark.selectedBytes === dto.selectedBytes) return;
+			if (now - mark.at < FILE_SYNC_MS) return;
+		}
+		this.fileSyncs.set(hash, { at: now, progress: dto.progress, selectedBytes: dto.selectedBytes });
+		void this.syncFiles(torrentId, hash);
+	}
+
 	private async syncFiles(torrentId: string, hash: string) {
+		this.fileSyncing.add(hash);
 		try {
 			const files = await qbt.files(hash);
 			await torrentRepository.replaceFiles(
@@ -373,7 +391,12 @@ class QbtPoller {
 				})),
 			);
 		} catch (err) {
+			// Without this a stalled torrent would keep its stale files: nothing
+			// would move again to trigger the retry.
+			this.fileSyncs.delete(hash);
 			logger.warn({ err, torrentId }, "file sync failed");
+		} finally {
+			this.fileSyncing.delete(hash);
 		}
 	}
 

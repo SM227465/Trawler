@@ -3,6 +3,9 @@ import { v7 as uuidv7 } from "uuid";
 import { db } from "@/db/client";
 import { torrentFiles, torrents } from "@/db/schema";
 
+/** 8 bind parameters per file row; Postgres caps a statement at 65,535. */
+const FILE_UPSERT_CHUNK = 1000;
+
 type TorrentInsert = typeof torrents.$inferInsert;
 type TorrentUpdate = Partial<TorrentInsert>;
 
@@ -71,20 +74,30 @@ export class TorrentRepository {
 			.returning();
 	}
 
+	/**
+	 * One statement per chunk, and a row is rewritten only when a value moved.
+	 * Postgres writes a whole new row version for every UPDATE, changed or not:
+	 * a row-at-a-time upsert of every file every 10 s rewrote 5k rows ~34k times
+	 * each and pushed 1.19 TB through a 34 MB database.
+	 */
 	async replaceFiles(torrentId: string, rows: Omit<typeof torrentFiles.$inferInsert, "id" | "torrentId">[]) {
-		for (const row of rows) {
+		const synced = ["progress", "priority", "isComplete", "sizeBytes", "qbtIndex"] as const;
+		// The incoming row, by its database column name.
+		const excluded = (key: (typeof synced)[number]) => sql.raw(`excluded."${torrentFiles[key].name}"`);
+		const current = sql.join(
+			synced.map((key) => torrentFiles[key]),
+			sql`, `,
+		);
+		const incoming = sql.join(synced.map(excluded), sql`, `);
+
+		for (let i = 0; i < rows.length; i += FILE_UPSERT_CHUNK) {
 			await db
 				.insert(torrentFiles)
-				.values({ id: uuidv7(), torrentId, ...row })
+				.values(rows.slice(i, i + FILE_UPSERT_CHUNK).map((row) => ({ id: uuidv7(), torrentId, ...row })))
 				.onConflictDoUpdate({
 					target: [torrentFiles.torrentId, torrentFiles.path],
-					set: {
-						progress: row.progress,
-						priority: row.priority,
-						isComplete: row.isComplete,
-						sizeBytes: row.sizeBytes,
-						qbtIndex: row.qbtIndex,
-					},
+					set: Object.fromEntries(synced.map((key) => [key, excluded(key)])),
+					setWhere: sql`(${current}) is distinct from (${incoming})`,
 				});
 		}
 	}
