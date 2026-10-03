@@ -25,7 +25,7 @@ import { formatAge, formatBytes, formatEta, formatPercent, formatSpeed, formatSw
 import { availabilityOf, formatAvailability, isIncompleteSwarm } from "@/lib/swarm";
 import { isPartialSelection, wantedBytes } from "@/lib/torrentSize";
 import { buildMagnet, useCopy } from "@/lib/useCopy";
-import { TORRENT_IDS_KEY, torrentKey } from "@/lib/useTorrentStream";
+import { forgetTorrents, torrentKey } from "@/lib/useTorrentStream";
 import { FilesDialog } from "./FilesDialog";
 import { gridTemplate, ROW_GRID } from "./grid";
 
@@ -92,8 +92,7 @@ export const TorrentRow = memo(function TorrentRow({ id, hidden }: { id: string;
 		mutationFn: () => api.removeTorrent(id, deleteFiles),
 		onSuccess: () => {
 			setConfirmOpen(false);
-			qc.setQueryData<string[]>(TORRENT_IDS_KEY, (prev) => prev?.filter((x) => x !== id) ?? []);
-			qc.removeQueries({ queryKey: torrentKey(id) });
+			forgetTorrents(qc, [id]);
 		},
 	});
 

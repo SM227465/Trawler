@@ -164,8 +164,14 @@ class QbtPoller {
 	 * is removed through our API: otherwise `ids` keeps pointing at the deleted
 	 * row's uuid, `ensureRows` sees the hash as known and skips re-adopting it,
 	 * and every subsequent update silently targets a row that no longer exists.
+	 *
+	 * Tells clients here, while the id is still known. The tick used to look
+	 * ids up AFTER forgetting them, so every "removed" frame went out empty and
+	 * deleted torrents lingered in other tabs' counts until a reload.
 	 */
 	forget(infoHash: string) {
+		const id = this.ids.get(infoHash);
+		if (id) sseHub.broadcast(GLOBAL_CHANNEL, "removed", [id]);
 		this.ids.delete(infoHash);
 		this.raw.delete(infoHash);
 		this.emitted.delete(infoHash);
@@ -233,9 +239,6 @@ class QbtPoller {
 			}
 
 			if (deltas.length) sseHub.broadcast(GLOBAL_CHANNEL, "torrents", deltas);
-			if (data.torrents_removed?.length) {
-				sseHub.broadcast(GLOBAL_CHANNEL, "removed", data.torrents_removed.map((h) => this.ids.get(h)).filter(Boolean));
-			}
 
 			const statsDelta = this.serverStateDelta(data.server_state);
 			if (statsDelta) sseHub.broadcast(GLOBAL_CHANNEL, "stats", statsDelta);

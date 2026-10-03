@@ -84,6 +84,17 @@ const upsertIndex = (qc: QueryClient, full: Torrent) => {
 	});
 };
 
+/**
+ * Drop torrents from every cache that holds them. The list renders from the id
+ * list but the filter counts come from the index, so clearing only the ids
+ * hid the row while "All" and its status tab kept counting it.
+ */
+export const forgetTorrents = (qc: QueryClient, ids: string[]) => {
+	qc.setQueryData<string[]>(TORRENT_IDS_KEY, (prev) => prev?.filter((i) => !ids.includes(i)) ?? []);
+	qc.setQueryData<TorrentIndexEntry[]>(TORRENT_INDEX_KEY, (prev) => prev?.filter((e) => !ids.includes(e.id)) ?? []);
+	for (const id of ids) qc.removeQueries({ queryKey: torrentKey(id) });
+};
+
 /** Stable identity — a fresh [] each render would defeat memoisation downstream. */
 const EMPTY_INDEX: TorrentIndexEntry[] = [];
 
@@ -204,13 +215,7 @@ export function useTorrentStream(enabled: boolean) {
 			});
 
 			es.addEventListener("removed", (e) => {
-				const ids = JSON.parse((e as MessageEvent).data) as string[];
-				qc.setQueryData<string[]>(TORRENT_IDS_KEY, (prev) => prev?.filter((i) => !ids.includes(i)) ?? []);
-				qc.setQueryData<TorrentIndexEntry[]>(
-					TORRENT_INDEX_KEY,
-					(prev) => prev?.filter((e) => !ids.includes(e.id)) ?? [],
-				);
-				for (const id of ids) qc.removeQueries({ queryKey: torrentKey(id) });
+				forgetTorrents(qc, JSON.parse((e as MessageEvent).data) as string[]);
 			});
 
 			es.onerror = async () => {
