@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { usePathname, useRouter } from "next/navigation";
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { ToastProvider } from "@/components/ui/Toast";
+import { TopLoader } from "@/components/ui/TopLoader";
 import { api, type PublicUser, refreshSession, setAccessToken } from "@/lib/api";
 
 interface AuthValue {
@@ -90,6 +91,7 @@ export function Providers({ children }: { children: ReactNode }) {
 
 	return (
 		<QueryClientProvider client={qc}>
+			<TopLoader />
 			<ToastProvider>
 				<AuthProvider>{children}</AuthProvider>
 			</ToastProvider>
