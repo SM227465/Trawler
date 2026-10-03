@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { v7 as uuidv7 } from "uuid";
 import { logger } from "@/common/utils/logger";
 import { db } from "@/db/client";
@@ -42,6 +42,7 @@ type TorrentDto = {
 	contentPath: string | null;
 	trackersCount: number;
 	lastActivityAtMs: number | null;
+	completedAtMs: number | null;
 };
 
 type WriteMark = { at: number; progressPct: number; status: string; selectedBytes: number };
@@ -92,6 +93,8 @@ const toDto = (id: string, hash: string, t: QbtTorrent): TorrentDto => ({
 	// object would never equal the previous one and this field would ride along
 	// in every single 1 Hz delta frame — silently undoing the delta compression.
 	lastActivityAtMs: t.last_activity && t.last_activity > 0 ? t.last_activity * 1000 : null,
+	// When qBittorrent saw the torrent finish; unset (≤ 0) until it has.
+	completedAtMs: t.completion_on && t.completion_on > 0 ? t.completion_on * 1000 : null,
 });
 
 const safeHost = (url: string) => {
@@ -302,7 +305,6 @@ class QbtPoller {
 
 	private async persist(items: Array<{ id: string; dto: TorrentDto }>) {
 		for (const { id, dto } of items) {
-			const now = new Date();
 			const completed = dto.status === "completed";
 			const updated = await db
 				.update(torrents)
@@ -334,7 +336,17 @@ class QbtPoller {
 					// Back to a Date only at the boundary; the DTO keeps millis so
 					// diff() can compare it.
 					lastActivityAt: dto.lastActivityAtMs ? new Date(dto.lastActivityAtMs) : null,
-					...(completed ? { completedAt: now } : {}),
+					// A completed torrent is re-persisted every 30 s, so stamping
+					// now() here kept moving the date forward and the eviction TTL,
+					// measured from it, never ran out. qBittorrent's own completion
+					// time is fixed; without one, set it once and leave it.
+					...(completed
+						? {
+								completedAt: dto.completedAtMs
+									? new Date(dto.completedAtMs)
+									: sql`coalesce(${torrents.completedAt}, now())`,
+							}
+						: {}),
 				})
 				.where(eq(torrents.id, id))
 				.returning({ id: torrents.id });
