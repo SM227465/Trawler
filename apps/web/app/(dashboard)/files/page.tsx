@@ -5,19 +5,29 @@ import { FileBrowser } from "@/components/files/FileBrowser";
 import { PageHeader } from "@/components/nav/PageHeader";
 import { WebdavAccess } from "@/components/settings/WebdavAccess";
 import { cn } from "@/lib/cn";
+import { isSortKey } from "@/lib/fileSort";
 import { useUrlState } from "@/lib/useUrlState";
 
 function FilesView() {
 	// The browsed folder is URL state too, so a folder can be linked and survives
 	// a reload — the same rule as the Transfers view.
-	const [url, setUrl] = useUrlState({ path: "" });
+	// Sort too, per doc 03 §B5: a sorted folder can be linked and survives a reload.
+	const [url, setUrl] = useUrlState({ path: "", sort: "name", dir: "asc" });
+	const sort = isSortKey(url.sort) ? url.sort : "name";
+	const dir = url.dir === "desc" ? "desc" : "asc";
 	const [showMount, setShowMount] = useState(false);
 
 	return (
 		<div className="flex flex-col gap-4 sm:gap-5">
 			<PageHeader title="Files" description="Browse finished downloads and grab individual files." />
 
-			<FileBrowser path={url.path} onNavigate={(path) => setUrl({ path })} />
+			<FileBrowser
+				path={url.path}
+				onNavigate={(path) => setUrl({ path })}
+				sort={sort}
+				dir={dir}
+				onSort={(sort, dir) => setUrl({ sort, dir })}
+			/>
 
 			<div>
 				<button

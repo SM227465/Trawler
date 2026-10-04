@@ -36,6 +36,19 @@ fileRegistry.registerPath({
 fileRouter.get("/browse/link", fileController.browseLink);
 
 fileRegistry.registerPath({
+	method: "get",
+	path: "/api/v1/files/browse/thumb",
+	tags: ["File"],
+	description:
+		"A JPEG preview of a browsed video, image or audio cover, at most 360px. Made on first request, then cached; 404 when the file has none.",
+	request: { query: z.object({ path: z.string(), v: z.string().optional() }) },
+	responses: {
+		200: { description: "JPEG thumbnail", content: { "image/jpeg": { schema: { type: "string", format: "binary" } } } },
+	},
+});
+fileRouter.get("/browse/thumb", fileController.browseThumb);
+
+fileRegistry.registerPath({
 	method: "delete",
 	path: "/api/v1/files/browse",
 	tags: ["File"],

@@ -110,6 +110,8 @@ export interface BrowseEntry {
 	durationSeconds?: number | null;
 	/** What to ask the device before playing. Present only alongside a playable verdict. */
 	playbackCheck?: PlaybackCheck | null;
+	/** Worth requesting a grid thumbnail for. The file may still turn out to have none. */
+	thumbnail?: boolean;
 }
 
 export interface BrowseListing {

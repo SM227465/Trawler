@@ -17,6 +17,23 @@ class FileController {
 		handleServiceResponse(await browseService.link(req.query.path as string | undefined, req.user!.id), res);
 	};
 
+	/**
+	 * Raw JPEG bytes, not a ServiceResponse: an <img> reads this directly,
+	 * authenticated by the access cookie (GET only — see requireAuth).
+	 */
+	public browseThumb: RequestHandler = async (req: Request, res: Response) => {
+		const result = await browseService.thumbnail(req.query.path as string | undefined);
+		if ("file" in result) {
+			// The URL carries the file's mtime, so a cached copy can never be stale.
+			res.setHeader("Cache-Control", "private, max-age=604800, immutable");
+			return res.sendFile(result.file);
+		}
+		// Remembered for a day, so a file with no thumbnail is not asked again on
+		// every scroll. A busy queue is not remembered: it will have room soon.
+		res.setHeader("Cache-Control", result.status === 404 ? "private, max-age=86400" : "no-store");
+		return res.status(result.status).end();
+	};
+
 	public browseZipLink: RequestHandler = async (req: Request, res: Response) => {
 		handleServiceResponse(await browseService.zipLink(req.query.path as string | undefined, req.user!.id), res);
 	};

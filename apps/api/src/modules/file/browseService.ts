@@ -9,6 +9,7 @@ import { type PlaybackCheck, playbackCheck } from "@/modules/media/playback";
 import { signDownloadToken } from "./downloadToken";
 import { downloadsRoot, resolveRealPath } from "./filePath";
 import { fileRepository } from "./fileRepository";
+import { hasThumbnail, thumbnailFor } from "./thumbnailService";
 import { collectEntries } from "./zipService";
 
 export interface BrowseEntry {
@@ -26,6 +27,8 @@ export interface BrowseEntry {
 	durationSeconds?: number | null;
 	/** What to ask the browser before playing; see playback.ts. */
 	playbackCheck?: PlaybackCheck | null;
+	/** Worth asking /browse/thumb for. A file may still turn out to have none. */
+	thumbnail?: boolean;
 
 	/**
 	 * Set when this path is a completed file of a tracked torrent. Shares are
@@ -72,12 +75,14 @@ export class BrowseService {
 			const childRel = rel ? `${rel}/${d.name}` : d.name;
 			try {
 				const st = await stat(path.join(resolved.absPath, d.name));
+				const isDir = st.isDirectory();
 				entries.push({
 					name: d.name,
 					path: childRel,
-					type: st.isDirectory() ? "dir" : "file",
-					sizeBytes: st.isDirectory() ? 0 : st.size,
+					type: isDir ? "dir" : "file",
+					sizeBytes: isDir ? 0 : st.size,
 					modifiedAt: st.mtime.toISOString(),
+					...(!isDir && hasThumbnail(d.name) ? { thumbnail: true } : {}),
 				});
 			} catch {
 				// A file deleted between readdir and stat is normal here.
@@ -114,6 +119,32 @@ export class BrowseService {
 			root: path.basename(downloadsRoot),
 			entries,
 		});
+	}
+
+	/**
+	 * A grid preview for one file, made on first request. Same containment
+	 * checks as everything else here: the path is the caller's, so it is
+	 * resolved through resolveRealPath before ffmpeg ever sees it.
+	 */
+	async thumbnail(rawPath: string | undefined): Promise<{ file: string } | { status: 404 | 503 }> {
+		const rel = normalise(rawPath);
+		if (!rel || !hasThumbnail(rel)) return { status: 404 };
+
+		const resolved = await resolveRealPath(rel);
+		if (!resolved.ok) return { status: 404 };
+
+		// The probe knows the duration, which picks a representative frame.
+		const fileId = (await fileRepository.idsByPaths([rel])).get(rel);
+		const probe = fileId ? await mediaRepository.byFileId(fileId) : undefined;
+
+		try {
+			const result = await thumbnailFor(resolved.absPath, probe?.durationSeconds ?? null);
+			if (result.ok) return { file: result.file };
+			return { status: result.reason === "busy" ? 503 : 404 };
+		} catch {
+			// Deleted or unreadable between the listing and this request.
+			return { status: 404 };
+		}
 	}
 
 	/**

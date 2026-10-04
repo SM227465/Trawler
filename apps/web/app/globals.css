@@ -86,6 +86,12 @@
 
 	--ct-overlay: oklch(0.3 0.02 258 / 0.45);
 
+	/* Labels drawn ON media (a video's running time over its thumbnail). The
+	   picture is the same in either theme, so these are too — like a player's
+	   own controls. Deliberately not redefined in the dark blocks. */
+	--ct-media-badge: oklch(0.12 0.01 258 / 0.78);
+	--ct-media-badge-fg: oklch(0.99 0 0);
+
 	/* shape + elevation */
 	--ct-radius: 0.625rem;
 	--ct-radius-sm: 0.375rem;
@@ -261,6 +267,8 @@
 	--color-piece-missing: var(--ct-piece-missing);
 
 	--color-overlay: var(--ct-overlay);
+	--color-media-badge: var(--ct-media-badge);
+	--color-media-badge-fg: var(--ct-media-badge-fg);
 	--color-glass: var(--ct-glass-bg);
 	--color-glass-border: var(--ct-glass-border);
 

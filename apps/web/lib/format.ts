@@ -43,6 +43,15 @@ export function formatDuration(seconds: number | null | undefined): string {
 	return formatEta(seconds);
 }
 
+/** A running time the way players print it: "1:23:45", "4:07". */
+export function formatClock(seconds: number): string {
+	const s = Math.floor(seconds);
+	const h = Math.floor(s / 3600);
+	const m = Math.floor((s % 3600) / 60);
+	const sec = String(s % 60).padStart(2, "0");
+	return h > 0 ? `${h}:${String(m).padStart(2, "0")}:${sec}` : `${m}:${sec}`;
+}
+
 export const formatPercent = (fraction: number): string => `${nf1.format(Math.min(fraction, 1) * 100)}%`;
 export const formatRatio = (r: number): string => nf2.format(r ?? 0);
 
