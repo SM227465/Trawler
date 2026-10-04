@@ -3,7 +3,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { Check, Copy, ExternalLink, FileWarning, LoaderCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
-import { Dialog } from "@/components/ui/Dialog";
+import { FloatingWindow } from "@/components/ui/FloatingWindow";
 import { asAttachment } from "@/lib/attachment";
 import { cn } from "@/lib/cn";
 import { formatBytes } from "@/lib/format";
@@ -12,11 +12,21 @@ import { useCanDecode } from "@/lib/useCanDecode";
 import { useCopy } from "@/lib/useCopy";
 import { ExternalPlayers } from "./ExternalPlayers";
 
+/** What fills the window's spare room as it is resized. */
+const FILL = "min-h-0 flex-1";
+
 /**
- * Content that grows into a dialog the user has resized. Only while a size is
- * set: at the default size every viewer keeps exactly the layout it had.
+ * First-ever window sizes, before the user picks their own. Remembered per
+ * kind, so a song does not open in the space a film was given.
  */
-const FILL = "group-data-[sized]/dialog:min-h-0 group-data-[sized]/dialog:flex-1";
+const DEFAULT_SIZE = {
+	video: { w: 960, h: 620 },
+	image: { w: 900, h: 680 },
+	audio: { w: 480, h: 230 },
+	text: { w: 820, h: 640 },
+	pdf: { w: 820, h: 760 },
+	other: { w: 560, h: 360 },
+} as const;
 
 interface Link {
 	path: string;
@@ -26,7 +36,8 @@ interface Link {
 }
 
 /**
- * Opens a file in place: a player for media, a reader for a document.
+ * Opens a file in place: a player for media, a reader for a document, in a
+ * window that can be moved and resized like a desktop one (FloatingWindow).
  *
  * Seeking works because Caddy serves the file with Range support (verified in
  * Phase 0) — a player without Range can only stream from the beginning. The
@@ -91,10 +102,16 @@ export function MediaPlayerDialog({
 	}, [open]);
 
 	return (
-		<Dialog open={open} onClose={onClose} title={name} labelledBy="player-title" resizeKey="media-player">
-			<div className={cn("mt-4", FILL, "group-data-[sized]/dialog:flex group-data-[sized]/dialog:flex-col")}>
+		<FloatingWindow
+			open={open}
+			onClose={onClose}
+			title={name}
+			storageKey={`player:${media.kind}`}
+			defaultSize={DEFAULT_SIZE[media.kind]}
+		>
+			<div className={cn("flex flex-col", FILL)}>
 				{(load.isPending || (link && decodable === "checking")) && (
-					<div className="grid h-40 place-items-center">
+					<div className="grid min-h-40 flex-1 place-items-center">
 						<LoaderCircle className="size-5 animate-spin text-fg-subtle" aria-hidden />
 					</div>
 				)}
@@ -134,11 +151,7 @@ export function MediaPlayerDialog({
 									autoPlay
 									playsInline
 									onError={() => setFailed(true)}
-									className={cn(
-										"max-h-[60vh] w-full rounded-[var(--ct-radius-sm)] bg-black object-contain",
-										FILL,
-										"group-data-[sized]/dialog:max-h-none",
-									)}
+									className={cn("w-full rounded-[var(--ct-radius-sm)] bg-black object-contain", FILL)}
 								/>
 
 								{needsRemux && (
@@ -167,11 +180,9 @@ export function MediaPlayerDialog({
 								src={link.path}
 								alt={name}
 								onError={() => setFailed(true)}
-								className={cn(
-									"mx-auto max-h-[60vh] rounded-[var(--ct-radius-sm)] object-contain",
-									FILL,
-									"group-data-[sized]/dialog:max-h-none group-data-[sized]/dialog:w-full",
-								)}
+								// scale-down, not contain: a 200 px icon stays 200 px instead of
+								// being blown up to fill a maximized window.
+								className={cn("w-full rounded-[var(--ct-radius-sm)] object-scale-down", FILL)}
 							/>
 						)}
 
@@ -196,11 +207,7 @@ export function MediaPlayerDialog({
 								<iframe
 									src={link.path}
 									title={name}
-									className={cn(
-										"h-[65vh] w-full rounded-[var(--ct-radius-sm)] border border-border bg-surface-inset",
-										FILL,
-										"group-data-[sized]/dialog:h-auto",
-									)}
+									className={cn("w-full rounded-[var(--ct-radius-sm)] border border-border bg-surface-inset", FILL)}
 								/>
 							</>
 						)}
@@ -208,18 +215,16 @@ export function MediaPlayerDialog({
 				)}
 			</div>
 
-			<div className={cn("mt-4 flex flex-wrap items-center gap-2", "justify-end")}>
-				{link && !external && (
+			{/* Closing is the title bar's job now, as in any window. */}
+			{link && !external && (
+				<div className="mt-3 flex shrink-0 justify-end">
 					<Button size="sm" variant="ghost" onClick={() => copy(link.url)} title="Copy a direct stream URL">
 						{copied ? <Check className="size-3.5 text-status-completed" /> : <Copy className="size-3.5" />}
 						{copied ? "Copied" : "Copy URL"}
 					</Button>
-				)}
-				<Button variant="subtle" onClick={onClose}>
-					Close
-				</Button>
-			</div>
-		</Dialog>
+				</div>
+			)}
+		</FloatingWindow>
 	);
 }
 
@@ -397,9 +402,8 @@ function TextView({ path }: { path: string }) {
 			    its script with the session's cookies. */}
 			<pre
 				className={cn(
-					"max-h-[60vh] overflow-auto whitespace-pre-wrap break-words rounded-[var(--ct-radius-sm)] border border-border bg-surface-inset p-3 font-mono text-xs leading-relaxed text-fg",
+					"overflow-auto whitespace-pre-wrap break-words rounded-[var(--ct-radius-sm)] border border-border bg-surface-inset p-3 font-mono text-xs leading-relaxed text-fg",
 					FILL,
-					"group-data-[sized]/dialog:max-h-none",
 				)}
 			>
 				{data.text || "This file is empty."}
