@@ -9,7 +9,10 @@ import { parseProbe } from "../ffprobe";
  */
 const output = (video: object, format: object = {}) =>
 	JSON.stringify({
-		streams: [{ codec_type: "video", ...video }, { codec_type: "audio", codec_name: "eac3" }],
+		streams: [
+			{ codec_type: "video", ...video },
+			{ codec_type: "audio", codec_name: "eac3" },
+		],
 		format: { format_name: "matroska,webm", duration: "4.000000", bit_rate: "1534812", ...format },
 	});
 

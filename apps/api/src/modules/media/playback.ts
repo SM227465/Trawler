@@ -116,7 +116,15 @@ export interface PlaybackCheck {
 
 type CheckInput = Pick<
 	ProbeResult,
-	"container" | "videoCodec" | "width" | "height" | "bitrateBps" | "videoProfile" | "videoLevel" | "bitDepth" | "frameRate"
+	| "container"
+	| "videoCodec"
+	| "width"
+	| "height"
+	| "bitrateBps"
+	| "videoProfile"
+	| "videoLevel"
+	| "bitDepth"
+	| "frameRate"
 > & { playback: Playback };
 
 const LABELS: Record<string, string> = { h264: "H.264", hevc: "HEVC", av1: "AV1", vp9: "VP9", vp8: "VP8" };

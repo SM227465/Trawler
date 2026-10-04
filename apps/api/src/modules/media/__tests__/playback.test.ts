@@ -86,7 +86,13 @@ describe("playbackCheck", () => {
 	});
 
 	it("names 10-bit H.264 for what it is, since most browsers cannot decode it", () => {
-		const c = check({ container: "matroska,webm", videoCodec: "h264", videoProfile: "High 10", videoLevel: 31, bitDepth: 10 });
+		const c = check({
+			container: "matroska,webm",
+			videoCodec: "h264",
+			videoProfile: "High 10",
+			videoLevel: 31,
+			bitDepth: 10,
+		});
 		expect(c?.contentType).toBe('video/mp4; codecs="avc1.6E001F"');
 		expect(c?.label).toBe("H.264 10-bit");
 	});
@@ -102,8 +108,10 @@ describe("playbackCheck", () => {
 
 	it("asks about a direct WebM as WebM, and fills in a level VP9 did not declare", () => {
 		expect(
-			check({ container: "matroska,webm", videoCodec: "vp9", videoProfile: "Profile 0", bitDepth: 8, height: 360 }, "direct")
-				?.contentType,
+			check(
+				{ container: "matroska,webm", videoCodec: "vp9", videoProfile: "Profile 0", bitDepth: 8, height: 360 },
+				"direct",
+			)?.contentType,
 		).toBe('video/webm; codecs="vp09.00.40.08"');
 	});
 
