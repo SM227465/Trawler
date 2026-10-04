@@ -1,7 +1,7 @@
 import { env } from "@/common/utils/envConfig";
 import { logger } from "@/common/utils/logger";
 import { resolveRealPath } from "@/modules/file/filePath";
-import { ffmpegAvailable, probeFile } from "@/modules/media/ffprobe";
+import { ffmpegAvailable, PROBE_VERSION, probeFile } from "@/modules/media/ffprobe";
 import { mediaRepository } from "@/modules/media/mediaRepository";
 import { decidePlayback } from "@/modules/media/playback";
 
@@ -28,7 +28,12 @@ export async function mediaProbeHandler() {
 	for (const f of files) {
 		const resolved = await resolveRealPath(f.path);
 		if (!resolved.ok) {
-			await mediaRepository.upsert({ fileId: f.id, playback: "not_media", probeError: "path is not readable" });
+			await mediaRepository.upsert({
+				fileId: f.id,
+				playback: "not_media",
+				probeError: "path is not readable",
+				probeVersion: PROBE_VERSION,
+			});
 			continue;
 		}
 
@@ -36,15 +41,10 @@ export async function mediaProbeHandler() {
 			const result = await probeFile(resolved.absPath);
 			await mediaRepository.upsert({
 				fileId: f.id,
-				container: result.container,
-				videoCodec: result.videoCodec,
-				audioCodec: result.audioCodec,
-				width: result.width,
-				height: result.height,
-				durationSeconds: result.durationSeconds,
-				bitrateBps: result.bitrateBps,
+				...result,
 				playback: decidePlayback(result),
 				probeError: null,
+				probeVersion: PROBE_VERSION,
 			});
 			probed++;
 		} catch (err) {
@@ -54,6 +54,7 @@ export async function mediaProbeHandler() {
 				fileId: f.id,
 				playback: "not_media",
 				probeError: (err as Error).message.slice(0, 300),
+				probeVersion: PROBE_VERSION,
 			});
 			logger.debug({ err, fileId: f.id, path: f.path }, "probe failed");
 		}

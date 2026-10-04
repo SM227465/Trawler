@@ -1,6 +1,9 @@
 "use client";
-import { MonitorPlay, Play } from "lucide-react";
+import { Play } from "lucide-react";
 import { useState } from "react";
+import { ExternalPlayers } from "@/components/files/ExternalPlayers";
+import type { PlaybackCheck } from "@/lib/media";
+import { useCanDecode } from "@/lib/useCanDecode";
 
 /**
  * Plays a shared file on the share page itself.
@@ -11,22 +14,32 @@ import { useState } from "react";
  * one.
  *
  * The /dl and /remux routes both authenticate by share id alone, so a plain
- * <video> element works here with no session at all.
+ * <video> element works here with no session at all — and so does VLC on the
+ * visitor's phone, which is where a file their browser cannot decode goes.
+ *
+ * The device is asked on load rather than on Play: asking fetches nothing,
+ * and a visitor whose browser cannot decode the file should see their way to
+ * watch it, not a Play button that leads to an error.
  */
 export function SharePlayer({
 	shareId,
 	name,
 	playback,
 	durationSeconds,
+	check,
 }: {
 	shareId: string;
 	name: string;
 	playback: "direct" | "remux" | "incompatible" | "not_media" | null;
 	durationSeconds: number | null;
+	check: PlaybackCheck | null;
 }) {
 	const [started, setStarted] = useState(false);
 	const [failed, setFailed] = useState(false);
 	const [startAt, setStartAt] = useState(0);
+	const decodable = useCanDecode(check, true);
+	const [tryAnyway, setTryAnyway] = useState(false);
+	const refused = decodable === "no" && !tryAnyway;
 
 	if (playback !== "direct" && playback !== "remux") return null;
 
@@ -36,26 +49,41 @@ export function SharePlayer({
 			? `/remux/${shareId}/${encodeURIComponent(name.replace(/\.[^.]+$/, ""))}.mp4${startAt > 0 ? `?t=${startAt}` : ""}`
 			: `/dl/${shareId}/${encoded}`;
 
+	if (failed || refused) {
+		return (
+			<div className="mt-5">
+				<ExternalPlayers
+					url={`${window.location.origin}/dl/${shareId}/${encoded}`}
+					name={name}
+					reason={
+						refused
+							? `This device cannot decode ${check?.label ?? "this"} video in the browser`
+							: "This one will not play in the browser"
+					}
+					onTryAnyway={
+						refused
+							? () => {
+									setTryAnyway(true);
+									setStarted(true);
+								}
+							: undefined
+					}
+				/>
+			</div>
+		);
+	}
+
 	if (!started) {
 		return (
 			<button
 				type="button"
 				onClick={() => setStarted(true)}
+				disabled={decodable === "checking"}
 				className="mt-5 flex w-full cursor-pointer items-center justify-center gap-2 rounded-[var(--ct-radius-sm)] border border-border bg-surface-inset py-3 text-sm text-fg transition-colors hover:border-accent hover:text-accent"
 			>
 				<Play className="size-4" aria-hidden />
 				Play here
 			</button>
-		);
-	}
-
-	if (failed) {
-		return (
-			<div className="mt-5 rounded-[var(--ct-radius-sm)] border border-border bg-surface-inset p-4 text-center">
-				<MonitorPlay className="mx-auto size-6 text-fg-subtle" aria-hidden />
-				<p className="mt-2 text-sm text-fg">This one will not play in the browser.</p>
-				<p className="mt-1 text-xs text-fg-muted">Download it instead, or open the link in VLC.</p>
-			</div>
 		);
 	}
 

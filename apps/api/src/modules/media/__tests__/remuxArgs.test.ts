@@ -7,6 +7,12 @@ import { buildArgs } from "../remuxService";
  * turns a rewrap into a re-encode this box cannot afford.
  */
 describe("buildArgs", () => {
+	it("retags HEVC as hvc1, the only tag Safari plays, and leaves other video alone", () => {
+		const hevc = buildArgs({ absPath: "/downloads/a.mkv", audioCodec: "aac", videoCodec: "hevc" });
+		expect(hevc[hevc.indexOf("-tag:v") + 1]).toBe("hvc1");
+		expect(buildArgs({ absPath: "/downloads/a.mkv", audioCodec: "aac", videoCodec: "h264" })).not.toContain("-tag:v");
+	});
+
 	it("never re-encodes video", () => {
 		const args = buildArgs({ absPath: "/downloads/a.mkv", audioCodec: "aac" });
 		expect(args).toContain("-c:v");

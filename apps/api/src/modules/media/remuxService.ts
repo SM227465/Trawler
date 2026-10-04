@@ -36,6 +36,8 @@ export interface RemuxOptions {
 	startSeconds?: number;
 	/** Re-encode audio only when the source codec is one MP4 cannot carry. */
 	audioCodec: string | null;
+	/** From the probe; null when the file was never probed. */
+	videoCodec?: string | null;
 }
 
 const MP4_SAFE_AUDIO = new Set(["aac", "mp3"]);
@@ -55,6 +57,10 @@ export function buildArgs(opts: RemuxOptions): string[] {
 
 	// Video is never touched.
 	args.push("-c:v", "copy");
+	// The same HEVC bytes, labelled the way Apple requires. Safari refuses
+	// `hev1`, the tag ffmpeg and most encoders write; every other HEVC decoder
+	// accepts `hvc1` too.
+	if (opts.videoCodec === "hevc") args.push("-tag:v", "hvc1");
 
 	// Audio only if the source cannot live in an MP4.
 	if (opts.audioCodec && MP4_SAFE_AUDIO.has(opts.audioCodec)) {

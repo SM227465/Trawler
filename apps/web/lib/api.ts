@@ -1,4 +1,5 @@
 import type { components } from "./api-schema";
+import type { PlaybackCheck } from "./media";
 
 /** Domain types come from the OpenAPI spec the API generates from its zod
  *  schemas — never hand-written. Regenerate with `pnpm gen:api`. */
@@ -107,6 +108,8 @@ export interface BrowseEntry {
 	/** ffprobe's verdict. Absent means not probed yet — fall back to the guess. */
 	playback?: "direct" | "remux" | "incompatible" | "not_media";
 	durationSeconds?: number | null;
+	/** What to ask the device before playing. Present only alongside a playable verdict. */
+	playbackCheck?: PlaybackCheck | null;
 }
 
 export interface BrowseListing {
@@ -305,6 +308,8 @@ export interface TorrentFile {
 	/** ffprobe's verdict, once the file is complete and probed. Absent means not yet. */
 	playback?: "direct" | "remux" | "incompatible" | "not_media";
 	durationSeconds?: number | null;
+	/** What to ask the device before playing. Present only alongside a playable verdict. */
+	playbackCheck?: PlaybackCheck | null;
 }
 
 const BASE = "/api/v1";

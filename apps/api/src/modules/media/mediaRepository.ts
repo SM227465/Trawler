@@ -1,6 +1,7 @@
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { mediaProbes, torrentFiles, torrents } from "@/db/schema";
+import { PROBE_VERSION } from "./ffprobe";
 
 export const mediaRepository = {
 	byFileId(fileId: string) {
@@ -8,7 +9,8 @@ export const mediaRepository = {
 	},
 
 	/**
-	 * Completed files that have never been probed.
+	 * Completed files that have never been probed, or were probed before
+	 * PROBE_VERSION and lack what a newer probe records.
 	 *
 	 * Only complete ones: probing a half-written file reads whatever headers
 	 * happen to be there and caches a wrong answer, and the row is keyed by file
@@ -21,8 +23,10 @@ export const mediaRepository = {
 			JOIN torrents t ON t.id = f.torrent_id
 			LEFT JOIN media_probes p ON p.file_id = f.id
 			WHERE f.is_complete = true
-			  AND p.file_id IS NULL
-			ORDER BY f.size_bytes DESC
+			  AND (p.file_id IS NULL OR p.probe_version < ${PROBE_VERSION})
+			-- Never-probed first: a fresh download must not wait behind a backlog
+			-- of re-probes for files that already play.
+			ORDER BY p.file_id IS NOT NULL, f.size_bytes DESC
 			LIMIT ${limit}
 		`);
 		return rows;

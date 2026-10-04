@@ -3,6 +3,7 @@ import { ServiceResponse } from "@/common/models/serviceResponse";
 import { logger } from "@/common/utils/logger";
 import { QbittorrentError, qbt } from "@/integrations/qbittorrent/client";
 import { mediaRepository } from "@/modules/media/mediaRepository";
+import { playbackCheck } from "@/modules/media/playback";
 import { qbtPoller } from "@/realtime/qbtPoller";
 import { parseTorrentFile } from "./torrentBencode";
 import { torrentRepository } from "./torrentRepository";
@@ -208,7 +209,14 @@ export class TorrentService {
 			"OK",
 			files.map((f) => {
 				const probe = probes.get(f.id);
-				return probe ? { ...f, playback: probe.playback, durationSeconds: probe.durationSeconds } : f;
+				return probe
+					? {
+							...f,
+							playback: probe.playback,
+							durationSeconds: probe.durationSeconds,
+							playbackCheck: playbackCheck(probe),
+						}
+					: f;
 			}),
 		);
 	}

@@ -57,6 +57,13 @@
 			"when": 1790400901148,
 			"tag": "0007_selected_bytes",
 			"breakpoints": true
+		},
+		{
+			"idx": 8,
+			"version": "7",
+			"when": 1791117649124,
+			"tag": "0008_probe_codec_details",
+			"breakpoints": true
 		}
 	]
 }

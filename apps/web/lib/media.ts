@@ -57,6 +57,47 @@ export type MediaKind = "video" | "audio" | "image" | "text" | "pdf" | "other";
 /** ffprobe's verdict, where one exists. */
 export type Playback = "direct" | "remux" | "incompatible" | "not_media";
 
+/**
+ * What to ask THIS device before playing, built by the API from the probe. A
+ * verdict of `remux` says the bytes can be made browser-shaped; only the
+ * device knows whether it can decode them — HEVC plays on an iPhone and fails
+ * on a Linux desktop from the same stream.
+ */
+export interface PlaybackCheck {
+	/** MIME type plus RFC 6381 codec: `video/mp4; codecs="hvc1.2.4.L120.B0"`. */
+	contentType: string;
+	/** For people: "HEVC 10-bit". */
+	label: string;
+	width: number;
+	height: number;
+	bitrate: number;
+	framerate: number;
+}
+
+/**
+ * True or false when the browser gives a straight answer; null when it cannot
+ * say, and the caller should simply try to play.
+ *
+ * mediaCapabilities first: unlike canPlayType it weighs resolution and frame
+ * rate too, so a phone that decodes 1080p HEVC but not 4K says no to the 4K.
+ */
+export async function canDecode(check: PlaybackCheck): Promise<boolean | null> {
+	const { contentType, width, height, bitrate, framerate } = check;
+	try {
+		if (navigator.mediaCapabilities?.decodingInfo) {
+			const info = await navigator.mediaCapabilities.decodingInfo({
+				type: "file",
+				video: { contentType, width, height, bitrate, framerate },
+			});
+			return info.supported;
+		}
+	} catch {
+		// A codec string this browser cannot parse. The older API may still know.
+	}
+	const answer = document.createElement("video").canPlayType(contentType);
+	return answer === "probably" ? true : answer === "" ? false : null;
+}
+
 export interface MediaInfo {
 	kind: MediaKind;
 	/** The browser can show this in place — a player for media, a reader for a document. */

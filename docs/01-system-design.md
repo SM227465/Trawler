@@ -309,10 +309,18 @@ On completion, one `ffprobe` per media file, result cached in `media_probes`.
 |---|---|---|---|
 | MP4 · H.264 · AAC | probe | serve directly via `/dl/` | zero |
 | MKV · H.264 · AC3/DTS | probe | `ffmpeg -c:v copy -c:a aac -f mp4` piped to response | ~5% of one core |
-| HEVC / H.265, anything exotic | probe | do **not** transcode — show "Open in VLC" + copyable URL | zero |
+| HEVC / H.265 | probe + device check | `-c:v copy -tag:v hvc1` rewrap; plays wherever the device has an HEVC decoder (Apple, most Windows/Android), else the external-player panel | same as remux |
+| XviD, MPEG-2, VC-1, anything exotic | probe | do **not** transcode — external-player panel (VLC/MX Player/Infuse deep link, `.m3u`, copyable URL) | zero |
 
-The middle row is the majority of real-world files, and it is a **remux, not a
+The MKV row is the majority of real-world files, and it is a **remux, not a
 re-encode**: video copied bit-for-bit, only the audio track converted.
+
+**Whether a device can decode a codec is asked, never assumed.** The probe
+records profile, level and bit depth; the API turns them into an RFC 6381 codec
+string and the browser answers through `mediaCapabilities.decodingInfo` before a
+byte is fetched. The same HEVC file plays on an iPhone and goes to VLC on a
+Linux desktop, and 10-bit H.264 turned out to play in desktop Chrome — a rule
+table would have got both wrong.
 
 **No HEVC transcoding, ever.** The A1 is Ampere ARM with no hardware encoder.
 Software x264 on 4 Ampere cores gets roughly *one* 1080p stream at realtime with

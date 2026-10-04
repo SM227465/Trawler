@@ -35,8 +35,8 @@ export const torrentStatus = pgEnum("torrent_status", [
 
 export const playbackMode = pgEnum("playback_mode", [
 	"direct", // MP4/H.264/AAC — serve raw bytes
-	"remux", // container or audio wrong — ffmpeg -c:v copy -c:a aac
-	"incompatible", // HEVC etc. — hand off to VLC, never transcode
+	"remux", // container or audio wrong — ffmpeg -c:v copy -c:a aac (HEVC too; the device decides)
+	"incompatible", // XviD, MPEG-2, VC-1… — no browser decodes it; hand off to VLC, never transcode
 	"not_media",
 ]);
 
@@ -195,6 +195,12 @@ export const mediaProbes = pgTable("media_probes", {
 	height: integer("height"),
 	durationSeconds: real("duration_seconds"),
 	bitrateBps: bigint("bitrate_bps", { mode: "number" }),
+	videoProfile: text("video_profile"),
+	videoLevel: integer("video_level"),
+	bitDepth: smallint("bit_depth"),
+	frameRate: real("frame_rate"),
+	/** Rows below PROBE_VERSION are probed again; see ffprobe.ts. */
+	probeVersion: smallint("probe_version").notNull().default(1),
 	playback: playbackMode("playback").notNull(),
 	probedAt: timestamp("probed_at", { withTimezone: true }).notNull().defaultNow(),
 	probeError: text("probe_error"),

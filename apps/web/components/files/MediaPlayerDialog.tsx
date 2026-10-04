@@ -1,14 +1,16 @@
 "use client";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Check, Copy, Download, ExternalLink, FileWarning, LoaderCircle, MonitorPlay } from "lucide-react";
+import { Check, Copy, ExternalLink, FileWarning, LoaderCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { asAttachment } from "@/lib/attachment";
 import { cn } from "@/lib/cn";
 import { formatBytes } from "@/lib/format";
-import { type Playback, resolve } from "@/lib/media";
+import { type Playback, type PlaybackCheck, resolve } from "@/lib/media";
+import { useCanDecode } from "@/lib/useCanDecode";
 import { useCopy } from "@/lib/useCopy";
+import { ExternalPlayers } from "./ExternalPlayers";
 
 /**
  * Content that grows into a dialog the user has resized. Only while a size is
@@ -31,9 +33,10 @@ interface Link {
  * text reader uses the same Range support to read the first page of a file
  * instead of all of it.
  *
- * The container extension is only a guess, so `onError` is treated as a normal
- * outcome, not a crash: an .mp4 holding HEVC will load and then fail, and the
- * honest answer at that point is VLC.
+ * Video is checked against the device BEFORE a byte is fetched, so HEVC on a
+ * machine with no decoder goes straight to the external-player panel instead
+ * of a black box (and a spent remux slot). The check can be missing or wrong,
+ * so `onError` stays a normal outcome too, with the same panel behind it.
  */
 export function MediaPlayerDialog({
 	open,
@@ -42,6 +45,7 @@ export function MediaPlayerDialog({
 	getLink,
 	playback,
 	durationSeconds,
+	check,
 }: {
 	open: boolean;
 	onClose: () => void;
@@ -50,6 +54,8 @@ export function MediaPlayerDialog({
 	/** ffprobe's verdict. Absent means unprobed — fall back to the extension. */
 	playback?: Playback;
 	durationSeconds?: number | null;
+	/** What to ask the device before playing. Absent: just try. */
+	check?: PlaybackCheck | null;
 }) {
 	const media = resolve(name, playback);
 	const needsRemux = playback === "remux";
@@ -59,6 +65,11 @@ export function MediaPlayerDialog({
 	const { copied, copy } = useCopy();
 	const [link, setLink] = useState<Link | null>(null);
 	const [failed, setFailed] = useState(false);
+	const decodable = useCanDecode(media.kind === "video" ? check : null, open);
+	// The device said no up front, and the user wants to see for themselves.
+	const [tryAnyway, setTryAnyway] = useState(false);
+	const refused = decodable === "no" && !tryAnyway;
+	const external = failed || media.needsExternalPlayer || refused;
 
 	const load = useMutation({
 		mutationFn: getLink,
@@ -75,35 +86,14 @@ export function MediaPlayerDialog({
 		if (!open) {
 			setLink(null);
 			setFailed(false);
+			setTryAnyway(false);
 		}
 	}, [open]);
-
-	const fallback = (
-		<div className="rounded-[var(--ct-radius-sm)] border border-border bg-surface-inset p-4 text-center">
-			<MonitorPlay className="mx-auto size-7 text-fg-subtle" aria-hidden />
-			<p className="mt-2 text-sm font-medium text-fg">Your browser cannot play this one</p>
-			<p className="mt-1 text-xs text-fg-muted">
-				Usually an MKV, or HEVC video. Open the link in VLC — File → Open Network Stream — or download it.
-			</p>
-			{link && (
-				<div className="mt-3 flex flex-wrap justify-center gap-2">
-					<Button size="sm" variant="subtle" onClick={() => copy(link.url)}>
-						{copied ? <Check className="size-3.5 text-status-completed" /> : <Copy className="size-3.5" />}
-						{copied ? "Copied" : "Copy stream URL"}
-					</Button>
-					<Button size="sm" variant="subtle" onClick={() => window.open(asAttachment(link.path), "_blank", "noopener")}>
-						<Download className="size-3.5" aria-hidden />
-						Download
-					</Button>
-				</div>
-			)}
-		</div>
-	);
 
 	return (
 		<Dialog open={open} onClose={onClose} title={name} labelledBy="player-title" resizeKey="media-player">
 			<div className={cn("mt-4", FILL, "group-data-[sized]/dialog:flex group-data-[sized]/dialog:flex-col")}>
-				{load.isPending && (
+				{(load.isPending || (link && decodable === "checking")) && (
 					<div className="grid h-40 place-items-center">
 						<LoaderCircle className="size-5 animate-spin text-fg-subtle" aria-hidden />
 					</div>
@@ -111,9 +101,26 @@ export function MediaPlayerDialog({
 
 				{load.isError && <p className="text-sm text-status-errored">Could not create a playback link.</p>}
 
-				{link && (failed || media.needsExternalPlayer) && fallback}
+				{link && external && (
+					<ExternalPlayers
+						url={link.url}
+						name={name}
+						downloadHref={asAttachment(link.path)}
+						reason={
+							refused
+								? `This device cannot decode ${check?.label ?? "this"} video in the browser`
+								: media.needsExternalPlayer
+									? // Unprobed means the extension guessed; a probe would know.
+										playback
+										? "Browsers cannot play this format"
+										: "Browsers usually cannot play this format"
+									: "Your browser could not play this one"
+						}
+						onTryAnyway={refused ? () => setTryAnyway(true) : undefined}
+					/>
+				)}
 
-				{link && !failed && !media.needsExternalPlayer && (
+				{link && !external && decodable !== "checking" && (
 					<>
 						{media.kind === "video" && (
 							<>
@@ -202,7 +209,7 @@ export function MediaPlayerDialog({
 			</div>
 
 			<div className={cn("mt-4 flex flex-wrap items-center gap-2", "justify-end")}>
-				{link && !failed && !media.needsExternalPlayer && (
+				{link && !external && (
 					<Button size="sm" variant="ghost" onClick={() => copy(link.url)} title="Copy a direct stream URL">
 						{copied ? <Check className="size-3.5 text-status-completed" /> : <Copy className="size-3.5" />}
 						{copied ? "Copied" : "Copy URL"}

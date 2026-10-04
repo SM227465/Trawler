@@ -1,4 +1,5 @@
 import "server-only";
+import type { PlaybackCheck } from "./media";
 
 /**
  * SSR-side API access for the public share page.
@@ -23,6 +24,7 @@ export interface PublicShare {
 	/** ffprobe's verdict, withheld while the share is locked. */
 	playback: "direct" | "remux" | "incompatible" | "not_media" | null;
 	durationSeconds: number | null;
+	playbackCheck: PlaybackCheck | null;
 	expiresAt: string | null;
 	bytesServed: number;
 	maxBytes: number | null;

@@ -5,6 +5,7 @@ import { ServiceResponse } from "@/common/models/serviceResponse";
 import { env } from "@/common/utils/envConfig";
 import { logger } from "@/common/utils/logger";
 import { mediaRepository } from "@/modules/media/mediaRepository";
+import { type PlaybackCheck, playbackCheck } from "@/modules/media/playback";
 import { signDownloadToken } from "./downloadToken";
 import { downloadsRoot, resolveRealPath } from "./filePath";
 import { fileRepository } from "./fileRepository";
@@ -23,6 +24,8 @@ export interface BrowseEntry {
 	 */
 	playback?: "direct" | "remux" | "incompatible" | "not_media";
 	durationSeconds?: number | null;
+	/** What to ask the browser before playing; see playback.ts. */
+	playbackCheck?: PlaybackCheck | null;
 
 	/**
 	 * Set when this path is a completed file of a tracked torrent. Shares are
@@ -97,6 +100,7 @@ export class BrowseService {
 			if (probe) {
 				e.playback = probe.playback;
 				e.durationSeconds = probe.durationSeconds;
+				e.playbackCheck = playbackCheck(probe);
 			}
 		}
 

@@ -48,8 +48,8 @@ export const torrentStatus = pgEnum('torrent_status', [
 
 export const playbackMode = pgEnum('playback_mode', [
   'direct',        // MP4/H.264/AAC — serve raw bytes
-  'remux',         // container or audio wrong — ffmpeg -c:v copy -c:a aac
-  'incompatible',  // HEVC etc. — hand off to VLC, never transcode
+  'remux',         // container or audio wrong — ffmpeg -c:v copy -c:a aac (HEVC too; the device decides)
+  'incompatible',  // XviD, MPEG-2, VC-1… — no browser decodes it; hand off to VLC, never transcode
   'not_media',
 ]);
 

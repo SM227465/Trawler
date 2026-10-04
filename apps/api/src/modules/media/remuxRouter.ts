@@ -27,7 +27,7 @@ remuxRouter.get("/:token/:name", async (req: Request, res: Response) => {
 	const token = req.params.token;
 
 	let relPath: string | null = null;
-	let audioCodec: string | null = null;
+	let probe: { audioCodec: string | null; videoCodec: string | null } | undefined;
 
 	// A SHARE ID, not a signed token. /dl accepts both because Caddy's
 	// forward_auth resolves them, but this route is reached directly — so it has
@@ -41,7 +41,7 @@ remuxRouter.get("/:token/:name", async (req: Request, res: Response) => {
 		}
 		if (!found.file.isComplete) return res.status(409).end();
 		relPath = found.file.path;
-		audioCodec = (await mediaRepository.byFileId(found.file.id))?.audioCodec ?? null;
+		probe = await mediaRepository.byFileId(found.file.id);
 	} else {
 		const verified = await verifyDownloadToken(token);
 		if (!verified.ok) {
@@ -54,9 +54,14 @@ remuxRouter.get("/:token/:name", async (req: Request, res: Response) => {
 			const row = await fileRepository.findWithTorrent(claims.fileId);
 			if (!row) return res.status(404).end();
 			relPath = row.file.path;
-			audioCodec = (await mediaRepository.byFileId(claims.fileId))?.audioCodec ?? null;
+			probe = await mediaRepository.byFileId(claims.fileId);
 		} else if (claims.filePath) {
 			relPath = claims.filePath;
+			// The file browser's links name a path, not a file id. Without the
+			// probe behind it, HEVC went out unretagged (and Safari refused it)
+			// and audio was re-encoded whether it needed it or not.
+			const fileId = (await fileRepository.idsByPaths([claims.filePath])).get(claims.filePath);
+			if (fileId) probe = await mediaRepository.byFileId(fileId);
 		}
 	}
 
@@ -72,6 +77,7 @@ remuxRouter.get("/:token/:name", async (req: Request, res: Response) => {
 	await streamRemux(res, {
 		absPath: resolved.absPath,
 		startSeconds: Number.isFinite(t) && t > 0 ? t : undefined,
-		audioCodec,
+		audioCodec: probe?.audioCodec ?? null,
+		videoCodec: probe?.videoCodec ?? null,
 	});
 });

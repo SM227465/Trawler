@@ -143,6 +143,7 @@ export default async function SharePage({ params }: Params) {
 					name={share.name}
 					playback={share.playback}
 					durationSeconds={share.durationSeconds}
+					check={share.playbackCheck}
 				/>
 			) : null}
 

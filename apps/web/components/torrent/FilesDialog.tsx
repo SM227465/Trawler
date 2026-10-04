@@ -130,6 +130,7 @@ function FileRow({ file }: { file: TorrentFile }) {
 				name={basename(file.path)}
 				playback={file.playback}
 				durationSeconds={file.durationSeconds}
+				check={file.playbackCheck}
 				getLink={async () => {
 					const l = shown ?? (await link.mutateAsync());
 					setShown(l);

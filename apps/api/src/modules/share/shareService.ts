@@ -8,6 +8,7 @@ import { appSettings } from "@/db/schema";
 import { hashPassword, verifyPassword } from "@/modules/auth/authService";
 import { fileRepository } from "@/modules/file/fileRepository";
 import { mediaRepository } from "@/modules/media/mediaRepository";
+import { playbackCheck } from "@/modules/media/playback";
 import { torrentRepository } from "@/modules/torrent/torrentRepository";
 import { newShareId } from "./shareId";
 import { shareRepository } from "./shareRepository";
@@ -171,6 +172,7 @@ export class ShareService {
 			// still information about it.
 			playback: locked ? null : (probe?.playback ?? null),
 			durationSeconds: locked ? null : (probe?.durationSeconds ?? null),
+			playbackCheck: locked || !probe ? null : playbackCheck(probe),
 			expiresAt: share.expiresAt?.toISOString() ?? null,
 			bytesServed: share.bytesServed,
 			maxBytes: share.maxBytes,

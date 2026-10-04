@@ -360,6 +360,7 @@ function Row({
 					name={entry.name}
 					playback={entry.playback}
 					durationSeconds={entry.durationSeconds}
+					check={entry.playbackCheck}
 					getLink={() => api.browseLink(entry.path)}
 				/>
 			)}

@@ -381,7 +381,8 @@ update live, or columns jitter at 1 Hz.
    we chose Next over a Vite SPA.
 3. **`X-Robots-Tag: noindex`**, no public index, no sitemap entry.
 4. Must render usefully on mobile-4G — the one route friends load on a phone.
-5. Show "Open in VLC" whenever `playback = 'incompatible'`. Never a dead player.
+5. Show the external-player panel whenever `playback = 'incompatible'` or the
+   device's decode check says no. Never a dead player.
 
 ## B8. Performance budgets
 

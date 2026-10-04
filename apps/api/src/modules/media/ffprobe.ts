@@ -4,6 +4,15 @@ import { logger } from "@/common/utils/logger";
 
 const run = promisify(execFile);
 
+/**
+ * Bumped whenever ProbeResult gains a field worth having for files probed
+ * before it existed. Older rows are probed again, a batch at a time.
+ *
+ * 2: profile, level, bit depth and frame rate — what the browser needs to be
+ *    asked whether THIS device can decode the video.
+ */
+export const PROBE_VERSION = 2;
+
 export interface ProbeResult {
 	container: string | null;
 	videoCodec: string | null;
@@ -12,6 +21,12 @@ export interface ProbeResult {
 	height: number | null;
 	durationSeconds: number | null;
 	bitrateBps: number | null;
+	/** ffprobe's name for it: "High", "High 10", "Main 10", "Profile 0". */
+	videoProfile: string | null;
+	/** In the codec's own units: 31 for H.264 3.1, 120 for HEVC 4.0. */
+	videoLevel: number | null;
+	bitDepth: number | null;
+	frameRate: number | null;
 }
 
 interface FfStream {
@@ -19,6 +34,11 @@ interface FfStream {
 	codec_name?: string;
 	width?: number;
 	height?: number;
+	profile?: string;
+	level?: number;
+	pix_fmt?: string;
+	avg_frame_rate?: string;
+	r_frame_rate?: string;
 }
 
 interface FfFormat {
@@ -57,7 +77,11 @@ export async function probeFile(absPath: string, timeoutMs = 20_000): Promise<Pr
 		],
 		{ timeout: timeoutMs, maxBuffer: 4 * 1024 * 1024 },
 	);
+	return parseProbe(stdout);
+}
 
+/** ffprobe's JSON, reduced to what playback decisions need. */
+export function parseProbe(stdout: string): ProbeResult {
 	const parsed = JSON.parse(stdout) as { streams?: FfStream[]; format?: FfFormat };
 	const streams = parsed.streams ?? [];
 	const video = streams.find((s) => s.codec_type === "video");
@@ -76,8 +100,26 @@ export async function probeFile(absPath: string, timeoutMs = 20_000): Promise<Pr
 		height: video?.height ?? null,
 		durationSeconds: num(parsed.format?.duration),
 		bitrateBps: num(parsed.format?.bit_rate),
+		videoProfile: video?.profile ?? null,
+		// VP9 reports -99 when the stream does not say.
+		videoLevel: video?.level !== undefined && video.level > 0 ? video.level : null,
+		bitDepth: bitDepthOf(video?.pix_fmt),
+		frameRate: rateOf(video?.avg_frame_rate) ?? rateOf(video?.r_frame_rate),
 	};
 }
+
+/** "yuv420p10le" → 10. A pixel format with no depth suffix is 8-bit. */
+const bitDepthOf = (pixFmt: string | undefined) => {
+	if (!pixFmt) return null;
+	const m = pixFmt.match(/p(\d+)(?:le|be)$/);
+	return m ? Number(m[1]) : 8;
+};
+
+/** "24000/1001" → 23.976. ffprobe writes "0/0" when it does not know. */
+const rateOf = (fraction: string | undefined) => {
+	const [n, d] = (fraction ?? "").split("/").map(Number);
+	return n > 0 && d > 0 ? n / d : null;
+};
 
 /** True when ffprobe/ffmpeg are actually present, so features can hide rather than fail. */
 export async function ffmpegAvailable(): Promise<boolean> {
