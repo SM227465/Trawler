@@ -34,7 +34,7 @@ import { UploadToRemote } from "@/components/files/UploadToRemote";
 import { CreateShareDialog } from "@/components/share/CreateShareDialog";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useToast } from "@/components/ui/Toast";
-import { api, type BrowseEntry, type Upload } from "@/lib/api";
+import { api, type BrowseEntry, browseThumbUrl, type Upload } from "@/lib/api";
 import { asAttachment } from "@/lib/attachment";
 import { cn } from "@/lib/cn";
 import { DEFAULT_DIR, FILE_SORT_LABELS, type FileSortKey, type SortDir, sortEntries, typeLabel } from "@/lib/fileSort";
@@ -42,6 +42,7 @@ import { formatBytes, formatClock, formatSince } from "@/lib/format";
 import { classify, isDocument, resolve } from "@/lib/media";
 import { useCopy } from "@/lib/useCopy";
 import { latestByPath, useUploads } from "@/lib/useUploads";
+import { GalleryViewer } from "./GalleryViewer";
 import { MediaPlayerDialog } from "./MediaPlayerDialog";
 
 const VIDEO = /\.(mp4|mkv|avi|mov|webm|m4v|ts|flv|wmv)$/i;
@@ -67,13 +68,8 @@ const ICON_BASE =
 	"grid cursor-pointer place-items-center rounded-[var(--ct-radius-sm)] transition-colors disabled:pointer-events-none disabled:opacity-50";
 const ICON_BUTTON = cn(ICON_BASE, "size-7 text-fg-subtle hover:bg-surface-inset hover:text-accent");
 
-/**
- * The thumbnail route, authenticated by the access cookie like any GET. The
- * mtime in the URL is what lets the browser keep it for a week: a changed
- * file is a different URL.
- */
-const thumbUrl = (entry: BrowseEntry) =>
-	`/api/v1/files/browse/thumb?path=${encodeURIComponent(entry.path)}&v=${Date.parse(entry.modifiedAt)}`;
+/** Opens in the gallery rather than the player. Formats the browser shows natively. */
+const isPhoto = (e: BrowseEntry) => e.type === "file" && classify(e.name).kind === "image";
 
 type ViewMode = "list" | "grid";
 const VIEW_KEY = "ct-files-view";
@@ -210,8 +206,12 @@ function TransferBadge({ upload, compact = false }: { upload?: Upload; compact?:
 	);
 }
 
-/** Everything one file or folder can do, shared by its list row and its grid tile. */
-function useEntry(entry: BrowseEntry, onDeleted: () => void) {
+/**
+ * Everything one file or folder can do, shared by its list row and its grid
+ * tile. `onView` replaces the player for files viewed somewhere else — photos,
+ * which open in the folder's gallery.
+ */
+function useEntry(entry: BrowseEntry, onDeleted: () => void, onView?: () => void) {
 	const isDir = entry.type === "dir";
 	const { copied, copy } = useCopy();
 	const [hint, setHint] = useState<string | null>(null);
@@ -262,8 +262,9 @@ function useEntry(entry: BrowseEntry, onDeleted: () => void) {
 		remove,
 		copyLink,
 		busy: download.isPending || copyLink.isPending,
-		/** Has a player or reader behind it. */
+		/** Has a player, reader or gallery behind it. */
 		canOpen: !isDir && (media.viewable || media.needsExternalPlayer),
+		open: () => (onView ? onView() : setPlaying(true)),
 	};
 }
 
@@ -275,7 +276,7 @@ function EntryActions({ entry, x, className }: { entry: BrowseEntry; x: EntrySta
 			{x.canOpen && (
 				<button
 					type="button"
-					onClick={() => x.setPlaying(true)}
+					onClick={x.open}
 					aria-label={`${isDocument(x.media.kind) ? "View" : "Play"} ${entry.name}`}
 					title={
 						isDocument(x.media.kind) ? "Read it here" : x.media.needsExternalPlayer ? "Preview (may need VLC)" : "Play"
@@ -417,10 +418,12 @@ interface EntryProps {
 	upload?: Upload;
 	onOpen: (p: string) => void;
 	onDeleted: () => void;
+	/** Set for photos: they open in the folder's gallery instead of the player. */
+	onView?: () => void;
 }
 
-function Row({ entry, upload, onOpen, onDeleted }: EntryProps) {
-	const x = useEntry(entry, onDeleted);
+function Row({ entry, upload, onOpen, onDeleted, onView }: EntryProps) {
+	const x = useEntry(entry, onDeleted, onView);
 	const Icon = iconFor(entry);
 
 	return (
@@ -431,7 +434,7 @@ function Row({ entry, upload, onOpen, onDeleted }: EntryProps) {
 				{x.isDir || x.canOpen ? (
 					<button
 						type="button"
-						onClick={() => (x.isDir ? onOpen(entry.path) : x.setPlaying(true))}
+						onClick={() => (x.isDir ? onOpen(entry.path) : x.open())}
 						className={cn(
 							"min-w-0 flex-1 cursor-pointer truncate text-left text-sm hover:underline",
 							x.isDir ? "text-fg" : "text-fg-muted hover:text-fg",
@@ -516,8 +519,8 @@ function ListHeader({ sort, dir, onSort }: { sort: FileSortKey; dir: SortDir; on
  * a folder opens, a file plays or reads. Anything else opens its actions,
  * because a click that silently starts a 20 GB download is not an open.
  */
-function Tile({ entry, upload, onOpen, onDeleted }: EntryProps) {
-	const x = useEntry(entry, onDeleted);
+function Tile({ entry, upload, onOpen, onDeleted, onView }: EntryProps) {
+	const x = useEntry(entry, onDeleted, onView);
 	const toast = useToast();
 	const Icon = iconFor(entry);
 	const [menu, setMenu] = useState(false);
@@ -532,7 +535,7 @@ function Tile({ entry, upload, onOpen, onDeleted }: EntryProps) {
 
 	const activate = () => {
 		if (x.isDir) onOpen(entry.path);
-		else if (x.canOpen) x.setPlaying(true);
+		else if (x.canOpen) x.open();
 		else setMenu(true);
 	};
 
@@ -557,7 +560,7 @@ function Tile({ entry, upload, onOpen, onDeleted }: EntryProps) {
 					{entry.thumbnail && thumb !== "failed" && (
 						// biome-ignore lint/performance/noImgElement: a cookie-authenticated API route, which next/image cannot fetch
 						<img
-							src={thumbUrl(entry)}
+							src={browseThumbUrl(entry)}
 							alt=""
 							loading="lazy"
 							decoding="async"
@@ -715,6 +718,11 @@ export function FileBrowser({
 	// keeps a re-sort instant.
 	const entries = useMemo(() => (data ? sortEntries(data.entries, sort, dir) : []), [data, sort, dir]);
 
+	// The folder's photos, in the order on screen: what the gallery steps through.
+	const photos = useMemo(() => entries.filter(isPhoto), [entries]);
+	// Tied to the folder it was opened in, so navigating away closes it.
+	const [gallery, setGallery] = useState<{ folder: string; path: string } | null>(null);
+
 	// A header clicked again reverses; a new one starts in its natural direction.
 	const sortBy = (key: FileSortKey) => onSort(key, key === sort ? (dir === "asc" ? "desc" : "asc") : DEFAULT_DIR[key]);
 
@@ -723,6 +731,7 @@ export function FileBrowser({
 		upload: transfers.get(e.path),
 		onOpen: onNavigate,
 		onDeleted: () => refetch(),
+		onView: isPhoto(e) ? () => setGallery({ folder: path, path: e.path }) : undefined,
 	});
 
 	return (
@@ -790,6 +799,10 @@ export function FileBrowser({
 						<Tile key={e.path} {...props(e)} />
 					))}
 				</ul>
+			)}
+
+			{gallery && gallery.folder === path && (
+				<GalleryViewer items={photos} startPath={gallery.path} onClose={() => setGallery(null)} />
 			)}
 		</section>
 	);

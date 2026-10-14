@@ -51,7 +51,9 @@ function useLinkNavigation(): boolean {
  */
 export function TopLoader() {
 	const navigating = useLinkNavigation();
-	const firstLoads = useIsFetching({ predicate: (q) => q.state.data === undefined });
+	// `meta.background` marks a prefetch — the gallery loading the NEXT photo
+	// while you look at this one. Nobody is waiting on it.
+	const firstLoads = useIsFetching({ predicate: (q) => q.state.data === undefined && !q.meta?.background });
 	const active = navigating || firstLoads > 0;
 
 	const [phase, setPhase] = useState<Phase>("idle");

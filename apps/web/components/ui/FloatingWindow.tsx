@@ -1,6 +1,7 @@
 "use client";
 import { Maximize2, Minimize2, X } from "lucide-react";
 import {
+	type KeyboardEvent as ReactKeyboardEvent,
 	type MouseEvent as ReactMouseEvent,
 	type ReactNode,
 	type PointerEvent as ReactPointerEvent,
@@ -135,6 +136,14 @@ interface Props {
 	storageKey: string;
 	/** The first-ever size, before the user has chosen one. */
 	defaultSize: { w: number; h: number };
+	/** Content runs edge to edge and manages its own scrolling, like an image viewer's stage. */
+	flush?: boolean;
+	/**
+	 * Keys pressed anywhere in the window. Focus sits on the window itself, so
+	 * this is where content hears them. Runs first; preventDefault() keeps
+	 * Escape from closing the window.
+	 */
+	onKeyDown?: (e: ReactKeyboardEvent<HTMLDivElement>) => void;
 	children: ReactNode;
 }
 
@@ -154,7 +163,7 @@ export function FloatingWindow(props: Props) {
 	return createPortal(<Window {...props} />, document.body);
 }
 
-function Window({ onClose, title, storageKey: key, defaultSize, children }: Omit<Props, "open">) {
+function Window({ onClose, title, storageKey: key, defaultSize, flush, onKeyDown, children }: Omit<Props, "open">) {
 	const titleId = useId();
 	const ref = useRef<HTMLDivElement>(null);
 	const compact = useCompact();
@@ -250,7 +259,8 @@ function Window({ onClose, title, storageKey: key, defaultSize, children }: Omit
 			tabIndex={-1}
 			onPointerDownCapture={raise}
 			onKeyDown={(e) => {
-				if (e.key === "Escape") {
+				onKeyDown?.(e);
+				if (e.key === "Escape" && !e.defaultPrevented) {
 					e.stopPropagation();
 					onClose();
 				}
@@ -305,7 +315,13 @@ function Window({ onClose, title, storageKey: key, defaultSize, children }: Omit
 
 			{/* While dragging, the content ignores the pointer: an iframe (the PDF
 			    reader) would otherwise swallow the moves and strand the gesture. */}
-			<div className={cn("flex min-h-0 flex-1 flex-col overflow-auto p-4", interacting && "pointer-events-none")}>
+			<div
+				className={cn(
+					"flex min-h-0 flex-1 flex-col",
+					flush ? "overflow-hidden" : "overflow-auto p-4",
+					interacting && "pointer-events-none",
+				)}
+			>
 				{children}
 			</div>
 

@@ -114,6 +114,14 @@ export interface BrowseEntry {
 	thumbnail?: boolean;
 }
 
+/**
+ * A browsed file's grid thumbnail. Authenticated by the access cookie like any
+ * GET, so a plain <img> can load it. The mtime in the URL is what lets the
+ * browser keep it for a week: a changed file is a different URL.
+ */
+export const browseThumbUrl = (entry: Pick<BrowseEntry, "path" | "modifiedAt">) =>
+	`/api/v1/files/browse/thumb?path=${encodeURIComponent(entry.path)}&v=${Date.parse(entry.modifiedAt)}`;
+
 export interface BrowseListing {
 	path: string;
 	parent: string | null;
